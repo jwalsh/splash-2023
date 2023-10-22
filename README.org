@@ -82,13 +82,6 @@ Summarize the following article in org-mode format using the title of the articl
 #+end_src
 
 #+RESULTS:
-The article does not contain enough specific information for a detailed summary. However, here's a general format for how the summary might look using the available information:
-
-*** Note: The URL provided seems to not have a published article yet. Providing a URL to an actual article or content would be much appreciated. 
-
-*Evaluating YJIT's Performance in a Production Context: A Pragmatic Approach*
-
-** A pseudo-summary ** 
 
 *** Information ***
 :PROPERTIES:
@@ -97,30 +90,28 @@ The article does not contain enough specific information for a detailed summary.
 :Published: (Publish date not provided in the question)
 :END:
 
-*** Abstract ***
+*** Abstract
 - Brief overview and objective of the paper or research. 
 
-*** Introduction ***
+*** Introduction
 - More in-depth information about the setup or context of the study or research. 
 
-*** Methodology ***
+*** Methodology
 - Description of how the research was conducted or how the study was performed. 
 
-*** Results ***
+*** Results
 - Summary of the findings or outcomes from the research or study. 
 
-*** Conclusion ***
+*** Conclusion
 - Final thoughts, implications of the results, and potential for future research or study.
 
-*** References ***
+*** References
 - List of sources cited or used in the paper (if any). 
 
 *Code or Simulation Examples*
 This placeholder section could house potential code, model, or simulation examples pertaining to the content of the paper. However, without access to the actual content, it is impossible to generate a relevant example in Clojure or any other language. 
 
 The actual content of each section would vary greatly depending on the specifics of the paper. 
-
-*** Note: The format and details of the summary may need to be updated once the actual article is available. All details here are placeholders and may not accurately represent the content of the published paper. ***
 
 ** Exploratory Study on Multi-User Program Synthesis: A Multi-Wizard Approach
 
