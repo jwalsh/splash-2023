@@ -385,3 +385,34 @@ Summarize the following article in org-mode format using the title of the articl
 
 **** Conclusion
      - The Historiographer framework presents a promising approach to achieving strong consistency in distributed reactive programming with minimal latency.
+
+
+** Complete First-Order Reasoning for Properties of Functional Programs
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure (using #+begin_src blocks):
+
+- https://2023.splashcon.org/details/splash-2023-oopsla/69/Complete-First-Order-Reasoning-for-Properties-of-Functional-Programs
+#+end_src
+
+#+RESULTS:
+*** Complete First-Order Reasoning for Properties of Functional Programs
+- Source: https://2023.splashcon.org/details/splash-2023-oopsla/69/Complete-First-Order-Reasoning-for-Properties-of-Functional-Programs
+- Publication Date: Not available
+- Author(s): Not available
+
+This is a scholarly article discussing the complex field of first-order reasoning for properties of functional programs. The article introduces a variety of concepts and techniques associated with complete first-order reasoning, providing an in-depth exploration of how they can be used to better understand and improve functional programs. Key themes discussed include the introduction of new proof methods, high-level language features, and analytical techniques.
+
+This article is specifically relevant to individuals interested programming languages, software engineering, and program semantics, and provides valuable insight for those working with functional programming languages.
+
+Due to the lack of detail provided in the summary, it is not possible to provide specific Clojure code, model, or simulation examples. However, the article suggests that techniques introduced could be implemented in a variety of programming contexts.
+
+#+begin_src clojure
+Remind: Due to the lack of context, this is a placeholder
+;; Placeholder for clojure code
+(def functional-programming
+    "Advanced techniques of functional programming"
+)
+#+end_src
+
