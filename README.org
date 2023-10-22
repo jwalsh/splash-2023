@@ -59,7 +59,7 @@ Summarize the following article in org-mode format using the title of the articl
 **** Potential Code Example
 It's not directly mentioned in the article, but readers might want to explore using Kapt, the Kotlin annotation processing tool, to further understand annotation-based code transformations. A potential simulation in Kotlin could illustrate how annotations can be utilized to modify code behavior:
 
-```kotlin
+#+begin_src kotlin
 // Example of user-defined annotation
 annotation class MyAnnotation(val info: String)
 
@@ -69,7 +69,8 @@ fun annotatedFunction() {
     println("This is an example function")
 }
 
-```
+#+end_src
+
 Since the Clojure language doesn't directly support annotations, it's not straightforward to present a similar example in that language. Instead, readers might want to explore Clojure metadata, a similar feature which can be used to attach extra information to various Clojure constructs.
 
 ** Evaluating YJIT’s Performance in a Production Context: A Pragmatic Approach
@@ -289,7 +290,7 @@ The paper introduces Thorium, a novel dynamic software platform aimed towards le
 
 Clojure does not have a strong typing system but uses a dynamic typing approach. The following code snippet shows how one might define a model in Clojure. It is an illustrative rather than a strict equivalent of Thorium's models.
 
-```clojure
+#+begin_src clojure
 ;; An example model definition in Clojure.
 
 (defn create-model [name props]
@@ -304,7 +305,8 @@ Clojure does not have a strong typing system but uses a dynamic typing approach.
       (add-property {:name "First Name", :type String, :required true})
       (add-property {:name "Last Name", :type String, :required true})
       (add-property {:name "Age", :type Number, :required false})))
-```
+#+end_src
+
 This code creates a "person" model with three properties: first name, last name, and age. Note that this does not perform validation like a typed system would and serves as an illustrative example only. A more advanced system would need a verification or validation steps.
 
 ** Building Trust and Safety in Artificial Intelligence with Abstract Interpretation
@@ -334,13 +336,13 @@ Summarize the following article in org-mode format using the title of the articl
 
 - The article doesn't suggest specific computational models or simulations for implementation. However, we can design a basic Clojure program to illustrate abstract interpretation.
 
-```clojure
+#+begin_src clojure
 (defn abstract-interp [a-system]
   (if (safe? a-system)
     (execute   a-system)
     (fix-error a-system)
     (abstract-interp a-system)))
-```
+#+end_src
 
 In this simple Clojure function, recursive analysis of a system (which could be an AI) is performed. If the system is deemed safe, it is executed. If not, the error is fixed, and the system is analyzed again. This abstractly symbolizes the concept of Abstract Interpretation. 
 
