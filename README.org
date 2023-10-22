@@ -1,1 +1,59 @@
 * SPLASH 2023
+
+** Is Wasm Becoming Garbage? (Keynote)
+
+** Exploratory Study on Multi-User Program Synthesis: A Multi-Wizard Approach
+
+** Beyond Types for Dyadic Interaction
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure:
+
+- https://2023.splashcon.org/details/st-anniversary-30-papers/20/Beyond-Types-for-Dyadic-Interaction
+- https://conf.researchr.org/profile/conf/nobukoyoshida1
+
+Create a syllabus for a six week course that expands on these topics. 
+#+end_src
+
+#+RESULTS:
+*** Beyond Types for Dyadic Interaction
+- URL: https://2023.splashcon.org/details/st-anniversary-30-papers/20/Beyond-Types-for-Dyadic-Interaction
+- Published: Unknown
+- Authors: Nobuko Yoshida and others
+
+**** Main Points
+- The authors argue that, although types have been used to define protocols for function calls and operations in concurrent, distributed, and mobile systems, they may not be sufficient for dyadic interaction.
+- They propose a new way to handle this dyadic interaction that uses session types, which extend traditional types with a notion of protocols.
+- They showcase this proposal with several examples like digit recognition, auction systems, and hotel reservation client/server protocol.
+
+**** Code Example
+- No Clojure code, models, or simulation examples are provided in the original article, but a possible demonstration of session types might look like a mock interaction between clients and servers in a concurrent system.
+
+*** Six-Week Course Syllabus: Beyond Types for Dyadic Interaction
+
+- Week 1: Introduction to Types: Benefits and Limitations
+-- Theorize about types and how they define protocols for function calls and operations in concurrent, distributed, and mobile systems.
+-- Discuss inherent limitations in traditional type systems.
+
+- Week 2: Detailed Study: Dyadic Interactions in Distributed Systems
+-- Study and analyze how traditional types are not sufficient for dyadic interaction which involves two sides or parties.
+
+- Week 3: Exploration: Session Types and Their Advantages
+-- Explore session types, understand how they extend traditional types with a notion of protocol.
+-- Discuss how session types can be a useful tool for defining, describing, and enforcing protocol restrictions in dyadic interactions.
+
+- Week 4: Case Study: Digit Recognition, Auction Systems
+-- Analyze the utilization of session types in real world examples like digit recognition and auction system.
+-- Discuss the benefits and challenges in implementing these systems.
+
+- Week 5: Case Study: Hotel Reservation Client/Server Protocol
+-- Further explore the application of session types in complex systems like hotel reservation client/server protocol.
+-- Discuss measures to overcome the challenges noted in the previous week.
+
+- Week 6: Future Directions: Type Systems and Concurrent Protocols
+-- Discuss current research trends in type system design for concurrent protocols.
+-- Debate about the future of session types and potential approaches for their continued development and application.
+
+(Note: This syllabus is a speculative outline based on the concepts covered in the article, and can be further refined based on specific course needs and objectives.)
+
+
