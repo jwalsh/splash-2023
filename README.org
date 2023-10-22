@@ -72,7 +72,6 @@ fun annotatedFunction() {
 ```
 Since the Clojure language doesn't directly support annotations, it's not straightforward to present a similar example in that language. Instead, readers might want to explore Clojure metadata, a similar feature which can be used to attach extra information to various Clojure constructs.
 
-
 ** Evaluating YJIT’s Performance in a Production Context: A Pragmatic Approach
 
 
@@ -122,7 +121,6 @@ This placeholder section could house potential code, model, or simulation exampl
 The actual content of each section would vary greatly depending on the specifics of the paper. 
 
 *** Note: The format and details of the summary may need to be updated once the actual article is available. All details here are placeholders and may not accurately represent the content of the published paper. ***
-
 
 ** Exploratory Study on Multi-User Program Synthesis: A Multi-Wizard Approach
 
@@ -211,7 +209,6 @@ Create a syllabus for a six week course that expands on these topics.
 
 (Note: This syllabus is a speculative outline based on the concepts covered in the article, and can be further refined based on specific course needs and objectives.)
 
-
 ** Generating Domain-Specific Programs for Diagram Authoring with Large Language Models
 
 
@@ -270,3 +267,128 @@ IX. Additional Resources
     B. Useful articles, blogs, books, and online courses
 
 This syllabus aims to deliver a comprehensive understanding of generating domain-specific programs for diagram authoring using Python and large language models. Attendees will come away with practical knowledge of Python and its integration with large language models, the role and potential of domain-specific programs, conferring the aptitude to apply these concepts in professional scenarios.
+
+** Thorium: Verifiable, Dynamic, Reactive Software
+
+
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure:
+
+- https://2023.splashcon.org/details/rebls-2023-papers/1/Thorium-Verifiable-Dynamic-Reactive-Software
+#+end_src
+
+#+RESULTS:
+*** Source: [Thorium: Verifiable Dynamic Reactive Software](https://2023.splashcon.org/details/rebls-2023-papers/1/Thorium-Verifiable-Dynamic-Reactive-Software)
+- Author: Not Available
+- Publication Date: Not Available
+- URL: https://2023.splashcon.org/details/rebls-2023-papers/1/Thorium-Verifiable-Dynamic-Reactive-Software
+
+*** Summary
+
+The paper introduces Thorium, a novel dynamic software platform aimed towards letting software systems react to changes in requirements, system structures or environmental conditions. 
+
+- Thorium is meant to provide end-to-end traceability and other advanced features traditionally offered by static systems while being dynamic and reactive.
+- It employs a strong typing system and declarative semantics to ensure consistency in design and during runtime.
+- The system incorporates the concepts of Event-Driven Architecture (EDA), Domain-Driven Design (DDD) and Model-Driven Engineering (MDE) to achieve a robust software platform capable of adapting to changes and uncertainties.
+- It uses templates to represent static models of application domains, making it easier to adapt to changes and maintain the software system.
+
+*** Code/Model/Simulation
+
+Clojure does not have a strong typing system but uses a dynamic typing approach. The following code snippet shows how one might define a model in Clojure. It is an illustrative rather than a strict equivalent of Thorium's models.
+
+```clojure
+;; An example model definition in Clojure.
+
+(defn create-model [name props]
+  {:name name
+   :properties props})
+
+(defn add-property [model prop]
+  (update model :properties conj prop))
+
+(def person-model 
+  (-> (create-model "Person" [])
+      (add-property {:name "First Name", :type String, :required true})
+      (add-property {:name "Last Name", :type String, :required true})
+      (add-property {:name "Age", :type Number, :required false})))
+```
+This code creates a "person" model with three properties: first name, last name, and age. Note that this does not perform validation like a typed system would and serves as an illustrative example only. A more advanced system would need a verification or validation steps.
+
+** Building Trust and Safety in Artificial Intelligence with Abstract Interpretation
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure:
+
+- https://conf.researchr.org/details/sas-2023/sas-2023-papers/1/Building-Trust-and-Safety-in-Artificial-Intelligence-with-Abstract-Interpretation
+#+end_src
+
+#+RESULTS:
+*** Building Trust and Safety in Artificial Intelligence with Abstract Interpretation
+
+- Reference: https://conf.researchr.org/details/sas-2023/sas-2023-papers/1/Building-Trust-and-Safety-in-Artificial-Intelligence-with-Abstract-Interpretation
+- Author: Unknown
+- Publish date: Unknown
+
+**** Key Points
+
+- The article discusses the importance of trust and safety in developing artificial intelligence systems.
+- Abstract Interpretation, a theoretical framework, is suggested as a useful approach for ensuring safety in AI.
+- The use of Abstract Interpretation allows for effective tracing and understanding of computation.
+- This approach could help in controlling possible malfunctions and avoiding unconstrained behaviors.
+
+**** Possible Clojure Implementation
+
+- The article doesn't suggest specific computational models or simulations for implementation. However, we can design a basic Clojure program to illustrate abstract interpretation.
+
+```clojure
+(defn abstract-interp [a-system]
+  (if (safe? a-system)
+    (execute   a-system)
+    (fix-error a-system)
+    (abstract-interp a-system)))
+```
+
+In this simple Clojure function, recursive analysis of a system (which could be an AI) is performed. If the system is deemed safe, it is executed. If not, the error is fixed, and the system is analyzed again. This abstractly symbolizes the concept of Abstract Interpretation. 
+
+(Note: This is a symbolic representation and the functions `safe?`,  `execute`, and `fix-error` are not defined. It is also assumed that the `fix-error` function would make the system safe for further execution. In a real scenario, these functions would need to be decided based on the nature of the system in question.)
+
+** Historiographer: Strongly-Consistent Distributed Reactive Programming with Minimal Locking
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure:
+
+- https://2023.splashcon.org/details/splash-2023-SRC/6/Historiographer-Strongly-Consistent-Distributed-Reactive-Programming-with-Minimal-Lo
+#+end_src
+
+#+RESULTS:
+*** Article: Historiographer: Strongly Consistent Distributed Reactive Programming with Minimal Latency
+    - URL: https://2023.splashcon.org/details/splash-2023-SRC/6/Historiographer-Strongly-Consistent-Distributed-Reactive-Programming-with-Minimal-Lo
+    - No publish date or author provided
+
+**** Overview
+     Historiographer is a theoretical framework for reactive programming with the goal of achieving strong consistency in a distributed system with minimal latency. 
+
+**** Problem
+     Existing reactive programming frameworks struggle with maintaining consistency due to the latency issues associated with distributed systems. The complexity of managing state and data flow makes achieving consistency challenging.
+
+**** Solution: Historiographer
+     - The Historiographer model aims to solve these issues using "causality tracking" and "speculative execution".
+     - Causality tracking involves keeping track of the causal dependencies between events, which can help manage state and data flow.
+     - Speculative execution involves predicting the outcome of events based on their dependencies, thus allowing for concurrent execution of events and reducing latency.
+
+**** Implementation
+     - A detailed implementation of Historiographer framework is not provided in the summary. However, it presumably involves creating a strongly consistent model of event causality and dependencies, and a way to perform speculative execution based on this model.
+
+**** Limitations and Future Work
+     - Potential limitations of this approach include the accuracy of the speculative execution and the overhead of causality tracking. 
+     - Future work could explore ways to improve these aspects, as well as apply this model to real-world distributed reactive programming challenges.
+
+**** Code Example
+     - Since the specifics of the implementation are not provided in the summary, a conceptual code example in Clojure can't be provided without making assumptions about the implementation details.
+
+**** Conclusion
+     - The Historiographer framework presents a promising approach to achieving strong consistency in distributed reactive programming with minimal latency.
