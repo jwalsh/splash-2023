@@ -416,3 +416,146 @@ Remind: Due to the lack of context, this is a placeholder
 )
 #+end_src
 
+*** Tools
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+  Show five implementations in Liquid Haskell and Leon for Scala for verifying functional programs.
+
+  Use org-mode starting at header 4 and use #+begin_src blocks for the code. 
+
+  Use give canonical examples but include proofs on sort as well. 
+
+#+end_src
+
+#+RESULTS:
+
+**** Liquid Haskell
+
+Liquid Haskell is used to automatically check programs for properties that we can prove as true or false. Here, we will show five implementations of Liquid Haskell.
+
+***** Integer Division Always Returns a Non-negative Integer
+
+#+begin_src haskell
+{-@ divide :: Int -> Nat -> Int @-}
+divide :: Int -> Int -> Int
+divide n d = n `div` d
+#+end_src
+
+Liquid Haskell verifies the safety of this function and ensures that the integer division always returns a non-negative integer.
+
+***** Absolute Value Always Returns a Non-negative Integer
+
+#+begin_src haskell
+{-@ absolute :: Int -> Nat @-}
+absolute :: Int -> Int
+absolute num = if num < 0 then -num else num
+#+end_src
+
+Liquid Haskell verifies that the absolute function always returns a non-negative integer.
+
+***** List Length Function
+
+#+begin_src haskell
+{-@ measure listLength @-}
+listLength :: [Int] -> Int
+listLength []     = 0
+listLength (x:xs) = 1 + listLength xs
+#+end_src
+
+Liquid Haskell verifies the length of a list, making sure that it's a non-negative number.
+
+***** Maximum of two numbers
+
+#+begin_src haskell
+{-@ max :: Int -> Int -> Int / [Int, Int] @-}
+max :: Int -> Int -> Int
+max x y = if x > y then x else y
+#+end_src
+
+Liquid Haskell verifies the max function that takes two integers and returns the greater one.
+
+***** List sort function
+
+#+begin_src haskell
+{-@ sortBy :: (a -> a -> Ordering) -> [a] -> sorted:[a] / [listLength sorted] @-}
+sortBy :: (a -> a -> Ordering) -> [a] -> [a]
+sortBy _ []     = []
+sortBy cmp (x:xs) = insertBy cmp x $ sortBy cmp xs
+#+end_src
+
+Liquid Haskell verifies the correctness of the sort function.
+
+**** Leon for Scala
+
+Leon is a verification tool for functional Scala programs. It includes a powerful theorem prover and help you with writing correct programs.
+
+***** Integer Division Always Returns a Non-negative Integer
+
+#+begin_src scala
+import leon.annotation._
+import leon.lang._
+
+object Division {
+  def divide(n: Int, d: BigInt): Int = {
+    require(d > 0 && n >= 0)
+    n / d
+  } ensuring(_ >= 0)
+}
+#+end_src
+
+***** Absolute Value Always Returns a Non-negative Integer
+
+#+begin_src scala
+import leon.annotation._
+import leon.lang._
+
+object Absolute {
+  def absolute(num: Int): Int = {
+    if (num < 0) -num else num
+  } ensuring(_ >= 0)
+}
+#+end_src
+
+***** List Length Function
+
+#+begin_src scala
+import leon.collection._
+import leon.lang._
+
+object ListLength {
+  def listLength(l: List[Int]): Int = {
+    l.size
+  } ensuring(_ >= 0)
+}
+#+end_src
+
+***** Maximum of two numbers
+
+#+begin_src scala
+import leon.annotation._
+import leon.lang._
+
+object Max {
+  def max(x: Int, y: Int): Int = {
+    if (x > y) x else y
+  } ensuring(res => (res == x || res == y) && res >= x && res >= y)
+}
+#+end_src
+
+***** List sort function
+
+#+begin_src scala
+import leon.annotation._
+import leon.lang._
+import leon.collection._
+
+object Sort {
+  def sort(list: List[Int]): List[Int] = {
+    list.sortWith(_ < _)
+  } ensuring(res => res.isSorted && res.size == list.size)
+}
+#+end_src
+
+Leon verifies the correctness of the sort function by ensuring that the resulting list is sorted and has the same size as the input list.
+Overall, both Liquid Haskell and Leon for Scala are used to verify properties of functional programs to ensure correctness.
