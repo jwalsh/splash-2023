@@ -1,0 +1,168 @@
+2. A global method cache, indexed on class+selector pro-
+vides a 20%-30% performance improvement[9].
+
+3. After the lookup described above, the target method is
+cached in the calling code, so the next time we do the
+lookup we should be very fast. This caching gets com-
+plicated because there could be objects from another
+class in a subsequent execution, so somewhat complex
+mechanisms are used to save the multiple method tar-
+gets. However the evidence[4, 13] is that about 90%
+of dynamic call-sites will have a single receiver class,
+another 9% will have 2–8 classes. Miranda claims[13]
+that most of the dispatch overhead (5%–10% of total
+execution time) is burned in the remaining 1% of sends
+with many classes.
+
+2.3 Java Dispatch
+Java has five opcodes to invoke methods, but the primary one
+we are interested in is invokevirtual[16] which does
+virtual dispatch with the same semantics as Smalltalk.
+
+The difference is that the Java compiler statically knows
+the index into the dispatch table of each method call, so there
+is no need for a dictionary lookup. The dispatch table for
+each class has a prefix of a copy of the dispatch table from
+its superclass, followed by the methods defined in this class.
+Any methods that override superclass methods replace the
+corresponding method in the prefix. Since the names of all
+of the legal methods are known, finding the method for a
+
+2In a very early version of Pharo/Squeak sending ifTrue: to a non-
+Boolean object required accessing thisContext and moving the pro-
+gram counter back. Pharo now de-compiles such a failed branch and does a
+send, but in a recent version this exposed a Heisenbug.
+
+particular name requires a simple index (which does not
+even have to be range checked).
+
+The same thing could be done for Smalltalk, if we knew
+which class the object was an instance of. Failing that, for
+every class (there are over 20,000 classes in a recent Pharo
+image), we would have to have a dispatch table with an entry
+for all message names (there are over 62,000 method names
+in the same image).
+
+Even if we somehow knew the class of the object, the tables
+would still be excessive because of the size of the Smalltalk
+Object class compared with the Java Object class. The Java
+Object class only has 11 methods, whereas the Smalltalk
+Object class has over 460 methods.
+
+Because the dispatch table for every class has a prefix
+from all super-class methods, this means that the table for
+every class would start with 460 methods. While this is a
+significant improvement, it is still excessive (and would have
+horrible cache locality).
+
+2.4 Optimal Dispatch
+Even with the Object class having so many methods, if we
+had complete information of the types of the receiver for
+every Smalltalk message send, we could theoretically create
+unified mappings for all classes, so that all methods could be
+looked up by simple indexing into the vtable (i.e. creating a
+perfect hash). This would reduce the overhead of dispatch to
+a very low level, but for a complete system would have hun-
+dreds of megabytes of dispatch table. However, if generating
+a stand-alone executable from a given target class and its
+transitive closure of classes and methods, this is potentially
+a tenable option.
+
+3 New Dispatch
+With these considerations in mind, our goal must be to:
+• inline everything possible so that code is mainly
+branches – which are handled well by modern hard-
+ware – and to minimize dynamic dispatches;
+• make that inlining principle-based, rather than based
+on heuristics of appropriate selectors;
+• where dispatch is necessary, minimize the complexity
+– a single hashed lookup should be the goal;
+• interact with other threads as rarely as possible.
+The principle is to have a single flat dispatch table for
+each class, which includes not just the methods of the class,
+but also all the inherited methods that have been invoked.
+The methods listed in the vtable are from anywhere in the
+hierarchy, but only methods that have actually been sent to
+any instance of this class, in any thread.
+
+3.1 The Dispatch Table
+Symbols have a 32-bit ‘hash’ value that is composed of a 24-
+bit unique id, and the arity of the symbol. Building perfect
+hash tables is not feasible (as they end up too large, take too
+
+
+Table 1. Relative execution time of hash functions
+
+Calculation
+key *% rand *size >> 32
+(key^(key>>5))&size
+key%size
+
+M1 factor
+1.0
+1.3
+3.0
+
+i7 factor
+1.0
+1.1
+8.5
+
+Because the dispatch does not need to compare the selector
+with keys in the method dispatch table, the table is half the
+size, which should improve cache locality. Rather, the method
+code compares the selector against the correct one for that
+method.
+
+long to build, or take too long to calculate).[2, 5, 18] However
+it is important to not waste too much space with these tables,
+while retaining constant time lookup.
+3.1.1 Building the Table. The most obvious aproach to
+hashing is to use a mod function to calculate the remainder
+of the symbol’s hash value modulo the size of the table.
+Unfortunately, this is very slow on modern hardware. We
+can perform the same calculation with 2 multiplies and a
+shift.
+
+First we perform a 32-bit multiply of the 32-bit key value
+and 232
+Φ function to spread the keys out over the 32-bit space.
+This is then multiplied by the size of the table and shifted
+right 32 bits, resulting in a value 0 ≤ 𝑥 < 𝑠𝑖𝑧𝑒. As shown in
+table 1, this is between 3-times faster than mod on an Apple-
+M1 processor, and 9-times faster on an Intel-i7 processor.
+The xor function is almost as fast (only 8% to 34% slower),
+but does not spread the hash values nearly as well as our
+approach and only works for power-of-two sizes.
+
+One complication is the handling of super methods. A
+common pattern is to have a method handle part of a prob-
+lem, but with a fallback to the same-named method in the
+superclass. With all methods for a class and its superclasses
+compiled into one dispatch table, we have to differentiate
+the superclass methods, which we do with some unused bits
+in the Symbol object. With inlining, described in §4, this
+problem is obviated by the super call usually being inlined.
+3.1.2 Dispatching. Dispatching involves several steps:
+
+1. Extract the class number from the target object (this
+is encoded in the object for immediate objects, or in
+the header for in-memory objects);
+
+2. Index into a static table of pointers to class dispatch
+objects - each of which has an array of code pointers;
+3. Extract the hash value from the message selector and
+
+multiply by the multiplier and the size;
+
+4. Index into the array of code pointers, and make a
+threaded (indirect) call passing the selector (as well as
+other registers);
+
+5. if this was a position that corresponds to an unassigned
+hash value, it will point to the NotFound code (see
+below).
+
+6. if this is code of a regular method, it checks if the
+selector matches the selector for that method - if not,
+it calls the NotFound code.

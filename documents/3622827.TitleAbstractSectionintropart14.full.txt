@@ -1,0 +1,121 @@
+Title-Abstract. Section intro
+ by the guard (i.e., it already has access permission for ), Guard-Access
+grants temporary access to the block’s points-to assertion and block resource.10 In addition, a pointer
+value associated with a protected block ID is free from the ABA problem (Guard-Managed-Agree).
+To justify the above proof rules, the guard predicate takes the ’s fractional access permissions
+of all blocks but the ones in  from RCU’s internal invariant (omitted). In our stack veriﬁcation,
+BlockInfo is extracted from Managed at C4 and used to dereference h at C8 to show that a successful
+pop() of h is linearizable.
+
+6.2 Traversal-Friendly Specification
+
+Motivation. We are now able to show the safety of optimistic traversal in Fig. 3. The crux of the
+proof lies in showing that ℓ2 was not retired before the beginning of the critical section. At the
+high level, we prove this by maintaining the traversal loop invariant: for all ℓfrom and ℓto, if ℓfrom
+currently points to ℓto and ℓfrom was not detached before the beginning of a critical section, then ℓto
+also was not detached before the beginning of the critical section. This invariant implies that ℓ2
+was not retired before that point, since its premise is true when the traversal starts from the root
+to the ﬁrst block, and blocks are detached before retirement. The loop invariant follows from the
+following three properties about the links among memory blocks: (L1) by deﬁnition, non-detached
+blocks can only point to non-detached blocks; (L2) data structures maintain invariants that a block
+is detached only once; and (L3) a newly created link does not point to detached blocks (even from
+already detached blocks).
+
+However, such a proof quickly becomes complex for realistic concurrent data structures with
+optimistic traversal. The proof requires a user-level invariant that encodes link properties and
+relates the link topology with RCUState( ) (i.e., only detached blocks are retired). In addition, we
+need to maintain the history of the link topology with which we assert that, when Guard(_, ) was
+created, all non-detached pointers at that moment in history must not be in . Such an invariant is
+quite sophisticated, e.g., for Harris’s list [Harris 2001] where links are concurrently updated and a
+chain of nodes can be detached at once. Even worse, we would have to repeat this kind of reasoning
+for each data structure to apply RCU.
+
+Design. To streamline such proofs, we encapsulate the above complexities reﬁned and yet
+general speciﬁcation presented in Fig. 12. The speciﬁcation is built on top of our base speciﬁcation
+(§6.1) to directly capture the traversal loop invariant as follows.
+
+We ﬁrst strengthen the meaning of the guard predicate: Guard(_, ) now records the set  of
+
+pointers that are known to have not been detached before the guard was created.
+
+We then introduce the block points-to predicate of the form BlockPointsTo(ℓ, ,  ) to represent the
+ownership of the fragment of the link topology. BlockPointsTo(ℓ, ,  ) says that the block  currently
+points to another block (if any) and records its information as .11 The new rule Guard-Protect-
+BlockPointsTo reﬂects the intuition that it is safe to traverse the data structure by following the
+links. Speciﬁcally, if 1 is protected by the guard, then its current next node 2 is also protected. A
+
+9BlockInfo(, ℓ,  ) is persistent (indicated by the persistence modality 2), because  is not reused for another location.
+Therefore, the extraction does not consume Managed.
+10The rule for logically atomic  is omitted.
+11For concise presentation, the version presented here only supports singly-linked data structures. Our formalized develop-
+ment lifts this assumption by having BlockPointsTo for each ﬁeld of the memory block.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:20
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Predicates
+
+Rules
+
+BlockPointsTo(ℓ : Loc,  : BlockId,  : Option(Loc × BlockId × BlockRes)) : iProp
+
+Managed(ℓ : Loc,  : BlockId,  : BlockRes,  : ℘
+
++ (BlockId)) : iProp
+
+Detached(ℓ : Loc,  : BlockId,  : BlockRes) : iProp
+
+(Guard-Protect-BlockPointsTo)
+
+1 ∉ 
+
+BlockPointsTo(ℓ1, 1, Some(ℓ2, 2,  2)) ∗ Guard(, ) ⊢ 2 ∉ 
+
+(BlockPointsTo-Update)
+Block(ℓ1, 1, Some(ℓ2, 2,  2)) ∗ Managed(ℓ2, 2,  2, 2) ∗ Managed(ℓ 3,  3, 3)
+
+BlockPointsTo(ℓ1, 1, Some(ℓ3, 3,  3)) ∗ Managed(ℓ2, 2,  2, 2 \ {1}) ∗ Managed(ℓ3, 3,  3, 3 ⊎ {1})
+
+(Managed-Detach)
+Managed(ℓ, , , ∅)
+
+Detached(ℓ, ,  )
+
+(Detached-Retire)
+{Detached(ℓ, _, _)} retire(ℓ) {
+
+Fig. 12. RCU traversal specification.
+
+block points-to assertion is introduced when registering a managed pointer (rule omitted) and put
+into the block resource to associate the logical link structure with physical points-to assertions. For
+example, the block resource for Harris’s list is deﬁned as follows:
+
+.next = NULL ∗  = None ∗...
+
+∃′.  = Some(.next, ′, HListBlock) ∗...
+
+.
+
+HLBlock(ℓ, , ) := ∃. BlockPointsTo(ℓ, ,  ) ∗
+
+Roughly speaking, if the node’s next pointer value .next is non-null, the block resource asserts
+that it is possible to traverse to its next node, which is also governed by the same block resource.
+To encapsulate the reasoning about link structure properties (L1-3), we add a new param-
+eter  to Managed and introduce the detached pointer predicate of the form(ℓ, ,  ).
+Managed(_, , _, ) means the block  is currently pointed by the blocks in the multiset  [Madiot
+and Pottier 2022], and Detached(ℓ, ,  ) is a Managed that has been marked detached.
+To maintain (L1), Managed- can mark a block detached only when no other blocks pointit To maintain (L2), Managed-Detach is irreversible. To maintain (L3),To-Update
+updates the target of block points-to assertion only if the new target is not yet detached. Finally,ensure that only detached nodes can be retired, RCU-Retire is replaced with-Retire.
+
+7 EVALUATION
+
+We demonstrate speciﬁcations of hazard pointers and RCU indeed facilitate modular
+veriﬁcation of safe memory reclamation three aspects discussed in §1.2.
+
+Compositional Veriﬁcation. We veriﬁed implementations of hazard pointers based on that
+of Meta’s Folly [Meta 2023] and epoch-based RCU based on the Parkinson et al.
+[2017] w.r.t

@@ -1,0 +1,125 @@
+Title-Abstract. Section intro
+next = 1 }(cid:9)
+(cid:8)IsStack( ) ∗ ℎ1 ↦→? {.data = 1,.next = 1 }(cid:9)
+ℎ1 ↦→? {...} ∗ ∃ℎ2, 2.  ↦→ {.head = ℎ2 } ∗
+
+(cid:8)ℎ1 ↦→? {...} ∗  ↦→ {.head = ℎ1 } ∗ ℎ1 ↦→? {.data = 2,.next = 2 } ∗ LinkedList(2,  ′
+2 )(cid:9)
+(cid:8)ℎ1 ↦→? {.data = 1,.next = 1 } ∗ IsStack( )(cid:9)
+
+ℎ2 = NULL ∗ 1 = [ ]
+∃2,  ′
+
+2, 2. 2 = 2 ::  ′
+
+2
+
+{1 = 2 ∧ 1 = 2 ∧...}
+
+return Some(1)
+
+if CAS(&(* ).head, ℎ1, 1):
+
+if ℎ1 == NULL:
+
+return None
+
+1 := (*ℎ1).data; 1 := (*ℎ1).next
+
+∗ ℎ2 ↦→? {.data = 2,.next = 2 } ∗ LinkedList(2,  ′
+2 )
+
+
+
+Fig. 4. Verification of Treiber’s stack without reclamation.
+
+Veriﬁcation Challenges for Memory Reclamation. The above proof is fundamentally limited
+to concurrent data structures without reclamation due to its reliance on leaking points-to. To use
+LPointsTo-Duplicable at C4, the proof exploits the fact that the stack’s memory blocks are never
+reclaimed. However, veriﬁcation of concurrent data structures with reclamation requires an ability
+to grant access permission to protected pointers like LPointsTo-Duplicable, but only temporarily
+so that retired pointers can later be reclaimed. In §3 and §4, we will characterize such temporary
+grant of access permission with new abstract predicates representing partial ownership of pointers.
+
+3 SPECIFICATION OF HAZARD POINTERS
+
+We ﬁrst introduce two predicates, Managed and Protected, that replace leaking points-to assertions.
+Fig. 5 presents their signatures and associated proof rules. For presentation purposes, we assume
+that the contents of memory blocks are immutable and lift this assumption in §5.
+
+Managed Pointer. The managed pointer predicate of the form Managed(ℓ, ) represents the
+ownership of the pointer ℓ managed by hazard pointers.
+
+Like the ordinary points-to predicates, the managed pointer assertion implies that ℓ is a valid
+pointer to a memory block containing the value . Managed pointer assertions replace the leaking
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:11
+
+Predicates
+
+Managed(ℓ : Loc,  : Val) : iProp
+
+Protected( :, ℓ : Loc,  : Val) : iProp
+
+HPSlot( : ThreadId, ℓ : Loc) : iProp
+
+HPSlot() := HPSlot(, NULL)
+
+Basic rules
+(Managed-New)
+ℓ ↦→ 
+
+Managed(ℓ, )
+
+(Protect)
+
+(Managed-Access)
+{Managed(ℓ, )} *ℓ {. Managed(ℓ, )}
+
+(HP-Retire)
+{Managed(ℓ, _)} retire(ℓ) {True}
+
+⟨ℓ, .  ↦→ ℓ ∗ Managed(ℓ, )
+
+∗ HPSlot()
+
+⟩ protect(,)⟨ℓ.  ↦→ ℓ ∗ Managed(ℓ, )
+
+∗ Protected(, ℓ, )
+
+⟩
+
+(Protected-Access)
+{Protected(, ℓ, )} *ℓ {. Protected(, ℓ, )}
+
+(Unprotect)
+{Protected(, _, _)} unprotect() {HPSlot()}
+
+Low-level rules
+
+(HPSlot-Set)
+{HPSlot(, _)} protected[] := ℓ {HPSlot(, ℓ)}
+
+(Protected-Managed-Agree)
+Protected(_, ℓ, ) ∗ Managed(ℓ,  ′) ⊢  =  ′
+
+(HPSlot-Validate)
+Managed(ℓ, ) ∗ HPSlot(, ℓ)
+
+Managed(ℓ, ) ∗ Protected(, ℓ, )
+
+Fig. 5. A specification of hazard pointers.
+
+points-to assertions in data structure invariants. For instance, in the invariant of Treiber’s stack,
+the LinkedList predicate is changed as follows:
+
+ℎ = NULL ∧  = []
+
+∃,  ′, . Managed(ℎ, {.data = ,.next = }) ∗ LinkedList(,  ′).
+
+LinkedList(ℎ, ) :=

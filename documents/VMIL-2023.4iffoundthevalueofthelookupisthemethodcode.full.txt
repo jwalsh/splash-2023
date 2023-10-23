@@ -1,0 +1,49 @@
+4. if found, the value of the lookup is the method code -
+5. if not found and Current has a superclass, set Current
+
+to the superclass and continue at 3
+
+6. if not found, create a Message object and go back to
+2 with the selector set to doesNotUnderstand:
+(DNU) - we are guaranteed to find something on this
+go-round because the class Object implements DNU.
+Although semantically powerful, even the best possible
+implementation will still have a lot of overhead. Each lookup
+in a method dictionary is quite expensive – typically dozens
+of instructions – even though the hash value only need be
+calculated once. It is quite common to have class hierarchies
+2 or 3 levels deep, requiring multiple lookups.
+
+A further performance concern for Smalltalk is that all
+control structures are ultimately implemented as messages
+sent to Booleans passing 1 or more BlockClosures as parame-
+ters. This is demonstrated in figure 1 with a simple Smalltalk
+version of the fibonacci function. Here the test self <= 2
+
+1 fibonacci
+2
+3
+4
+
+self <= 2 ifTrue: [ ^ 1 ].
+^ (self - 1) fibonacci +
+
+(self - 2) fibonacci
+
+Figure 1. Smalltalk implementation of fibonacci
+
+
+results in either true or false which are singleton in-
+stances of their respective classes. That value is then sent
+the message ifTrue: with the parameter [^1]. The True
+class has an implementation of the message ifTrue: which
+returns the result of evaluating the block. This particular
+block does not produce a result, but rather performs a non-
+local return, which is a bit of overhead. The non-local return
+passes the value 1 to the caller of fibonacci. The False
+class has an implementation of the message ifTrue: which
+ignores the block.
+
+2.2 Classic Smalltalk Dispatch
+To address these concerns, 3 mechanisms are applied in pro-
+duction Smalltalk runtimes:

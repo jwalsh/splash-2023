@@ -1,0 +1,126 @@
+Title-Abstract. Section intro
+a] for its duplicability in addition
+to immutability and read permission:
+
+(LPointsTo-Duplicable)
+ℓ ↦→?  ⊣⊢ ℓ ↦→?  ∗ ℓ ↦→? 
+
+(LPointsTo-Agree)
+ℓ ↦→?  ∗ ℓ ↦→?  ′ ⊢  =  ′
+
+(LPointsTo-Read)
+{ℓ ↦→? } *ℓ {. ℓ ↦→? }
+
+As we will see shortly, duplicability is crucial for reasoning about safe dereference in pop().
+
+Veriﬁcation. We prove the safety of pop() as illustrated in Fig. 4. In particular, we prove the safety
+of its memory accesses at C4,8,9 as follows.
+
+• C4: We open the invariant IsStack to get its contents. On the ﬁrst conjunct  ↦→ {.head = ℎ1},
+we use PointsTo-Read to dereference .head and get the pointer value ℎ1. Furthermore, if ℎ1 is
+not NULL, we use LPointsTo-Duplicable to obtain a copy of ℎ1 ↦→? {.data = 1,.next = 1}
+from LinkedList for some 1 and 1. This is necessary for proving the safety of dereferencing
+ℎ1 at C8, because there is no guarantee that ℎ1 will still be present in the stack (and thus in the
+invariant) at that point. Finally, we close the invariant IsStack.
+
+• C8: Since ℎ1 is not NULL, we can use the copied ℎ1 ↦→? {.data = 1,.next = 1} to ensure that
+
+it is safe to dereference ℎ1 (LPointsTo-Read).
+
+• C9: We open the invariant and obtain ∃ℎ2.  ↦→ {.head = ℎ2}. Consider the case where ℎ1 = ℎ2
+holds. We use PointsTo-CAS-Success to update the head pointer to the next node, and reestablish
+the invariant with the head node detached.
+
+For pop() to satisfy the logical atomicity speciﬁcation, its successful CAS should be free of the
+ABA problem (Fig. 1c). This is indeed the case because locations are not recycled for new nodes if
+memory is not reclaimed, and the nodes added to the stack are immutable. Formally, this argument
+corresponds to the use of LPointsTo-Agree at lines V9.1-9.2: the two ℎ1 ↦→?... assertions (obtained
+from C4 and C9) contain the same value.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:10
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+V0 {IsStack( ) }
+
+C1 fun pop( ):
+
+loop:
+
+{IsStack( ) }
+
+C3
+
+V3.1
+
+V3.2
+
+V3.3
+
+C4
+
+V4.1
+
+C5
+
+C7
+
+V7.1
+
+C8
+
+V8.1
+
+V8.2
+
+C9
+
+V9.1
+
+V9.2
+
+V9.3
+
+C11
+
+�
+
+
+ℎ1 := (* ).head
+
+ℎ1 = NULL
+
+1
+
+1
+
+
+
+∃1, 1. ℎ1 ↦→? {.data = 1,.next = 1 }
+
+ℎ1 = NULL ∗ 1 = [ ]
+∃1,  ′
+
+1, 1. 1 = 1 ::  ′
+
+ℎ1 = NULL ∗ 1 = [ ]
+∃1,  ′
+
+1, 1. 1 = 1 ::  ′
+
+∗ ℎ1 ↦→? {...} ∗ ℎ1 ↦→? {...} ∗ LinkedList(1,  ′
+1 )
+
+∗ ℎ1 ↦→? {.data = 1,.next = 1 } ∗ LinkedList(1,  ′
+1 )
+
+∃ℎ1, 1.  ↦→head = ℎ1 } ∗
+
+∃ℎ1, 1.  ↦→ {.head = ℎ ∗�
+
+
+IsStack( ) ∗��
+(cid:8)IsStack( ) ∗ ∃1, 1. ℎ1 ↦→? {.data = 1

@@ -1,0 +1,3 @@
+
+
+This section outlines a three-step process for calling a selector symbol. Step 1 involves setting the target to the class of the target or the current class's superclass if it is a super send. Step 2 involves setting the current to the target. Step 3 involves looking up the selector symbol in the current's method dictionary.

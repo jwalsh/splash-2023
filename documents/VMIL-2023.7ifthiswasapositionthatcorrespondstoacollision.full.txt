@@ -1,0 +1,329 @@
+7. if this was a position that corresponds to a collision,
+the invoked code is a disambiguator.
+
+3.1.3 Not Found. If a dispatch described in the previous
+section branches to the NotFound code, it simply means that
+there is no compiled (threaded or native) method for the
+given selector. So we set about trying to find the correct code
+to put in the table.
+
+First we look in the current class for the source (which
+we store as an AST) of the method. If not found, we try the
+superclass, and up. Where we find a method we compile it
+for the target class, and insert it in the dispatch table.
+
+If we do not find it, we send a doesNotUnderstand, in
+the usual way and insert a specific DNU method for the
+particular selector.
+
+4 Inlining
+Because every method compilation is specific to a particular
+class there are many more inlining opportunities than in
+traditional systems where methods are compiled in their
+particular class and hence the methods reachable come from
+many levels in the hierarchy.
+
+The primary optimization is inlining, for which there are
+
+many opportunities:
+
+• any message to self or super: these methods could
+be in the current class, or the target subclass, or a
+superclass;
+• any message to a block: this will inline the correspond-
+ing method from BlockClosure;
+• any message to other literal values;
+• any message to a value for which we have determined
+a type (such as we have assigned a literal, or we have
+already tried something that requires it to be the same
+as self);
+• any message for which there are a limited number of
+implementations (e.g. less than 4): this will bring in
+the code from each of the classes and will generate
+conditional code that checks the class of the receiver
+branching to the designated code from the appropriate
+class, or fall back to a DNU if it is none of the classes;
+• any message which has an implementation in partic-
+ularly common classes (e.g. SmallInteger): this will
+bring in the code from the particular class and gen-
+erate code that matches those classes, or fall back to
+normal dispatch if it is none of the classes.
+
+The last two opportunities, in particular should support a
+
+great deal of useful inlining.
+
+There are some interesting aspects of inlining:
+
+
+• when a method is inlined, its return value will simply
+be passed to the rest of the method in which it is being
+inlined;
+• when inlining, references to self and super must
+be considered relative to the class the method is in,
+and the receiver value itself can be inlined;
+• when BlockClosures are inlined the block goes away
+and they become simply conditional code within their
+enclosing method;
+• because BlockClosures will often be inlined, most non-
+local returns will become simple returns;
+• methods that are overridden below the target class are
+irrelevant to this inlining.
+
+In the full running environment the vtable would be gen-
+erated lazily; if a method is not found, we would find the
+appropriate method, compile it, and add it to the dispatch
+table (resizing it as appropriate) – only the adding would
+have to be protected from other threads. If the source of a
+method is changed, we simply discard all the dispatch tables
+where it was inlined (which may not be in its heirarchy) –
+they would be regenerated on demand.
+
+Even though our lookup requires a hashed lookup, we will
+be almost as fast as invokevirtual in Java or C#.Selector
+symbols are immediate values, and dispatch tables are prime-
+sized arrays sized so that most lookups are hashed directly
+to the expected method.
+
+4.1 Timing
+Table 2 shows some preliminary timing for the fibonacci
+micro-benchmark. Other papers[11, 12] describes the two
+execution models that we propose in some detail. The models
+are ‘CPS Object’ and ‘Threaded’ - the other rows in the table
+are for comparison purposes. All are explained below.
+
+The benchmarks were run 5 times each after 2 warmup
+runs and showed minimal variance (standard deviation less
+than 2% in all cases). The table records median timing values.
+
+The Pharo data is from running on Pharo 10, on the Pharo
+version of the OpenSmalltalk VM. Pharo JIT is running on a
+JIT VM, and Pharo Stack is using the Stack Interpreter VM.
+While these are included for rough comparison, they are not
+directly comparable as the optimizations available are quite
+different.
+
+Native is the straightforward implementation in Zig (which
+is the implementation language for the Zag runtime) using
+64 bit integers. It is very fast, but interestingly this micro-
+benchmarks is also very small.
+
+Object is the straightforward implementation in Zig using
+tagged Objects, with local Zig variables and recursion. This
+is as good as we could hope to be, using the well-supported
+hardware stack and call/return semantics and the maximum
+LLVM optimizations. It also demonstrates that using tagged
+integers does not add too much overhead.
+
+CPS Object is the Continuation Passing Style conversion
+of the Object code using our Context objects and stack. This
+does not use any of the standard conventions - stack, hard-
+ware recursion, static types. The fact that this is only 20%
+slower, at least on AArch64 is surprisingly good. It is also
+10-40% faster than the Pharo JIT’ed code. It is substantially
+larger though.
+
+Threaded is the fully threaded version. This is extremely
+easy to generate as it is essentially an extensible bytecode,
+and it is rewarding that it is only 2-3 times slower than
+the Pharo JIT’ed code. There was almost no optimization
+available for such a simple method, so we are very optimistic
+about the potential for our system.
+ByteCode is an unoptimized byte-code interpreter. It is
+about 1/2 the size of the threaded version and almost 4 times
+slower. Since it does not save much space, and is actually
+slightly more difficult to generate than the threaded version,
+it does not seem worth pursuing at this time.
+
+All of the above handle recursive calls directly, i.e. with
+
+no dynamic dispatch.
+
+CPS Send and Threaded Send are the same as the ones
+above, except messages to fibonacci are sent using full dy-
+namic dispatch. Since there are about 200 million calls to
+fibonacci, this means that the dispatch costs between 1 and
+4 nanosecond per send, depending on the architecture.
+
+All of the above versions were hand-optimized as if the
+
+code generator were doing the best possible job.
+
+Finally FullDispatch is a threaded version that does all
+the sends explicitly, as well as the non-local-return from the
+block. This is essentially a completely un-optimized version
+of Threaded Send.
+
+As a micro-benchmark of hand-compiled code, this should
+be taken as simply a validation that this a viable approach
+to a Smalltalk runtime.
+
+5 Related Work
+Virtually all Smalltalk systems currently in use use Deutsch-
+Schiffman dispatch[4, 8, 25] with inline caching. It is very
+difficult to identify if others have implemented similar dis-
+patch strategies.
+
+Although it is prototype-based, and therefore not directly
+
+comparable, Self[23] may use a similar approach.
+
+V8[1] is a Javascript engine that has very good perfor-
+mance. Potentially some of that performance may come from
+inlining supported by a flat vtable as advocated here. How-
+ever from some of the discussion[14] that does not appear
+to be the case.
+
+Strongtalk[3] would have the potential to have a flat vtable
+as advocated here, because it has type information that would
+allow collating the possible methods associated with a mes-
+sage send. From some of the discussion[14] it appears to have
+rather better performance than V8. However, we can find
+no reference to the actual dispatch method, and based on
+
+
+Table 2. Comparative execution times for 40 fibonacci
+
+Execution
+Pharo JIT
+Pharo Stack
+Native
+Object
+CPS Object
+Threaded
+ByteCode
+CPS Send
+Threaded Send
+FullDispatch
+
+Apple M1 Apple M2 Pro 2.8GHz Intel i7 Size AArch
+68b*
+68b
+72b
+188b
+528b
+200b
+104b
+528b
+176b
+184b
+
+591ms
+—
+186ms
+306ms
+393ms
+1939ms
+4820ms
+749ms
+3503ms
+7696ms
+
+559ms
+5033ms
+171ms
+280ms
+340ms
+1153ms
+4230ms
+628ms
+1500ms
+1433ms
+
+695ms
+3568ms
+137ms
+337ms
+655ms
+1929ms
+4851ms
+1069ms
+3063ms
+7217ms
+
+* Note this is just the bytecode, the JIT’ed code is on top of this.
+
+Note: unable to get the StackVM version of Pharo to build on the M1.
+
+some of the discussion[13], it does not appear to be the case.
+It does benefit from similar levels of inlining of methods.
+
+• the memory manager has a per-core arena
+• the shared memory uses a non-moving collector
+
+6 Conclusions and Future Work
+Although this is preliminary work, we hope it opens up
+some opportunities for dynamically-typed Object-Oriented
+languages to get better performance so they will be more
+viable option in production environments.
+
+We are building a Smalltalk compiler/runtime environ-
+ment in Zig[6]. We have the managed environment to the
+point of running simple hand-translated programs, and are
+near to automatically generating Zig code from our Smalltalk
+classes and methods.
+
+If the experimental results are encouraging, our goal is
+to use the LLVM-JIT[10] infrastructure to dynamically gen-
+erate methods on the fly. Since the current version of Zig
+uses LLVM, we anticipate we should get comparable perfor-
+mance. We also will explore additional optimizations beyond
+inlining.
+
+Aspects of this paper may imply that inlining is defining
+a new language. In fact, what we hope to show is that the
+flat dispatch model that we describe allows inlining from
+dead-stock Smalltalk into code that can be competitive with
+much less dynamic languages. In §1.1 we identified 3 areas
+where traditional Smalltalk systems fail to exploit modern
+hardware.
+
+Multiprocessing. Existing Smalltalk systems only use
+a single core for computation. The same applies to most
+Python systems (cf. the Global Interpreter Lock [19]) and
+Javascript only allows additional computation streams via
+webworkers.
+
+Zag Smalltalk is designed from scratch with multi-core
+
+processing in mind:
+
+• there is no self-modifying code
+• the only locking associated with dispatch is when a
+new selector needs to be added to a class dispatch table
+
+Optimization. By convention, Smalltalk is oriented to-
+ward small methods. Semantically all control structures are
+implemented via message sends. Even within a method, the
+operations between message sends are minimal (the only
+syntactic primitives are return and assignment). This combi-
+nation makes traditional optimization extremely difficult.
+
+The flat dispatch described here enables very agressive
+inlining that replaces many message sends, creation of blocks,
+and non-local returns with primitive operations and control.
+The inlining is very synergistic as many inlinings provide
+additional information that allows yet more inlining.
+
+Instruction-Level. As mentioned in the previous para-
+graph, after inlining a method will be substantially primitive
+operations and control. This enable a JIT to perform well-
+known optimizations, typically only available in statically-
+typed languages. Additionally, the inlining removes a signifi-
+cant number of method dispatches and therefore replaces in-
+direct branches from the dispatch with conditional branches
+which re-enables the deep pipelines on modern hardware.
+
+6.1 Future Work
+The primary future work is to be able to generate code from
+“real” benchmarks like DeltaBlue and Richards to actually
+start to stress the system.
+
+Currently the system uses double-indirection in the dis-
+patch tables, but with a small increase in complexity it looks
+like we could switch to single-indirection, which would re-
+duce pipeline stalls.
+
+In writing this paper, we started looking at a simple cache
+similar to a part of Deutsch-Schiffman, which may provide a
+small but valuable performance improvement.

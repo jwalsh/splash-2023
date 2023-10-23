@@ -1,0 +1,96 @@
+Title-Abstract. Section intro
+ for modular program veriﬁcation: linearizability is
+deﬁned outside program logics so that it is not able to express rely-guarantee conditions between
+the library and client [da Rocha Pinto et al. 2014]; it does not support ownership transfer [Gotsman
+and Yang 2012; Jacobs and Piessens 2011]; and it is not applicable to highly concurrent libraries
+with weaker guarantees [Afek et al. 2010; Derrick et al. 2014; Haas et al. 2016; Henzinger et al.
+2013; Jagadeesan and Riely 2014]. On the other hand, we veriﬁed logically atomic triples, which
+can encode not only linearizability but also other correctness conditions [Dang et al. 2022].
+
+Alglave et al. [2018] proposed a speciﬁcation of RCU and proved the speciﬁcation for an im-
+plementation of RCU in the Linux kernel’s relaxed memory model. They also verify small client
+programs using RCU by model checking. However, they do not verify concurrent data structures,
+and it is unclear whether their model checking-based veriﬁcation scales well to more complex
+concurrent data structures and larger programs consisting of multiple data structures.
+
+Kuru and Gordon [2019] proposed a speciﬁcation of RCU that guarantees memory safety and
+the absence of memory leaks. Their speciﬁcation is formulated as a type system whose derivation
+essentially envelopes a separation logic proof. However, their speciﬁcation is not validated against
+an implementation of RCU and is limited to single-writer and tree-shaped data structures.
+
+Veriﬁcation of Other Memory Management Methods. Dang et al. [2019]; Doko and Vafeiadis
+[2017] veriﬁed an implementation of the atomic reference counter (ARC) under a relaxed memory
+model. ARC is simpler than the other SMR schemes because synchronization is centralized to the
+counter variables. In contrast, the synchronization of hazard pointers and epoch-based RCU is
+decentralized, e.g., to the retired and protected pointer list.
+
+Doherty et al. [2004]; Krishna et al. [2017] veriﬁed concurrent data structures that use free list,
+which is a memory recycling mechanism that keeps retired memory blocks in a list instead of
+returning the memory to the allocator. Since it is trivial to guarantee the safety of dereferencing
+pointers managed by a free list, they essentially do not reason about the safety of reclamation.
+
+Madiot and Pottier [2022] designed a separation logic for reasoning about memory usage in a
+garbage collected language. Speciﬁcally, they reason about logically deallocated memory blocks, i.e.,
+blocks that are unreachable and thus can be reclaimed by GC. To this end, the logic uses pointed-by
+assertion of form ℓ ←[  tracks the multiset  of immediate predecessor blocks of block ℓ.
+The design of our traversal-aware speciﬁcation for RCU (§6.2) adapts this interface to reason about
+detached blocks. The notable diﬀerence is that our logic tracks the history of links, while their logic
+only tracks the current state of links. This is necessary to support Guard-Protect-BlockPointsTo,
+which talks about the link status at some moment in the past when the critical section started.
+
+9 FUTURE WORK
+
+Application to Other SMR Schemes. We conjecture that our style of veriﬁcation generalizes to
+many state-of-the-art SMR schemes [Alistarh et al. 2017, 2018; Brown 2015; Kang and Jung 2020;
+Nikolaev and Ravindran 2020, 2021; Sheﬃ et al. 2021; Singh et al. 2021; Wen et al. 2018], since they
+are essentially hybrids of hazard pointer and RCU. As a preliminary evaluation, we have sketched
+a speciﬁcation that commonly characterizes DEBRA+, PEBR, and NBR in the appendix [Jung et
+2023].
+
+Proof Automation. We conjecture that the additional proof required for the usage of our SMR
+scheme speciﬁcations can be largely automated using Diaframe [Mulder and Krebbers 2023; Mulder
+et al. 2022], a proof automation framework for Iris. Since our speciﬁcations follow Iris’s convention,
+
+Proc. ACM Program. Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory in Concurrent Separation Logic
+
+251:25
+
+it would be straightforward to design automation hints. As a preliminary evaluation, we wrote
+such hints for our hazard pointer and RCU speciﬁcation and Treiber’s stack.
+
+Relaxed Memory Model. In this work, we have assumed the sequentially consistent memory
+model. As future work, we will adapt our veriﬁcation to the iRC11 [Dang. 2019], a separation
+logic for C/C++’s relaxed memory model. We expect to encounter two technical challenges. First,
+the speciﬁcation should be based on partial orders among events. For example, our RCU base
+speciﬁcation (§6.1) should be modiﬁed to track memory retirement does not happen- at each moment. To this end, we will make use of the speciﬁcation of RCU by Alglave et al.
+[2018] and the speciﬁcation methodology by Dang et al. [2022]. Second, we need logic for SC
+fences, which are necessary for the implementation of general-purpose SMR schemes (discussed
+above). While an SC fence can be modeled as a combination of release/acquire fences and an atomic
+read-modify-write to a ghost location, which are already supported by existing logics [Vafeiadis
+2017], this approach has not been applied to a substantial.
+
+ACKNOWLEDGMENTS
+
+We thank the OOPSLA’23 reviewers for valuable feedback and suggestions for improvements. This
+work was supported by Samsung Research Funding & Incubation Center of Samsung Electronics
+under Project Number SRFC-IT2201-06.
+
+DATA AVAILABILITY STATEMENT
+
+The Coq development and appendix for this paper can be found in [ et al. 2023].
+
+REFERENCES
+Yehuda Afek, Guy Korland, and Eitan Yanovsky. 2010. Quasi-Linearizability: Relaxed Consistency for Improved Concurrency.
+In Principles of Distributed Systems - 14th International Conference, OPODIS 2010, Tozeur, Tunisia, December 14-17, 2010.
+Proceedings (Lecture Notes in Computer Science, Vol. 6490). Springer, 395–410. https://doi.org/10.1007/978-3-642-17653-
+1_29
+
+Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and Alan Stern. 2018. Frightening Small Children and
+Disconcerting Grown-Ups: Concurrency in the Linux Kernel. SIGPLAN Not. 53, 2 (March 2018), 405–418. https:
+//doi.org/10.1145/3296957.3177156
+
+Dan Alistarh, William Leiserson, Alexander Matveev, and Nir Shavit. 2017. Forkscan: Conservative Memory Reclamation
+for

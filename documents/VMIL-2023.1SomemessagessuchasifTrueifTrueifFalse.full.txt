@@ -1,0 +1,7 @@
+1. Some messages such as ifTrue:, ifTrue:ifFalse:
+and whileTrue: and related messages are recog-
+nized by the compiler, and are turned into conditional
+byte code sequences with the closures inlined, rather
+than message sends. While this is an extremely impor-
+tant optimization, enabling fully correct semantics can
+require extremely complex work-arounds.2

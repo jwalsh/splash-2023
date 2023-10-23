@@ -1,0 +1,106 @@
+Title-Abstract
+Revisiting Dynamic Dispatch for Modern
+
+Architectures
+
+dmason@torontomu.ca
+
+Toronto Metropolitan University
+
+Dave Mason
+
+Toronto, Canada
+
+Abstract
+Since the 1980s, Deutsch-Schiffman dispatch has been the
+standard method dispatch mechanism for languages like
+Smalltalk, Ruby, and Python. While it is a huge improvement
+over the simple, semantic execution model, it has some sig-
+nificant drawbacks for modern hardware and applications.
+This paper proposes an alternative dispatch mechanism
+that addresses these concerns, with only memory space as
+a trade-off, that should demonstrate dynamic performance
+only slightly worse than the best possible with full type
+information for the program.
+CCS Concepts: • Software and its engineering → Run-
+time environments; Dynamic compilers; Just-in-time
+compilers.
+Keywords: method dispatch, dynamic types
+ACM Reference Format:
+Dave Mason. 2023. Revisiting Dynamic Dispatch for Modern Ar-
+chitectures. In Proceedings of the 15th ACM SIGPLAN International
+Workshop on Virtual Machines and Intermediate Languages (VMIL
+’23), October 23, 2023, Cascais, Portugal. ACM, New York, NY, USA,
+7 pages. https://doi.org/10.1145/3623507.3623551
+
+1 Introduction
+Since the 1980s, Deutsch-Schiffman dispatch[4, 8, 25] has
+been the standard method dispatch mechanism for dynamically-
+typed, object-oriented, languages like Smalltalk, Ruby, and
+Python. This dispatch is much more efficient than the sim-
+ple algorithm derived from the semantics of dispatch, and
+was originally created in order to make Smalltalk useable
+on commodity hardware, rather than the custom machines
+upon which it had originally been implemented.
+
+Permission to make digital or hard copies of all or part of this work for
+personal or classroom use is granted without fee provided that copies
+are not made or distributed for profit or commercial advantage and that
+copies bear this notice and the full citation on the first page. Copyrights
+for components of this work owned by others than the author(s) must
+be honored. Abstracting with credit is permitted. To copy otherwise, or
+republish, to post on servers or to redistribute to lists, requires prior specific
+permission and/or a fee. Request permissions from permissions@acm.org.
+VMIL ’23, October 23, 2023, Cascais, Portugal
+© 2023 Copyright held by the owner/author(s). Publication rights licensed
+to ACM.
+ACM ISBN 979-8-4007-0401-7/23/10...$15.00
+https://doi.org/10.1145/3623507.3623551
+
+This paper describes dispatch for class-based,
+
+object-oriented systems like Smalltalk, Ruby, and Python.
+Prototype-based object-oriented languages like Javascript
+and Self should benefit from the same approach, but in the
+interests of simpler exposition the relevant details have been
+omitted. While this paper specifically uses Smalltalk as the
+language for discussion purposes, most of the same consid-
+erations apply to Ruby and Python.
+
+Improving the performance of dynamic dispatch is impor-
+tant because there is considerable evidence of interest[15, 21,
+22] in dynamic and OO languages. Most particularly, accord-
+ing to the TIOBE Index[20], the most popular language in the
+world as of this writing (and in the top 3 for most of the last
+4 years), is Python. At least 4 other of the top 20 (Javascript,
+R, Lua, and Ruby) have similar dispatch characteristics, and
+4 others (Visual Basic, Delphi, Swift, Objective-C) probably
+have some similarities.
+
+If full type information is available at compile time, the-
+oretically all dispatch could be done by directly indexing
+into a virtual dispatch table (a so-called vtable), but even in
+languages such as Java this is not fully exploited.
+
+1.1 Problems
+Smalltalk is an interesting performance challenge for several
+reasons.
+
+1. it is dynamically-typed to a fault - everything is an ob-
+ject including methods, classes, and even stack frames;
+2. there is no control-flow syntax - all control flow is im-
+plemented via message-sending with blocks (lambda
+functions) as parameters, and the blocks often contain
+non-local returns;
+
+3. there are no primitive operators as found in most lan-
+guages (arithmetic operators, comparisons, and index-
+ing are all messages);
+
+4. methods are typically very short (1-5 lines of code)
+and all expressions are literals, variable references,
+assignments, or message sends.
+
+In order to obtain adequate performance for Smalltalk on
+
+commodity hardware, there are two main techniques:

@@ -1,0 +1,127 @@
+Title-Abstract. Section intro
+.next, Unmarked) ∗ (, ℓ) ∈  ∗ (_, .next) ∈  ∗ · · ·
+
+
+
+∗
+
+ª®¬
+
+In HMLBlock, we use the block ID  as the name for a ghost variable8 recording the state of the
+next ﬁeld. The next ﬁeld is either not marked yet or marked permanently. The invariant IsHML
+holds the state of all nodes that have been added to the list (), and Managed of blocks that are
+not detached (). Speciﬁcally, IsHML maintains that the target block of an unmarked link is not
+detached ((_, .next) ∈ ).
+
+In the validation stage of the Harris-Michael list, we use Protected-Access-Full to access the
+block resource of the current node; if its next ﬁeld is unmarked, open IsHML to learn that the
+next node is not detached; and ﬁnd its Managed to validate the protection of next node with
+HPSlot-Validate-Full.
+
+Veriﬁcation of the Speciﬁcation. To accommodate per-block invariants, we replace fractional
+points-to assertions with fractionally owned ghost mapping from address to block ID, and put the
+full points-to into a per-pointer cancellable invariant [Jung et al. 2018], which is also fractionally
+ownable. If one collects full ownership of a cancellable invariant, one can deactivate it and reclaim
+its content. We change HPInv accordingly to govern the ownership transfer of ghost mapping and
+cancellable invariants.
+
+6 SPECIFICATION OF RCU
+
+We present two modular speciﬁcations of RCU: a general speciﬁcation that captures the protection
+of critical sections (§6.1), and a reﬁned speciﬁcation tailored towards optimistic traversal (§6.2).
+Using these speciﬁcations, we have formally veriﬁed Harris’s list with RCU for the ﬁrst time. We
+discuss the implementation and veriﬁcation of RCU in the appendix [Jung et al. 2023].
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:18
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Types and predicates
+
+Guard( : ThreadId,  : ℘(BlockId)) : iProp
+
+RCUState( : BlockId
+
+ﬁn
+−−⇀ Loc × BlockStatus) : iProp
+
+BlockStatus := Active | Retired |...
+
+BlockInfo( : BlockId, ℓ : Loc,  : BlockRes) : iProp
+
+Rules
+(RCU-Lock)
+⟨. RCUState( ) ∗ RCUSlot()⟩ rcu_lock() ⟨RCUState( ) ∗ Guard(, { BlockId |  [] = Retired}⟩
+
+(RCU-Unlock)
+{Guard(, _)} rcu_unlock() {RCUSlot()}
+
+(Managed-Protected)
+Guard(_, ) ∗ Managed(ℓ, ,  ) ⊢  ∉ 
+
+(RCU-Retire)
+⟨. RCUState( ) ∗ Managed(ℓ, , _)⟩ retire(ℓ) ⟨RCUState( [ ↦→(ℓ, Retired)])⟩
+
+(Managed-BlockInfo)
+Managed(ℓ, ,  ) ⊢ 2 BlockInfo(, ℓ,  )
+
+(Guard-Managed-Agree)
+
+ ∉ 
+
+BlockInfo(, ℓ,  ) ∗, ) ∗ Managed(ℓ, ′,  ) ⊢  = ′
+
+(Guard-Access)
+{∃. ℓ ↦→  ∗  (ℓ, , )}  {ℓ ↦→  ′ ∗  (ℓ,  ′, )}
+
+ ∉ 
+
+ physically atomic
+
+BlockInfo(, ℓ,  ) ⊢ {Guard(, )}  {Guard(, )}
+
+Fig. 11. RCU base specification.
+
+6.1 General Specification Characterizing Critical Sections
+
+RCU diﬀers from hazard pointers in that it protects all accesses inside a critical section. More
+precisely, access to a pointer is protected throughout a critical section if its retirement does not
+happen before the beginning of the critical section [McKenney et al. 2023]. We encode such critical
+section-based protection in the guard predicate of the form Guard(, ) presented in Fig. 11.
+
+The guard predicate ﬁrst represents the fact that thread  is in a critical section: it is introduced
+by RCU-Lock and eliminated by RCU-Unlock. In doing so, it is exchanged with RCUSlot(), which
+is the ’s permission to enter a critical section. When verifying Treiber’s stack with RCU (omitted),
+pop() would own Guard(, _) from C2 to C6 or C10 in Fig. 1a.
+
+The guard predicate also records the set, , of pointers that had been already retired when the
+critical section began. For example, Managed-Protected says that if a block has not been retired
+yet (shown by Managed that serves the same purposes as for hazard pointers), then it was not
+retired also when the critical section began. In our stack veriﬁcation, if pop() loads a non-null head
+pointer h at C4 in Fig. 1a, we use Managed(h,...) from the invariant to show that h is not in .
+
+To more precisely track , we introduce the RCU state predicate of the form RCUState( ). The
+parameter  in RCUState( ) describes the current status of all memory block that has been managed
+by RCU. For example, RCU-Retire marks the block as retired in  (other states are omitted). When a
+guard is created by RCU-Lock for thread  from RCUState( ), it records the set of retired pointers
+as the parameter . The RCU-Lock and RCU-Retire rules are formulated as logically atomic triples
+so that the user can build a sophisticated invariant that involves the RCU’s state. In §6.2, we will
+sketch such an invariant to reason about optimistic traversal (§2.2).
+
+7The logically atomic access rule corresponding to LAT-Inv-Acc is omitted.
+8This is possible because block IDs are globally unique.
+c. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:19
+
+The guard predicate protects all blocks but the ones in . To give a logical meaning to pro-
+tection, we introduce the block information predicate of the form BlockInfo( ℓ,  ). Intuitively,
+BlockInfo(, ℓ,  ) is the knowledge extracted from Managed(ℓ, ,  ) (Managed-BlockInfo) that  is as-
+sociated with the physical address ℓ and governed by the block resource .9 Given BlockInfo( ℓ, 
+and the fact that 

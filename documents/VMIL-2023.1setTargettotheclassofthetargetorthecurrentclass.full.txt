@@ -1,0 +1,9 @@
+1. set Target to the class of the target (or the current class’
+superclass if it is a super send)
+
+2. set Current to Target
+3. look up the selector symbol in Current’s method dic-
+
+tionary
+
+call it

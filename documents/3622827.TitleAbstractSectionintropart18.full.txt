@@ -1,0 +1,88 @@
+Title-Abstract. Section intro
+ Systems. In Proceedings of the Twelfth European Conference on Computer Systems (Belgrade, Serbia)
+(EuroSys ’17). Association for Computing Machinery, New York, NY, USA, 483–498. https://doi.org/10.1145/3064176.
+3064214
+
+Dan Alistarh, William Leiserson, Alexander Matveev, and Nir Shavit. 2018. ThreadScan: Automatic and Scalable Memory
+
+Reclamation. ACM Trans. Parallel Comput. 4, 4, Article 18 (may 2018), 18 pages. https://doi.org/10.1145/3201897
+
+Daniel Anderson, Guy E. Blelloch, and Yuanhao Wei. 2021. Concurrent Deferred Reference Counting with Constant-Time
+Overhead. In Proceedings of the 42nd ACM SIGPLAN International Conference on Programming Language Design and
+Implementation (Virtual, Canada) (PLDI 2021). Association for Computing Machinery, New York, NY, USA, 526–541.
+https://doi.org/10.1145/3453483.3454060
+
+Mark Batty, Scott Owens, Susmit Sarkar, Peter Sewell, and Tjark Weber. 2011. Mathematizing C++ Concurrency. In Proceedings
+of the 38th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (Austin, Texas, USA)
+(POPL ’11). Association for Computing Machinery, New York, NY, USA, 55–66. https://doi.org/10.1145/1926385.1926394
+Richard Bornat, Cristiano Calcagno, Peter O’Hearn, and Matthew Parkinson. 2005. Permission Accounting in Separation
+
+Logic. SIGPLAN Not. 40, 1 (jan 2005), 259–270. https://doi.org/10.1145/1047659.1040327
+
+John Boyland. 2003. Checking Interference with Fractional Permissions. In Static Analysis, Radhia Cousot (Ed.). Springer
+
+Berlin Heidelberg, Berlin, Heidelberg, 55–72.
+
+Trevor Alexander Brown. 2015. Reclaiming Memory for Lock-Free Data Structures: There Has to Be a Better Way. In
+ings of the 2015 ACM Symposium on Principles of Distributed Computing (Donostia-San Sebastián, Spain) (PODC
+’15). Association for Computing Machinery, New York, NY, USA, 261– https://doi.org/10.1145/2767386.2767436
+
+Proc. ACM Program. Lang., Vol. 7, No. OOP2, Article 251. Publication date: October 2023.
+
+
+251:26
+
+hwang Jung, Janggun Leeemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+ Chase and Yossi Lev. 2005. Dynamic Circular Work- Deque. In Proceedings of the Seventeenth Annual
+ACM Symposium on Parallelism in Algorithmsures (Las Vegas, Nevada, USA) (SPAA ’05). Association for
+Computing Machinery, New York, NY, 21–28. https://doi.org/10.1145/1073970.74
+
+Pedro da Rocha Pinto, Thomas Dinsdale-Young, and Philippa Gardner. 2014. TaDA: A Logic for Time and Data Abstraction.
+In ECOOP 2014 – Object-Oriented Programming, Richard Jones (Ed.). Springer Berlin Heidelberg, Berlin, Heidelberg,
+207–231.
+
+Hoang-Hai Dang, Jacques-Henri Jourdan, Jan-Oliver Kaiser, and Derek Dreyer. 2019. RustBelt Meets Relaxed Memory. Proc.
+
+ACM Program. Lang. 4, POPL, Article 34 (Dec. 2019), 29 pages. https://doi.org/10.1145/3371102
+
+Hoang-Hai Dang, Jaehwang Jung, Jaemin Choi, Duc-Than Nguyen, William Mansky, Jeehoon Kang, and Derek Dreyer. 2022.
+Compass: Strong and Compositional Library Speciﬁcations in Relaxed Memory Separation Logic. In Proceedings of the 43rd
+ACM SIGPLAN International Conference on Programming Language Design and Implementation (San Diego, CA, USA) (PLDI
+2022). Association for Computing Machinery, New York, NY, USA, 792–808. https://doi.org/10.1145/3519939.3523451
+John Derrick, Brijesh Dongol, Gerhard Schellhorn, Bogdan Tofan, Oleg Travkin, and Heike Wehrheim. 2014. QuiesConsistency: Deﬁning and Verifying Relaxed Linearizability. In FM 2014: Formal Methods - 19th International Symposium,
+Singapore, May 12-16, 2014. Proceedings (Lecture Notes in Computer Vol. 8442). Springer, 200–214. https://doi.org/
+10.1007/978-3-319-06410-9_15
+
+M. Desnoyers, P. Eenney, A. S. Stern, M. R. Dagenais, and J. Walpole. 2012. User-Level Implementations of Read-Copy
+Update. IEEE Transactions on Parallel and Dist 23, 2 (2012), 375–382. https://doi.org/10.1109/TPDS.2011.159
+Simon Doherty, Lindsay Groves, Victor Luchangco, and Mark Moir. 2004. Formal Veriﬁcation of a Practical Lock-Free Queue
+Algorithm. In Formal Techniques for Networked and Distributed Systems – FORTE 2004, David de Frutos-Escrig andNúñez (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 97–114. https://doi.org/10.1007/978-3-540-30232-2_7
+
+Marko Doko and Viktor Vafeiadis. 2017. Tackling Real-Life Relaxed Concurrency with FSL++. In Programming Languages
+
+and Systems, Hongseok Yang (Ed.). Springer Berlin Heidelberg, Berlin, Heidelberg, 448–475.
+
+Keir Fraser. 2004. Practical lock-freedom. Ph. D. Dissertation.
+Ming Fu, Yong Li, Xinyu Feng, Zhong Shao, Zhang. 2010. Reasoning about Optimistic Concurrency Using a Program
+Logic for History. In CONCUR 2010 - Concurrency Theory, Paul Gastin and François Laroussinie (Eds.). Springer Berlin
+Heidelberg, Berlin, Heidelberg, 388–402. https://doi.org/10.1007/978-3-642-15375-4_27
+
+Alexey Gotsman, Noam Rinetzky, and Hongseok Yang. 2013. Verifying Concurrent Memory Reclamation Algorithms with
+Grace. In Proceedings of the 22nd European Conference on Programming Languages and Systems (Rome, Italy) (ESOP’13).
+Springer-Verlag, Berlin, Heidelberg, 249–269. https://doi.org/10.1007/978-3-642-37036-6_15
+
+Alexey Gotsman and Hongseok Yang. 2012. Linearizability with Ownership Transfer. In CONCUR 2012 – Concurrency
+Theory, Maciej Koutny and Irek Ulidowski (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 256–271. https:
+//doi.org/10.1007/978-3-642-32940-1_19
+
+Andreas Haas, Thomas A. Henzinger, Andreas Holzer, Christoph M. Kirsch, Michael Lippautz, Hannes Payer, Ali Sezgin,
+Ana Sokolova, and Helmut Veith. 2016. Local Linearizability for Concurrent Container-Type Data Structures. In 27th
+International Conference on Concurrency Theory, CONCUR 2016, August 23-26, 2016, Québec City, Canada (LIPIcs, Vol. 59).
+Schloss Dagstuhl - Leibniz-Zentrum für Informatik, 6:1–6:15. https://doi.org/10.4230/LIPIcs.CONCUR.2016.6
+
+Timothy L. Harris. 2001. A Pragmatic Implementation of Non-Blocking Linked-Lists. In Proceedings of the 15th International
+
+Conference on Distributed Computing (DISC ’01). Springer-Verlag, Berlin, Heidelberg, 300–314.
+
+Timothy L. Harris, Keir Fraser, and Ian A. Pratt. 2002. A Practical Multi-Word Compare-and-Swap Operation. In Proceedings
+of the 16th International Conference on Distributed Computing (DISC

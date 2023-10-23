@@ -1,0 +1,115 @@
+Title-Abstract. Section intro
+ the per-pointer ghost location d (ℓ) to , respectively.
+HPSlot(, _) carries s v ﬂags for all possible pointers, and Managed(ℓ, _) asserts that d (ℓ)
+ﬂag is false. Theﬁcation of the speciﬁcation proceeds as follows.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:16
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Types and predicates
+
+BlockRes := Loc → Val → BlockId → iProp
+
+Managed(ℓ : Loc,  : BlockId,  : BlockRes) : iProp
+
+Protected( : ThreadId, ℓ : Loc,  : BlockId,  : BlockRes) : iProp
+
+Rules
+
+(Managed-New-Full)
+ℓ ↦→  ∗ (∀.  fresh
+
+ (ℓ, , ))
+
+∃.  fresh ∗ Managed(ℓ, ,  )
+
+(HPSlot-Validate-Full)
+Managed(ℓ, ,  ) ∗ HPSlot(, ℓ)
+
+Managed(ℓ, ,  ) ∗ Protected(, ℓ, ,  )
+
+(Protected-Access-Full)
+{∃. ℓ ↦→  ∗  (ℓ, , )}  {ℓ ↦→  ′ ∗  (ℓ,  ′, )}
+
+ physically atomic
+
+{Protected(, ℓ, ,  )}  {Protected(, ℓ, ,  )}
+
+(Protected-Managed-Agree-Full)
+Protected(, ℓ, ,  ) ∗ Managed(ℓ, ′,  ) ⊢  = ′
+
+Fig. 10. Excerpt from the full specification of hazard pointers.
+
+• HPSlot-Validate: When  validates protection of ℓ, v (ℓ, ) is set and the partial ownership
+
+of ℓ is granted to Protected(, ℓ, _).
+
+• HP-Retire: d (ℓ) ﬂag is set, and its resources are temporarily stored in HPInv.
+• Safety of do_reclamation(): It picks up the resources of retired pointers and collects each
+thread’s ownership by scanning the protected pointer list. If a retired pointer is not in the
+protected pointer list, it is guaranteed that do_reclamation() has collected the full ownership
+of the pointer, thus it is safe to reclaim it.
+
+5 REASONING ABOUT MUTABLE MEMORY BLOCKS
+ speciﬁcations from §3 are only applicable to simple data structures like Treiber’s stack in which
+the contents of memory blocks do not change. In this section, we generalize the speciﬁcation to
+enable veriﬁcation of sophisticated data structures with mutable memory blocks. The key idea is
+replacing read-only fractional points-to assertions in the Managed and Protected predicates with
+a per-block invariant that governs the evolution of the contents of each block. Fig. 10 shows the
+updated signatures predicate and the new proof rules.
+
+Block Resource and ID. To represent per-block invariants, we introduce block resource predicate
+and parameterize Managed and Protected predicates with it, replacing the ﬁxed value parameter. A
+block resource predicate of the form  (ℓ, , ) depends not only on the block’s address ℓ and contents
+, but also on its block ID . Block IDs are abstract values that uniquely identify diﬀerent allocations
+of blocks. That is, if a memory block is reclaimed and reallocated, it is assigned a diﬀerent block
+ID. Managed and Protected are also parameterized by the current block ID in order to relate each
+block’s resource and data structure’s global invariant. In veriﬁcation ignoring reclamation, such
+relation typically is expressed only with physical pointer values, exploiting the fact that the pointer
+values are unique since they are not reused.
+
+Proof Rules. When registering a managed pointer with block resource predicate  (Managed-
+New-Full), the user should additionally show that  (ℓ, , ) can be created given a globally fresh
+. During validation (HPSlot-Validate-Full), the knowledge about the block ID and resource are
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:17
+
+transferred from managed pointer to the new protected pointer predicate. Once validated, the user
+can temporarily access the memory block’s full points-to assertion (on the current value) as well
+as its block resource via Protected-Access-Full while executing an atomic instruction, in a style
+similar to the usual invariant access rule Inv-Acc.7 Finally, Protected-Managed-Agree-Full says
+that managed and protected pointer assertions of the same pointer agree on their block ID, hence
+protected pointers are free from the ABA problem. Intuitively, the rule holds because the presence
+of a protected pointer guarantees that the pointer cannot be reclaimed and reallocated, and the
+block ID of a block does not change as long as they are not reallocated.
+
+Application to the Harris-Michael List. Using the above speciﬁcation, we have formally veriﬁed
+the Harris-Michael list with manual reclamation for the ﬁrst time. Here, we sketch the veriﬁcation
+of its validation method discussed in §2.1. We use the following block resource and global invariant:
+
+1/2
+Z===⇒ (.next, Unmarked) ∗ LSB(.next) = 0
+
+ Z⇒? (.next, Marked) ∗ LSB(.next) = 1
+
+
+
+HMLBlock(ℓ, , ) :=... ∗
+∗↦→(ℓ, ) ∈
+IsHML := ∃, .©(cid:173)«
+Managed(ℓ, , HMLBlock)! ∗...
+  ∗(,ℓ ) ∈
+
+ Z⇒? (.next, Marked) ∗ · · ·
+
+1/2
+Z===⇒

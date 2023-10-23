@@ -1,0 +1,3 @@
+
+
+This section discusses the semantic dispatch that must be emulated in order to optimize message dispatch in object-oriented programming. It describes the steps of Smalltalk message dispatch, the optimizations used by most Smalltalk implementations, the model used by Java to achieve excellent performance, a theoretically optimal dispatch respecting Smalltalk semantics, and the flat dispatch model proposed in this paper. It also discusses the potential knock-on effects of the flat dispatch structure.

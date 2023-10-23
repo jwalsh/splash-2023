@@ -1,0 +1,3 @@
+
+
+The section discusses how the compiler recognizes certain messages such as ifTrue:, ifTrue:ifFalse: and whileTrue: and turns them into conditional byte code sequences with the closures inlined. This is an important optimization, but it can require complex work-arounds to ensure correct semantics.

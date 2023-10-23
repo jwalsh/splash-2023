@@ -1,0 +1,222 @@
+Title-Abstract. Section intro
+
+pointer to a memory block with value .
+
+Protected(, ℓ, ) can be introduced by calling the protect() function (Protect). It returns a
+protected pointer assertion for ℓ loaded from  when Managed(ℓ, _) is available. In other words,
+protection is established only when the user shows that the pointer is not retired. Protect is formu-
+lated as a logically atomic triple so that the user can access the data structure invariant (LAT-Inv-Acc)
+to provide  ↦→ ℓ and Managed(ℓ, _) as the precondition. It additionally takes HPSlot(), the
+permission for  to protect a pointer, which is created when the  is spawned. The unprotect()
+function eliminates the protected pointer and returns back the protection permission (Unprotect).
+The protected pointer assertion replaces the leaking points-to assertion used by each thread to
+reason about the safety of using the pointer. In Fig. 6, the thread obtains Protected(, ℎ1, _) at C4
+via Protect and to show the safety of dereference at C8 via Protected-Access (analogous to
+LPointsTo-Read). To show that the protection prevents the ABA problem in the successful CAS at
+C9, we use Protected-Managed-Agree (analogous to LPointsTo-Agree) to conclude that the node
+protected at C4 has not changed (V9.1-9.2).
+
+For sophisticated data structures with custom validation strategies, low-level rules for writing to
+the protected pointer list slot and validation are needed. As shown in HPSlot-Set, HPSlot(, ℓ)
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:13
+
+Fig. 7. The life cycle of pointer ownership in hazard pointers.
+
+records the value written in the thread’s protected pointer list slot (HPSlot() is abbrevia-
+tion of HPSlot(, NULL)). After ℓ is written to the slot, HPSlot-Validate transforms HPSlot to
+Protected(, ℓ, ) given Managed(ℓ, ). This rule is applied after running a validation check that
+conﬁrms that ℓ is not retired. For example, Protect is proved by applying HPSlot-Set at C14 (Fig. 2)
+and HPSlot-Validate at C16 when the condition evaluates to true (see appendix [Jung et al. 2023]).
+We discuss its application to the validation strategy of the Harris-Michael list in §5.
+
+4 VERIFICATION OF HAZARD POINTERS
+
+We verify the speci� of hazard pointers (§3) in concurrent separation logic. Essentially,
+hazard pointers is a mechanism to distribute and recollect the partial ownerships of pointers in
+the form of managed pointer assertion and the protected pointer assertions for each thread. Fig. 7
+overviews the life cycle of a points-to assertion (ℓ ↦→ ) transferred and shared among the memory
+allocator, the data structure, the protecting threads, reclaiming thread. In cyan area,
+Managed-New splits ℓ ↦→  into a Managed assertion and Protected assertions for each thread.
+Then, Protected assertions are transferred to the protected pointer list of the invariant HPInv of
+hazard pointers (see below for details). In purple area, Protect passes the Protected assertion
+from the protected pointer the protecting thread in the the Managed assertion,
+and in pink area, Unprotect returns the Protected assertion back. In yellow area, HP-
+transfers the Managed assertion detached from the data structure’s invariant retired pointer
+list. After all the protected for a retired block are the threads, in
+green area, do_reclamation() reconstructs the points-to them and reclaim.
+
+1 Fractionhip of Pointer
+
+To model the per-thread ownership of a we use a variant of fractional points-to assertion
+equipped with a permission algebra [Vafeiadis 2011 a set, say , the fractional points-to
+assertion powerset algebrajoint union��(⊎is� the following proof
+
+� ↦→  ⊣���
+
+
+↦−→ 
+1⊎2
+−−−−→ �⊢ ℓ
+
+1↦−→  ∗ ℓ
+2↦ 
+
+ℓ
+
+For hazard pointers, we use the permission algebra ℘(∪{★})⊎, where each  ∈ ThreadId
+
+represents the thread� protected pointer and the managed pointer
+Protected,�, ) := ℓ
+
+{ }
+↦−−−−→  �..
+
+Managed(ℓ, ) := ℓ{★}
+↦−−−→  ∗..
+
+The rules-Access, Protected-Access Protected-Managed-Agree immediately follow
+from the analogous rules for fractional points-to.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.251:14
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Invariant:
+
+∃, , , .
+
+1/2
+↦−−→  ∗ 
+
+
+
+1/2
+↦−−→  ∗ v
+
+1/2
+Z===⇒  ∗ r
+
+1/2
+Z===⇒  ∗
+
+¬( ∧  ) ∗ (¬( ∨  ) ⇒ ( ↦→ false) ) ∗ ( ⇒  ) ∗ ( ⇒  )
+
+V10
+
+C11
+
+V11
+
+C12
+
+V12
+
+C13
+
+V13
+
+C14
+
+V14
+
+1
+
+1/2
+↦−−→ false ∗ v
+
+* := true
+
+1/2
+↦−−→ true ∗ v
+
+if!*:
+1/2
+↦−−→ true ∗ v
+
+assert (!* )
+
+{...}
+
+* := false
+
+1/2
+↦−−→ false ∗ 
+
+(cid:8)
+(cid:8)
+(cid:8)
+
+(cid:8)
+
+1/2
+
+1/2
+
+Z===⇒ false(cid:9)
+Z===⇒ false(cid:9)
+Z===⇒ true ∗  ↦→ false(cid:9)
+
+1/2
+
+1/2
+
+Z===⇒ false(cid:9)
+
+2
+
+1/2
+↦−−→ false ∗ r
+
+V20
+
+V21
+
+C21 * := true
+
+1/2
+↦−−→ true ∗ r
+
+C22 if!*:
+1/2
+↦−−→ true ∗ r
+
+V22
+
+C23
+
+V23
+
+* := true
+
+1/2
+↦−−→ true ∗ r
+
+(cid:8)
+(cid:8)
+(cid:8)
+(cid:8)
+
+1/2
+
+1/2
+
+Z===⇒ false(cid:9)
+Z===⇒ false(cid:9)
+Z===⇒ true ∗  ↦→ false(cid:9)
+Z===⇒ true ∗  ↦→ true(cid:9)
+
+1/2
+
+1/2
+
+Fig. 8. The essence of the synchronization between protection and reclamation
+
+4.2 The Essence of Synchronization between Protection and Reclamation
+
+Fig.

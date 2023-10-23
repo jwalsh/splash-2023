@@ -1,0 +1,174 @@
+Title-Abstract. Section intro
+ that there is a contention for protected pointer predicates owned by the protected
+pointer list between the protection of threads (Protect) and the reclamation (the do_reclamation()
+function). We reason about the synchronization between protection and reclamation as follows.
+
+The program in Fig. 8 schematically illustrates the essence of the synchronization between the
+protecting thread and the reclaiming thread contending for a single memory block. (For now, please
+ignore the invariant and the proof lines.) The program consists of three locations , , and  that
+record the status of the block: (1)  for whether the block is detached from the data structure; (2) 
+for whether the block is protected; and (3)  for whether the block is reclaimed. The left thread (1)
+represents a thread that protects and accesses a memory block. It protects the block and validates
+if the block is not detached yet (Protect, corresponding to C11-12). If validated, it accesses the
+block (Protected-Access, corresponding to succesful assert at C13), and ﬁnally, terminates the
+protection (Unprotect, corresponding to C14). The right thread (2) represents a thread that retires
+and reclaims the memory block. It detaches the block (HP-Retire, corresponding to C21), checks if
+the block is not protected, and in that case, reclaims the block (the do_reclamation() function,
+corresponding to C22-23).
+
+We can informally reason about the above program’s safety by case analysis. (1) If C11 is executed
+before C21,  is set before C22, so 2 does not reach C23 and set  ; and (2) if C21 is executed before
+C11,  is set before C12, so 1 does not reach C13 and assert that  is not set. In either case, the
+access to the block (C13) must happen before the reclamation (C23), thereby proving the assertion.
+We formalize this informal reasoning by adopting Mével et al. [2020, §5.4]’s approach for verifying
+Peterson’s mutual exclusion algorithm to the context of safe memory reclamation. The key idea is
+to introduce ghost locations v and r that record whether protection of the block is validated and
+whether the block is reclaimed, and relate them to physical locations  and , respectively. To this
+end, we maintain the following invariant which we call mutual exclusion protocol:
+
+• Introduce four variables:  and  for the value stored in physical locations  and ; and  and
+ for the values recorded in v and r.  and  are tracked using the ghost variable assertions
+
+Pro ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:15
+
+HPInv := ∃. protected
+
+1/2
+↦−−−→  ∗ (Managed and resource of retired pointers) ∗
+
+∗
+
+ ∃. d (ℓ)
+
+1/2
+
+Z===⇒  ∗∗  ∃, . v (ℓ, )
+↦−−−→ ℓ ∗∗
+
+1/2
+Z===⇒ false
+
+v (ℓ, )
+
+r (ℓ, )
+
+1/2
+
+1/2
+Z===⇒  ∗
+
+Z===⇒  ∗...!! ∗...
+
+1/2
+
+HPSlot(,�) := protected[]
+
+Protected(, ℓ, ) := �
+
+{ }
+↦−−−−−→  �[]
+
+1/2
+↦−−−→ ℓ ∗ v (ℓ, )
+
+v (ℓ, )
+
+1/2
+Z===⇒ false
+
+Managed(ℓ, ) := ℓ
+
+{★}
+↦−−−→  ∗ d (ℓ)
+
+1/2
+
+Z===⇒ false ∗ ∗ ∈N
+
+r (ℓ, )
+
+1/2
+Z===⇒ false
+
+1/2
+
+Z===⇒ true ∗∗ℓ ′ ≠ℓ
+
+Fig. 9. Definition of the predicates and invariant of hazard pointers.
+
+which (fractional) points-to assertions for ghost locations:
+
+(Ghost-Var-Agree)
+
+
+
+Z==⇒  ∗ 
+
+ ′
+Z==⇒  ′ ⊢  =  ′
+
+(Ghost-Var-Fract)
+
+
+
+Z==⇒  ∗ 
+
+ ′
+Z==⇒  ⊣⊢ 
+
+ + ′
+Z====⇒ 
+
+(Ghost-Var-Update)
+1
+Z==⇒ 
+
+
+1
+Z==⇒ 
+
+
+
+• Distribute the ownership of , , v, and r to the invariant and threads. 1 can write to  and
+
+v and read from the other two by opening the invariant, and the other way around for 2.
+
+• Require the condition ¬( ∧ ), i.e., mutual exclusion of validation and reclamation. When
+neither is true, the invariant keeps ownership of  with the condition ¬( ∨) ⇒ ( ↦→ false).
+When 1 validates the protection, it knows that the block is not reclaimed thanks to mutual
+exclusion, hence the ownership of  will move to 1, and vice versa for reclamation in 2.
+
+• Require ( ⇒  ): to validate the protection, 1 should have announced the protection already;
+and ( ⇒ ): to reclaim the block, 2 should ensure that the block has been detached already.
+
+Using the invariant, proof of 1’s safety proceeds as follows (proof for 2 is similar).
+• V11: We open the invariant to get the half ownership of , combine it with the other half owned
+
+by 1, and write true to it. Then, we split it in half to close the invariant.
+
+• V12: We consider the case where the block is not detached yet and thus the validation succeeds.
+We open the invariant to get the full ownership of v. Since  = false, we derive  = false
+from ( ⇒ ). We take  ↦→ false out of the invariant by setting v Z⇒ true (via Ghost-Var-
+1/2
+Update), so that it does not have to be returned to the invariant. Since 
+↦−−→ true, ( ⇒  ) is
+maintained, and we can close the invariant.
+
+• V12-13: We read from  using  ↦→ false. The assertion succeeds• V14: We open the invariant to get the full ownership of  and v; write to ; set v Z⇒ false
+
+and return  ↦→ false back if necessary; and close the invariant.
+
+4.3 Generalization to Multiple Pointers and Threads
+
+Fig. 9 presents the deﬁnition of the predicates and invariant of supporting multiple
+pointers and threads invariant HPInv of hazard pointers is assumed in every proof rule
+presented in Fig. 5. The invariant generalizes that in Fig. 8 by collecting mutual exclusion protocols
+{ }
+↦−−−−→ _ for each pointer ℓ and thread . More speciﬁcally,
+that govern ownership transfer of �each slot protected[] corresponds to  (in Fig. 8), the per-pointer per-thread ghost locations
+v (�,  and  (�, )vr

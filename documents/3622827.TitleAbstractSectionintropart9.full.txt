@@ -1,0 +1,149 @@
+Title-Abstract. Section intro
+�
+
+Here, Managed(ℎ, {.data = ,.next = }) replaces ℎ ↦→? {.data = ,.next = } in §2.3.
+Similarly to leaking points-to, managed pointer predicates permit read access via Managed-Access.
+A managed pointer assertion is introduced from a full points-to via Managed-New. Here, a view
+
+shift assertion 
+
+ says that  can be transformed into  while proving a Hoare triple:
+
+(Hoare-VS)
+
+
+ ′
+
+{ ′}  { ′}
+
+ ′
+
+
+
+{ }  { }
+
+For example, the proof of stack push() method (not shown here) converts the points-to of the newly
+pushed node into a managed pointer assertion with Managed-New and prepends it to LinkedList.
+Unlike leaking points-to, the managed pointer assertion represents the unique permission to
+retire a pointer. To show the safety of retiring a pointer, one should provide its Managed to HP-
+Retire as a precondition. This precondition reﬂects the requirement that the retirer must ﬁrst
+detach the memory block from the data structure. By detaching the block, one can take Managed
+out of the data structure invariant, obtaining the exclusive right to retire it. For instance, in Fig. 6,
+Managed(ℎ1, _) is detached from the stack’s invariant by the CAS at C9, which is then used for
+retire(h) at C10. Note that retirement consumes Managed, so multiple retirement of the same
+pointer is prevented (thus preventing double-free in do_reclamation()).
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:12
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+C1 fun pop( ):
+
+C3
+
+V3.1
+
+V3.2
+
+C4
+
+V4.1
+
+V4.2
+
+· · ·
+
+V7.1
+
+C8
+
+V8.1
+
+C9
+
+V9.1
+
+V9.2
+
+C10
+
+loop:
+
+{HPSlot( ) ∗ IsStack( ) }
+
+ℎ1 := protect(, &(* ).head)
+
+
+
+
+
+
+ℎ1 = NULL ∗ HPSlot( )
+
+∗ Managed(ℎ1, {...} ) ∗...
+
+1
+
+1, 1. 1 = 1 ::  ′
+
+1
+
+ℎ1 = NULL ∗ 1 = [ ]
+∃1, ′
+
+1, 1. 1 = 1 ::  ′
+
+ℎ1 = NULL ∗ 1 = [ ] ∗ HPSlot( )
+∃1, ′
+
+HPSlot( ) ∗ ∃ℎ1, 1.  ↦→ {.head = ℎ1 } ∗
+∃ℎ1, 1.  ↦→ {.head = ℎ1 } ∗
+IsStack( ) ∗
+Protected(ℎ1, {...} ) ∗ ∃ℎ2, 2.  ↦→ {.head = ℎ2 } ∗���
+(cid:8)Protected(ℎ1, {...} ) ∗  ↦→ {.head = ℎ1 } ∗ Managed(ℎ1, {...} ) ∗ LinkedList(2,  ′
+2 )(cid:9)
+
+∃1, 1. Protected(, ℎ1, {.data = 1,.next = 1 } )
+
+ℎ2 = NULL ∗ 1 = [ ]
+∃2,  ′
+
+2, 2. 2 = 2 ::  ′
+
+
+
+2
+
+{IsStack( ) ∗ ∃1, 1. Protected(, ℎ1, {.data = 1,.next = 1 } ) }
+
+1 := (*ℎ1).data; 1 := (*ℎ1).next
+
+· · ·
+
+if CAS(&(* ).head, ℎ1, 1):
+
+retire(ℎ1); unprotect()
+
+
+
+
+
+∗ Managed(ℎ1, {...} ) ∗ Protected(, ℎ1, {...} ) ∗...
+
+∗ Managed(ℎ2, {.data = 2,.next = 2 } ) ∗...
+
+
+
+{Protected(ℎ1, {.data = 1,.next = 1 } ) ∗ Managed(ℎ1, {.data = 1,.next = 1 } ) ∗ IsStack( ) }
+
+V10.1
+
+{HPSlot( ) ∗ IsStack( ) }
+
+Fig. 6. Verification of Treiber’s stack with hazard pointers.
+
+Protected Pointer. When a thread  successfully protects a pointer ℓ, it obtains thepointer predicate of the form Protected(, ℓ, ), which represents the temporary permission for
+ to access ℓ. Similarly to managed pointer predicate, Protected(, ℓ, ) implies that ℓ is

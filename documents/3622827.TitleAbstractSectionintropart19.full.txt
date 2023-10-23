@@ -1,0 +1,93 @@
+Title-Abstract. Section intro
+02). Springer-Verlag, Berlin, Heidelberg, 265–279.
+Thomas E. Hart, Paul E. McKenney, Angela Demke Brown, and Jonathan Walpole. 2007. Performance of Memory Reclamation
+for Lockless Synchronization. J. Parallel Distrib. Comput. 67, 12 (dec 2007), 1270–1285. https://doi.org/10.1016/j.jpdc.
+2007.04.
+Danny Hendler, Nir Shavit, and Lena Yerushalmi. 2004. A Scalable Lock-Free Stack Algorithm. In Proceedings of the Sixteenth
+Annual ACM Symposium on Parallelismgorithms and Architectures (Barcelona, Spain) (SPAA ’04). Association for
+Computing Machinery, New York, NY, USA, 206–215. https://doi.org/10.1145/1007912.1007944
+
+Thomas A. Henzinger, Christoph M. Kirsch, Hannes Payer, Ali Sezgin, and Ana Sokolova. 2013. Quantitative relaxation
+of concurrent data structures. In The 40th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming
+Languages, POPL ’13, Rome, Italy - January 23 - 25, 2013. ACM, 317–328. https://doi.org/10.1145/2429069.2429109
+
+Maurice P. Herlihy and Jeannette M. Wing. 1990. Linearizability: A Correctness Condition for Concurrent Objects. ACM
+
+Trans. Program. Lang. Syst. 12, 3 (July 1990), 463–492. https://doi.org/10.1145969.78972
+
+Iris Team. 2023a. Iris examples. https://gitlab.mpi-sws.org/iris/examples
+Iris Team. 2023b. The Iris project website. https://iris-project.org/
+Bart Jacobs and Frank Piessens. 2011. Expressive Modular Fine-Grained Concurrency Speciﬁcation. In Proceedings of the
+38th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (Austin, Texas, USA) (POPL ’11).
+Association for Computing Machinery, New York, NY, USA, 271–282. https://doi.org/10.1145/1926385.1926417
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:27
+
+Radha Jagadeesan and James Riely. 2014. Between Linearizability and Quiescent Consistency - Quantitative Quiescent
+Consistency. In Automata, Languages, and Programming - 41st International Colloquium, ICALP 2014, Copenhagen,
+Denmark, July 8-11, 2014, Proceedings, Part II (Lecture Notes in Computer Science, Vol. 8573). Springer, 220–231. https:
+//doi.org/10.1007/978-3-662-43951-7_19
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang. 2023. Modular Veriﬁcation of Safe
+Memory Reclamation in Concurrent Separation Logic (Coq development and appendix). https://doi.org/10.1145/3580418
+Project webpage: https://cp.kaist.ac.kr/gc.
+
+Ralf Jung. 2019ical Atomicity in Iris: the Good, the Bad, and the Ugly. Iris Workshop. https://people.mpi-sws.org/
+
+~jung/iris/talk-iris2019.pdf
+
+Ralf Jung, Robbert Krebbers, Jacques-Henri Jourdan, Ales Bizjak, Lars Birkedal, and Derek Dreyer. 2018. Iris from the
+ground A modular foundation for higher-order logic. J. Funct. Program. 28 (2018), e20.
+https://doi.org/10.1017/S0956796818000151
+
+Ralf Jung, Rodolphe Lepigre, Gaurav Parthasarathy, Marianna Rapoport, Amin Timany, Derek Dreyer, and Bart Jacobs. 2019.
+The Futureurs: Prophecy Variables in Separation Logic. Proc. ACM Program. Lang, POPL, Article 45 (dec 2019),
+32 pages. https://org/10.113371113
+
+Ralf Jung, David Swasey, Filipkowski, Svendsen,on, Lars Bir, and Derek D. 2015:
+Monoidsariants Orthogis for Concurrent. In the 42nd Annual
+SIGPLSIGposium on Principles of, POPL 2015, India, January17, 2015ACM, 637–650. https.org/10.1145/267.2676980
+
+Jan-Oliver Kaiser, Hoang-Hai, Derek Dreyer, Ori Lahav Viktori. 2017. Strong Logic for Weak
+Reasoning About Release-Acquire Consistency in Iris. In 31st European Conference on Object-Oriented Programming
+(ECOOP 2017) (Leibniz International Proceedings inics (LIPIcs), Vol. 74), Peter Müller (Ed.). Schloss Dagstuhl–
+Leibniz-Z fuer Informatik, Dagstuhl, Germany, 17:1–17:29. https://org/10.4230/LIPIcs.ECOOP.2017.17
+
+Jeehoon Kang, Chung-Kil Ori Lahav, Viktor Vafeiadis, and Derek Dreyer. 2017. A Promising Sem Relaxed-
+
+Memory Concurrency. SIGPLAN Not. 52, 1 (jan 2017), 175–189. https://doi.org/10.1145/3093333.3009850
+
+Jeehoon Kang and Jaehwang Jung. 2020. A Marriageinter- and Epoch-Based Reclamation. In Proceedings of the 41st
+ACM SIGPLAN Conference on Programming Language Design and Implementation (London, UK) (PLDI 2020). Association
+for Computing Machinery, New York, NY, USA, 314–328. https://doi/10.1145/3385412.3385978
+
+Robbert Krebbers, Amin Timany, and Lars Birkedal. 2017. Interactive Proofs in Higher-Order Concurrent Separation Logic.
+In Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages (Paris, France) (POPL ’17).
+Association for Computing Machinery, New York, NY, USA, 205–217. https://doi.org/10.1145/3009837.3009855
+
+Siddharth Krishna, Dennis Shasha, and Thomas Wies. 2017. Go with the Flow: Compositional Abstractions for Concurrent
+
+Data Structures. Proc. ACM Program. Lang. 2, POPL, Article 37 (Dec. 2017), 31 pages. https://doi.org/10.1145/3158125
+
+Ismail Kuru and Colin S. Gordon. 2019. Safe Deferred Memory Reclamation with Types. In Programming Languages and
+Systems, Luís Caires (Ed.). Springer International Publishing, Cham, 88–116. https://doi.org/10.1007/978-3-030-17184-1_4
+Ori Lahav, Viktor Vafeiadis, Jeehoon Kang, Chung-Kil Hur, and Derek Dreyer. 2017. Repairing Sequential Consistency in
+C/C++11. In Proceedings of the 38th ACM SIGPLAN Conference on Programming Language Design and Implementation
+(Barcelona, Spain) (PLDI 2017). Association for Computing Machinery, New York, NY, USA, 618–632. https://doi.org/10.
+1145/3062341.3062352
+
+Leslie Lamport. 1979. How to Make a Multiprocessor Computer That Correctly Executes Multiprocess Programs. IEEE
+
+Trans. Computers 28, 9 (1979), 690–691. https://doi.org/10.1109/TC.1979.1675439
+
+Jean-Marie Madiot and François Pottier. 2022. A Separation Logic for Heap Space under Garbage Collection. Proc. ACM
+
+Program. Lang. 6, POPL, Article 11 (jan 2022), 28 pages. https://doi.org/10.1145/3498672
+
+Paul McKenney, Maged Michael, Jens Maurer, Peter Sewell, Martin Uecker, Hans Boehm, Hubert Tong, Ni,
+Thomas Rodgers, Will Deacon, Michael Wong, David Goldblatt, Kostya Serebry and

@@ -1,0 +1,41 @@
+Title-Abstract. Section intro
+10.1007/978-3-642-23283-1_16
+
+R. K. Treiber. 1986. Systems programming: coping with parallelism.
+Aaron Turon, Viktor Vafeiadis, and Derek Dreyer. 2014. Navigating Weak Memory with Ghosts, Protocols, and
+Separation. In Proceedings of the 2014 ACM International Conference on Object Oriented Programming Systems Languages &
+Applications (Portland, Oregon, USA) (OOP ’14). Association for Computing Machinery, New York, NY, USA, 691–707.
+https://doi.org/10.112660193.2660243
+
+Viktor Vadis. 2010a. Automatically Proving Linearizability. In Computer Aided Veriﬁcation, Tayssir Touili, Byron Cook,
+and Paul Jackson (Eds.). Springer Berlin Heidel Berlin, Heidelberg, 450–464. https://doi.org/10.1007/978-642
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:29
+
+14295-6_40
+
+Viktor Vafeiad 2010b. RGSep Action Inference. In Veriﬁcation, Model Checking, and Abstract Interpretation, Gilles Barthe
+and Manuel Hermenegildo (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 345–361. https://doi.org/1007/978-
+3-642-11319-2_25Viktor Vafeiadis. 2011. Concurrent Separation Logic and Operational Semantics. Electronic Notes in Theoretical Computer
+Science 276 (2011), 335–351. https://doi.org/10.1016/j.entcs.2011.09.029 Twenty-seventh Conference on the
+Foundations of Programming Semantics (MFPS XXVII).
+
+Viktor Vafeiadis. 2017. Program Veriﬁcation Under Weak Memory Consistency Using Separation Logic. In Computer Aided
+
+Veriﬁcation, Rupak Majumdar and Viktor Kunčak (Eds.). Publishing, Cham, 30–46.
+
+Haosen Wen, Joseph Izraelevitz, Wentao Cai, H. Alan Beadle, and Michael L. Scott. 2018. Interval-Based Memory Reclamation
+SIGPLAN Not. 53, 1 (feb 2018), 1–13. https://doi.org/10.1145/3200691.3178
+Sebastian Wolﬀ. 2021. Verifying Non-blocking Data Structures with Manual Memory Management. Ph. D. Dissertation.
+
+https://doi.org/10.24dbbs.084-202108191157-0
+
+Received 2023-04-14; accepted 2023-08-27
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+

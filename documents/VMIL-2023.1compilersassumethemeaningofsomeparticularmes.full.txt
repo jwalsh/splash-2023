@@ -1,0 +1,86 @@
+1. compilers assume the meaning of some particular mes-
+sages (such as ifTrue:ifFalse: and
+whileTrue:) and compile them as if they were syn-
+tax in a more conventional language;
+
+1
+
+
+2. Deutsch-Schiffman dispatch uses inline caching - i.e.
+self-modifying code - to obviate the need for the full
+cost of dynamic dispatch.
+
+There are several problems with these approaches for mod-
+ern computer systems.
+
+Multiprocessing. In order to capitalize on modern com-
+putational power, the ability to use all of the available com-
+pute cores/threads is key. Many existing Smalltalk systems
+use cooperating/green threads to run in a single compute
+core. This allows the standard dispatch optimizations to func-
+tion well. However, if multiple, preemptive threads of execu-
+tion are being utilized, maintenance of inline caches would
+have to be either put behind a synchronization barrier or
+have per-thread caches, at considerably greater complexity
+and memory cost, and reduced effectiveness.
+
+Optimization. In most existing Smalltalk systems, inlin-
+ing is limited to recognizing where a BlockClosure can
+be inlined. This is critical because it substitutes a conditional
+branch instead of the creation of the closure (and its sub-
+sequent collection as garbage), 2 or more indirect method
+calls and a potential non-local return. However, because the
+inlining of particular message sends is key to performance, if
+those choices are not the correct ones, the performance will
+suffer. For example, there are many methods that enumer-
+ate/iterate over collections in Smalltalk, however only a few
+of them are inlined. This forces the creation and execution of
+BlockClosures that really need to be inlined for performance.
+Beyond this, in order to perform significant optimizations,
+it is necessary to have a significant body of code. This is not
+what is available in most Smalltalk methods. Inlining beyond
+this level is a current research topic.[17]
+
+Instruction-Level. No matter how efficient dispatch is,
+at the instruction level, it is loading a method address from
+memory and then calling that address. If this is uncondi-
+tional, most modern hardware can schedule the fetching of
+the instructions at the destination – if it has a long enough
+pipeline. However, if it is conditional, there is no opportunity
+to do that scheduling, so it will suffer pipeline stalls.
+
+1.2 Organization of Paper
+§2 will discuss the semantics and opportunities for dispatch.
+§3 will discuss the approach this paper advocates. §4 will
+discuss the inlining opportunities facilitated by this dispatch
+model. §5 describes the small amount of related work. Finally,
+§6 will draw some conclusions and speculate on future work.
+2 Dispatch
+One of the defining aspects of object-oriented programming
+is that methods are customized to the class1. This requires
+dispatching to various code, dependent on the class of the
+
+1... or object in prototype languages, or protocol/interface for Strongtalk
+
+object. Since this happens so frequently, optimizing the mes-
+sage dispatch is critical to performance. Furthermore, most
+OO languages support method inheritance – methods of
+superclasses are available in subclasses unless they are over-
+ridden.
+
+In the rest of this section we will describe dispatch from
+several different angles: the semantic dispatch that must
+be emulated; the optimizations used by most Smalltalk im-
+plementation; the model that allows Java to have excellent
+performance; a theoretically optimal dispatch respecting
+Smalltalk semantics; and finally the flat dispatch model that
+we propose.
+
+While our model was originally designed to improve the
+performance of dispatch, there turn out to be potentially
+more important knock-on effects resulting from the flat dis-
+patch structure itself.
+
+2.1 Semantic Method Dispatch
+The semantics of Smalltalk dispatch are described in [7].
+Smalltalk message dispatch follows these steps:

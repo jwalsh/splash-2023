@@ -1,0 +1,112 @@
+Title-Abstract. Section intro
+ concurrent
+separation logic using ghost variables for the status of protection and reclamation. Their veriﬁcation
+is not generally applicable because it makes a simplifying assumption that the stack’s memory
+blocks are never reclaimed. Therefore, their veriﬁcation result only applies to specialized use cases
+such as using the stack as a component in the memory allocator.
+
+Tofan et al. [2011] veriﬁed linearizability and lock freedom of Treiber’s stack and Michael-Scott
+queue with hazard pointers in temporal logic. Their veriﬁcation is not compositional because it
+crucially relies on a relational invariant over the states of concurrent data structures and SMR
+schemes. For instance, their key invariant, ishazard, depends on the implementation of both the
+pop() function of Treiber’s stack and the scan() function of hazard pointers.
+
+Fu et al. [2010] veriﬁed the safety of Treiber’s stack with hazard pointers in temporal separation
+logic supporting rely-guarantee reasoning. They construct an invariant on the history of execution
+traces using temporal logic connectives. Their method is not compositional because their invariants
+and rely-guarantee conditions tightly couple the implementation details of stack and hazard pointers.
+In addition, their method is not generally applicable because they target a blocking implementation
+of retire() and exploit this fact in their proof to simplify the invariants.
+
+Gotsman et al. [2013] presented a principled approach for applying temporal separation logic
+to SMR schemes. As discussed in §1.2, while their approach is elegant, it is not compositional
+because it exposes the implementation details of SMR schemes. For instance, their veriﬁcation of
+an RCU-based counter [Gotsman et al. 2013, §5] maintains the following invariant:
+
+ΥRCU
+
+:= ∀ℓ, .(cid:16) (, 1) since  ↦→ ℓ ∗� ↦→ _ (cid:17) =⇒ ℓ ↦→e _,
+
+where  (, 1) means that  is in an RCU critical section and  ↦→ ℓ ∗ ℓ ↦→ _ means that the
+memory block is reachable from the counter. In the veriﬁcation of the RCU-based counter, one
+has to show that ΥRCU is stable under RCU’s actions. This means that the RCU-based counter’s
+proof must know the details of RCU’s action and the deﬁnition of the  (, 1) predicate. The client
+of the RCU-based counter has a similar issue. When the clients of the counter set up their own
+rely-guarantee conditions, they should prove that each condition preserves ΥRCU, so the clients also
+need to reason about the implementation details of both and RCU. It is unclear how to
+modularize the proofs conducted with their approach since this invariant inherently intertwines
+concepts of SMR schemes (“protected”) and concurrent data“reachable”). In contrast,
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:23
+
+our modular speciﬁcation of SMR schemes decouples the two concepts with carefully designed
+abstract predicates for protected pointers and others.
+
+In addition, it is unclear whether their approach can be easily integrated, as it was evaluated only
+
+for simple data structures without mutable memory blocks (§5 and §7).
+
+Tassarotti et al. [2015] accounted for RCU’s synchronization purely in terms of ownership
+transfer in a separation logic for relaxed memory [Turon et al. 2014]. A simpliﬁed version of their
+veriﬁcation is mechanized in the Iris separation logic framework [Iris Team 2023b; al. 2018,
+2015] by Kaiser et al. [2017]. However, as discussed in §1.2, is not compositional,
+because they monolithically veriﬁed a linked list integrated with an implementation of RCU.
+
+Essentially, are modularizationization of their veriﬁcation. Our
+base speciﬁcation for RCU (§6.1) abstracts their reasoning about the transfer of partial ownership of
+pointers for each thread, and the traversal-friendly speciﬁcation (§6.2) encapsulates
+about the history of links among memory blocks and generalizes it to multiple writers.
+
+Furthermore, we additionally take account of the following features of general-purpose RCU.
+
+• Temporary Deactivation: Their RCU does not support temporary deactivation of critical section
+and requires each thread to periodically refresh the critical section to guarantee the progress
+of reclamation. This means that all pointers are protected at the start. Therefore, in their proof,
+the ownership ﬂows only from the readers to the writer. In contrast, verifying the general-
+purpose RCU requires reasoning about bidirectional ownership transfer in rcu_lock() and
+rcu_unlock(). To verify it, we use a variant of mutual exclusion protocol presented in §4.2.
+• Non-blocking Reclamation: In their RCU, a designated reclaimer blocks until all retired pointers
+become safe to reclaim. In contrast, the RCU we veriﬁed allows multiple threads to concurrently
+and selectively reclaim safe-to-reclaim pointers without blocking. To verify it, we reason about
+the reclaimability of each retired pointer individually.
+
+These limitations are in part due to the complexity of relaxed memory models. Especially, deac-
+tivation requires SC fence (e.g., atomic_thread_fence(memory_order_seq_cst) in C/C++) in
+relaxed memory model, which is not supported by the logic [Turon et al. 2014] they used.
+
+Automated Veriﬁcation Tools for SMR Schemes. Meyer and Wolﬀ [2019a,b]; Wolﬀ [2021]
+designed an automated linearizability checker, as discussed in §1.2. Given the result that a data
+structure without reclamation is linearizable (checked by the Cave veriﬁer [Vafeiadis 2010a,b]),
+their veriﬁer additionally checks the following, which as a whole implies linearizability of the
+data structure integrated with an SMR scheme: (1) the SMR implementation satisﬁes the SMR
+speciﬁcation, which is an automaton that over-approximates the set of pointers that may be freed;
+and (2) the data structure with SMR scheme does not suﬀer from the ABA problem. The task (2)
+is further broken down into two veriﬁcation tasks: (2-1) type-checking the data structure code
+annotated with invariants and transformed by applying atomicity abstraction; and (2-2) checking
+the invariant annotations using Cave.
+
+While their approach is conceptually compositional and easily integrated, it is not generally
+applicable in practice because of the complexity of the check (2-2). First, it suﬀers from the
+unsoundness of the backend veriﬁer Cave. This resulted in failed veriﬁcation in the DGLM queue,
+the Harris-Michael list, and Harris’s list [Wolﬀ 2021, §8.8]. Second, considering that this check
+takes much more time than the original veriﬁcation task (linearizability under no reclamation)
+for complex data structures, it is likely to time out even if they did not have any unsoundness
+issues. Although this problem can be resolved by applying a stronger backend veriﬁer such as
+Plankton [Meyer et al. 2022], it is unclear whether it can handle complex reasoning required in
+Harris’s list for optimistic and retirement of a chain of detached nodes, which involve
+complex shape invariants.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:24
+
+Jaehwang Junganggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon
+In addition, it is worth noting that their tool for veriﬁcation of linearizability. While
+linearizability has been considered the de facto standard for concurrent data structure speci�,
+it is diﬃcult for clients to use linear

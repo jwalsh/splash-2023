@@ -1,0 +1,3 @@
+
+
+This section discusses the safety of the pop() function, which is used to remove the head node from a linked list. The safety of the memory accesses at C4, 8, and 9 is proven by using the PointsTo-Read and LPointsTo-Duplicable assertions to dereference .head and obtain a copy of ℎ1 ↦→? {.data = 1,.next = 1}. The safety of dereferencing ℎ1 at C8 is ensured by using the copied ℎ1 ↦→? {.data = 1,.next = 1}. At C9, the successful CAS is free of the ABA problem because locations are not recycled for new nodes if memory is not reclaimed, and the nodes added to the stack are immutable. This argument is formally represented by the use of LPointsTo-Agree at lines V9.1-9.2.

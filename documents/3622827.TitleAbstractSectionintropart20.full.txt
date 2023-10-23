@@ -1,0 +1,99 @@
+Title-Abstract. Section intro
+. 2021. P2414R1:
+Pointer lifetime-end zap proposed solutions. https://wg21.link2414r1.
+
+P. E. McKenney and D. Slingwine. 1998. Read-copy update: Using execution history to solve concurrency problems. In
+
+PDCS ’
+
+Paul E. McKenney, Michael Wong, Maged Michael, Geoﬀrey Romer, Andrew Arthur O’Dwyer, Daisy Hollman, JF
+Bastien, Hans Boehm, David Goldblatt, Frank Birbacher, Erikp, Tomasz Kamiński, and Jens Maurer. 2023. P2545R4:
+Read-Copy Update (RCU). https://wg21.link/p2545r4.
+
+Meta. 2023. Folly: Facebook Open Library. https://github.com/facebookolly
+Glen Mével, Jacques-Henri Jourdan, and François Pottier. 2020. Cosmo: A Concurrent Separation Logic for Multicore OCaml.
+
+Proc. ACM Program. Lang. 4, ICFP, Article 96 (aug 29 pages. https://doi.org/10.1145/3408978
+
+Roland Meyer, Thomas Wies, and Sebastian Wolﬀ. 2022. A Concurrent Program Logic with a Future and History. Proc. ACM
+
+Program. Lang. 6, OOPSLA2, Article 174 (oct 2022), 30 pages. https://doi.org/10.1145/3563337
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:28
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Roland Meyer and Sebastian Wolﬀ. 2019a. Decoupling Lock-Free Data Structures from Memory Reclamation for Static
+
+Analysis. Proc. ACM Program. Lang. 3, POPL, Article 58 (Jan. 2019), 31 pages. https://doi.org/10.1145/3290371
+
+Roland Meyer and Sebastian Wolﬀ. 2019b. Pointer Life Cycle Types for Lock-Free Data Structures with Memory Reclamation.
+
+Proc. ACM Program. Lang. 4, POPL, Article 68 (dec 2019), 36 pages. https://doi.org/10.1145/3371136
+
+Maged Michael, Maged M. Michael, Michael Wong, Paul McKenney, Andrew Hunter, Daisy S. Hollman, JF Bastien, Hans
+Boehm, David Goldblatt, Frank Birbacher, and Mathias Stearn. 2023. P2530R3: Hazard Pointers for C++26. https:
+//wg21.link/p2530r3.
+
+Maged M. Michael. 2002. High Performance Dynamic Lock-Free Hash Tables and List-Based Sets. In Proceedings of the
+Fourteenth Annual ACM Symposium on Parallel Algorithms and Architectures (Winnipeg, Manitoba, Canada) (SPAA ’02).
+Association for Computing Machinery, New York, NY, USA, 73–82. https://doi.org/10.1145/564870.564881
+
+Maged M. Michael. 2004. Hazard Pointers: Safe Memory Reclamation for Lock-Free Objects. IEEE Trans. Parallel Distrib.
+
+Syst. 15, 6 (June 2004), 491–504. https://doi.org/10.1109/TPDS.2004.8
+
+Maged M. Michael and Michael L. Scott. 1996. Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue
+
+Algorithms. In PODC 1996.
+
+Ike Mulder and Robbert Krebbers. 2023. Proof Automation for Linearizability in Separation Logic. Proc. ACM Program. Lang.
+
+7, OOPSLA1, Article 91 (apr 2023), 30 pages. https://doi.org/10.1145/3586043
+
+Ike Mulder, Robbertbers, and Herman Geuvers. 2022. Diaframe: Automated Veriﬁcation of Fine-Grained Concurrent
+Programs in Iris. of the 43rd ACM SIGPLAN International Conference on Programming Language Design and
+Implementation (San Diego, CA, USA) (PLDI 2022). Association for Computing Machinery, New York, NY, USA, 809–824.
+https://doi.org/10.1145/3519939.3523432
+
+Ruslan Nikolaev and Binoy Ravindran. 2020. Universal Wait-Free Memory Reclamation. Association for Computing Machinery,
+
+New York, NY, USA, 130–143. https://doi.org/10.1145/3332466.3374540
+
+Ruslan Nikolaev and Binoy Ravindran. 2021. Brief Announcement: Crystalline: Fast and Memory Eﬃcient Wait-Free
+Reclamation. In 35th International Symposium on Distributed Computing (DISC 2021) (Leibniz International Proceedings in
+Informatics (LIPIcs), Vol. 209), Seth Gilbert (Ed.). Schloss Dagstuhl – Leibniz-Zentrum für Informatik, Dagstuhl, Germany,
+60:1–60:4. https://doi.org/10.4230/LIPIcs.DISC.2021.60
+
+Matthew Parkinson, Richard Bornat Peter O’Hearn. 2007. Modular Veriﬁcation of a Non-Blocking Stack. In Proceedings
+of the 34th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (Nice, France) (POPL ’07).
+Association for Computing Machinery, New York, NY, USA, 297–302. https://doi.org/10.1145/1190216.1190261
+
+Matthew Parkinson, Kapil Vaswani, Dimitrios Vytiniotis, Manuel Costa, Pantazis Deligiannis, Aaron Blankstein, Dylan
+McDermott, andind. 2017. Project Snowﬂake: Non-blocking safe manual memory management in.NET. Tech-
+nical Report MSR-TR-2017-32. Microsoft. https://www.microsoft.com/en-us/research/publication/project-snowﬂake-
+non-blocking-safe-manual-memory-management-net/
+
+Gali Sheﬃ, Maurice Herlihy, and Erez Petrank. 2021. VBR: Version Based Reclamation. In Proceedings of the 33rd ACM
+Symposium on Parallelism in Algorithms and Architectures (Virtual Event, USA) (SPAA ’21). Association for Computing
+Machinery, New York, NY, USA, 443–445. https://doi.org/10.1145/3409964.3461817
+
+Ajay Singh, Trevor Brown, andtizadeh. 2021. NBR: Neutralization Based Reclamation. In Proceedings of the 26th
+ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (Virtual Event, Republic of Korea) (PPoPP
+’21). Association for Computing Machinery, New York, NY, USA, 175–190. https://doi.org/10.1145/3437801.3441625
+
+ Svendsen and Lars Birkedal. 2014. Impredicative Concurrent Abstract Predicates. In Programming Languages and
+Systems - 23rd European Symposium on Programming, ESOP 2014, Held as Part of the European Joint Conferences on Theory
+and Practice of Software, ETAPS 2014, Grenoble, France, April 5-13, 2014, Proceedings (Lecture Computer Science,
+Vol.). Springer, 149–168. https://doi/10.1007/978-3-642-54833-8_9
+
+Joseph Tassarotti, Derek Dreyer, and Viktor Vadis. 2015. Verifying Read-Copy-Update in a Logic for Weak Memory. In
+Proceedings of the 36th ACM SIGPLAN Conference on Programming Language Design and Implementation (Portland, OR,
+USA) (PLDI15). Association for Computing Machinery, New York, NY, USA, 110–120. https://doi.org/10.1145/2737924.
+2737992
+ogdan Tofan, Gerhard Schellhorn, and Wolfgang Reif. 2011. Formal Veriﬁcation of a Lock-Free Hazard
+Pointers. In Theoretical Aspects of Computing – ICTAC 2011, Antonio Cerone and Pekka Pihlajasaaris.). Springer
+Berlin Heidelberg, Berlin, He, 239–255. https://doi.

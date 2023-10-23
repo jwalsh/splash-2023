@@ -1,0 +1,235 @@
+Title-Abstract. Section intro
+ speciﬁcations (§5 and §6) that everyone can use (without understanding their
+implementation) to verify concurrent data structures with reclamation.
+
+12This rule is not applicable to cycles. Cycles can be retired despite that each node pointed by another node, as long as the
+cycle as a whole is detached. This can be supported by adapting the “cloud” assertion by Madiot and Pottier [2022].
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:21
+
+Table 1. (cid:30)antitative analysis of the overhead of adding reclamation to the code and proof. “NR”, “HP”,
+“RCU”: versions without reclamation, with hazard pointers, and with RCU, respectively. “N/A”: Harris’s list is
+not supported by hazard pointers. Lines of code and proof with reclamation are annotated with the percentage
+of overhead over those without reclamation in parentheses. “Total” for “NR”: excluding and including Harris’s
+list for comparison with HP and RCU, respectively.
+
+Data Structure
+
+NR Code
+
+HP Code
+
+RCU Code
+
+NR Proof
+
+HP Proof
+
+RCU Proof
+
+Counter
+
+Treiber’s Stack
+[Treiber 1986]
+
+Elimination Stack
+
+[Hendler et al. 2004]
+Michael-Scott Queue
+
+[Michael and Scott 1996]
+
+DGLM Queue
+
+[Doherty et al. 2004]
+
+Harris’s List
+[Harris 2001]
+
+Harris-Michael List
+
+[Michael 2002]
+
+Chase-Lev Deque
+
+[Chase and Lev 2005]
+
+RDCSS
+
+[Harris et al. 2002]
+
+23
+
+38
+
+54
+
+55
+
+55
+
+30 (+30.4%)
+
+30 (+30.4%)
+
+52 (+36.8%)
+
+51 (+34.2%)
+
+71 (+31.5%)
+
+70 (+29.6%)
+
+76 (+38.2%)
+
+68 (+23.6%)
+
+76 (+38.2%)
+
+68 (+23.6%)
+
+140
+
+199
+
+297
+
+464
+
+463
+
+175 (+25.0%)
+
+168 (+20.0%)
+
+248 (+24.6%)
+
+233 (+17.1%)
+ (+36.0%)
+
+384 (+29.3%)
+
+620 (+33.6%)
+
+578 (+24.6%)
+
+775 (+67.4%)
+
+731 (+57.9%)
+
+113
+
+N/A
+
+144 (+27.4%)
+
+1,389
+
+N/A
+
+1,805 (+29.9%)
+
+96
+
+82
+
+52146 (+52.1%)
+
+119 (+24.0%)
+
+1,171
+
+1,278 (+ 9.1%)
+
+1,473 (+25.8%)
+
+90 (+ 9.8%)
+
+89 (+ 8.5%)
+
+1,113
+
+1,293 (+16.2%)
+
+1,284 (+15.4%)
+
+75 (+44.2%)
+
+68 (+30.8%)
+
+400
+
+530 (+32.5%)
+
+467 (+16.8%)
+
+Total
+
+455/568
+
+616 (+35.4%)
+
+707 (+24.5%)
+
+4,247/5,636
+
+5,323 (+25.3%)
+
+7,123 (+26.4%)
+
+General Applicability. We veriﬁed 9 concurrent data structures, listed in Table 1, using our
+speciﬁcations of hazard pointers and RCU. To the best of our knowledge, we are the ﬁrst to formally
+verify strong speciﬁcations of Harris’s list, the Harris-Michael list, the Chase-Lev deque, and
+RDCSS with manual memory reclamation. This selection of data structures showcases the wide
+applicability of our speciﬁcations to the following tricky features: (1) mutable memory blocks (§5):
+all except counter and Treiber� stack; (2) multiple block resources: elimination stack (value and
+oﬀer); (3) complex validation in hazard pointers (§2.1): Michael-Scott queue, Harris-,
+RDCSS; (4) complex invariant for safe retirement (see below): Michael-Scott queue and DGLM
+queue; (5) prophecy variable [Jung et al. 2019]: Harris’s list, Harris-Michael list, RDCSS; (6
+traversal (§2.2): Harris’s list; and (7) dynamically-sized blocks: Chase-Lev deque.
+
+Easy Integration. We argue that our spe��cations streamline the additional reasoning for intro-
+ducing memory reclamation to existing concurrent data structures without reclamation. To this
+end, we compare the lines of Coq code for implementation and proof for logical atomicity (§2.3)
+of concurrent data structures with and without reclamation. The result is summarized in Table 1.
+The total code overhead of applying hazard pointers and RCU is 35.4% and 24.5%, respectively.
+Hazard pointers generally incurs higher overhead than RCU because it requires additional code for
+protection, especially for data structures with complex validation such as the Harris-Michael list.
+The total proof overhead of applying hazard pointers and RCU is 25.3%.4%, respectively.
+The total proof overhead for hazard pointers is smaller because of the outlier, Harris-Michael list.
+Overall, the proof overhead is on par with the code overhead across the 9 concurrent data
+struct Some data structures exhibit moderately higher proof overhead than code overhead for
+the following reasons. (1) Elimination stack with reclamation requires more precise tracking of
+ownership than that without reclamation. When ignoring reclamation, the invariant needs to track
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:22
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeeh
+
+only the most recent oﬀer. On the other hand, with reclamation, the invariant needs to track all
+previous oﬀers to prove the safety of retiring an oﬀer, which may have been overridden by others.
+(2) Michael-Scott queue and DGLM queue with reclamation require capturing additional invariants
+on their head and tail indexes for safe retirement of nodes the former, the head indexnot “overtake” the tail index to ensure every unlinked node is unreachable from the tail; and the
+latter features an optimization that requires more complex invariant on indexes.
+
+It is worth noting that the additional proofs for hazard pointers and RCU resemble each other:
+switching the pointer predicates and proof rules between them almost works. The only exception is
+ in hazard pointers, which requires completely new proofs. Interestingly, the Harris-
+Michael list with hazard pointers exhibits signiﬁcantly smaller proof overhead because validation
+simpliﬁes the reasoning related to prophecy variables.
+
+8 RELATED WORK
+
+Program Logic for SMR Schemes. Various program logic-based been proposed
+to verify concurrent data structures with manual memory management. However, none of them
+support all the three criteria of modular veri�cation discussed in §1.2 at the same time.
+
+Parkinson et al. [2007]ﬁed the safety of Treiber’s stack with hazard

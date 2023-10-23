@@ -1,0 +1,3 @@
+
+
+This section introduces two predicates, Managed and Protected, which replace leaking points-to assertions. The Managed pointer predicate of the form Managed(ℓ, ) represents the ownership of the pointer ℓ managed by hazard pointers. The Protected predicate represents the temporary grant of access permission to protected pointers. The section also presents the signatures and associated proof rules for the two predicates, as well as low-level rules for the HPSlot predicate.

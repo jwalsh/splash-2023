@@ -1,0 +1,3 @@
+
+
+This section discusses how to modify the specification from the previous section to enable verification of sophisticated data structures with mutable memory blocks. It introduces block resource predicates and parameters to Managed and Protected predicates, which depend on the block's address, contents, and block ID. It also introduces new proof rules, such as Managed-New-Full, HPSlot-Validate-Full, Protected-Access-Full, and Protected-Managed-Agree-Full. Finally, it provides an example of how the updated specification can be used to verify the Harris-Michael list with manual reclamation.
