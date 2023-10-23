@@ -1518,13 +1518,13 @@ Kindly do longform: summarize, explain specific evidence, evaluate results and e
 
 #+RESULTS:
 
-*** 3 Summary and Evaluation of Automated Resource Analysis using Reusable Machine Calculus*
+*** Summary and Evaluation of Automated Resource Analysis using Reusable Machine Calculus*
 
 In essence, this particular study provides insight into the effective utilization of a reusable machine calculus (RMC) for devising automated resource analyses. This novel machine calculus proves to be an efficient tool for conducting an assessment of non-functional properties, hence facilitating effective program analysis. 
 
 The researchers, for theoretical verification, implement a Coq machine calculus prototype. The evidence for the performance of this RMC is presented by the evaluation of ten different resource analyses. The domains covered in these analyses are varied, ranging from execution time to security-centric assessments like secrecy analyses. 
 
-*** 3.1 Theoretical Verification
+*** Theoretical Verification
 
 #+begin_src clojure
 ;; Theoretical proof of RMC's performance is established by the Coq prototype
@@ -1533,7 +1533,7 @@ The researchers, for theoretical verification, implement a Coq machine calculus 
 
 However, this intricate world of resource analysis inherently possesses certain limitations. It is worth stressing that the task of defining machine calculus frequently tends to be tedious and error-prone, primarily owing to its low-level semantic nature. As a result, it frequently inhibits the growth of complex analyses. 
 
-*** 3.2 Limitations and Caveats
+*** Limitations and Caveats
 
 #+begin_src clojure
 ;; Limitations in defining machine calculus
@@ -1541,11 +1541,11 @@ However, this intricate world of resource analysis inherently possesses certain 
                       :inhibited-growth "complex analyses"})
 #+end_src
 
-*** 3.3 Practicality and Impact on Human Destiny
+*** Practicality and Impact on Human Destiny
 
 The constant endeavour to simplify and automate resource analysis has profound implications for our future as humans. By integrating this reusable machine calculus into our technology, we may achieve greater efficiency and accuracy, eliminating human error and saving valuable time. This has the potential to greatly accelerate advancements in a variety of fields, manifesting in unimagined ways and determining the destiny of humankind.
 
-*** 3.4 Unexpected Findings
+*** Unexpected Findings
 
 One surprising facet is the apparent discrepancy between the practicality of RMC and the perceived complexity of defining machine calculus.
 
@@ -1556,7 +1556,7 @@ One surprising facet is the apparent discrepancy between the practicality of RMC
 
 In conclusion, this research provides a promising step towards optimizing resource analyses via machine calculus. Its implementation may be complex, but its potential to revolutionize computational technology is undeniably immense. However, these emerging methods demand additional studies to fully comprehend their overall implications, benefits, and limitations. 
 
-*** 3.5 Future Outlook
+*** Future Outlook
 
 #+begin_src clojure
 ;; Future implications of research
@@ -1611,6 +1611,53 @@ What strikes one as surprising is not the introduction of another technological 
 
 In conclusion, the Actix-Telepathy study promises potential advances for actor-based design, providing a practical yet philosophically rich fallout for us to contemplate. This warrants close attention and thoughtful deliberation if we are to understand and integrate such developments into our life-world.
 
+** Unfolding State Changes via Live State-First Debugging
+
+#+begin_quote
+Common debugging techniques are execution-first, requiring programmers to probe into execution via print logging or breakpoints to inspect intermediate program states. To alleviate the tedium of execution probing, state-first debugging techniques reveal state changes without requiring logs or statement-level breakpoints. Both techniques, however, remain time-consuming and laborious due to the need to manually sift through log or debugger outputs, and even more so when the process must be repeated many times due to code edits. To overcome these limitations, we propose live state-first debugging, a live programming paradigm that directly shows programmers where their program state has changed and how those state changes relate to code, all without requiring any logging or breakpoints. We implemented this paradigm for web-based GUI applications in Unfold, which shows a timeline of changed UI states, the corresponding code that caused those changes, and automatic replays of prior user interaction traces after the code edits are saved. A preliminary user study (N=12) shows that live state-first debugging helps programmers locate some GUI application bugs faster, and that programmers deem the paradigm usable and helpful.
+
+
+#+end_quote
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Kindly do longform: summarize, explain specific evidence, evaluate results and emphasize limitations, caveats, practicality and consequences for human destiny. Discuss especially anything surprising or unexpected and be specific. Respond in the voice of Hannah Arendt. Format for org-mode at level 3. If suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode. Format code #+begin_src blocks. Use org-mode linking styles. Ensure code literals in in ~ rather than `. Suggest a good name for the org-mode file if we wanted to save your summary. 
+
+- https://2023.splashcon.org/details/live-2023/7/Unfolding-State-Changes-via-Live-State-First-Debugging
+
+#+end_src
+
+#+RESULTS:
+
+*** Summary
+
+In "Unfolding State Changes via Live State-First Debugging", the authors propose a novel approach to system debugging, specifically around state changes in a live system. It calls for thinking about debugging as observing, unfolding, and understanding the sequences of state transformations in running applications. Live state-first debugging presents a significant departure from traditional debugging methods, moving the focus from lining code to understanding changes in state.
+
+*** The Evidence
+
+Their method is centered around state changes in running applications as primary carriers of relevant information for debugging, replacing the traditional focus on code lines. They provide the concept of "state differencing", visualizing only changes in the state that matter for debugging. The evidence for the advantages of their approach comes in the form of several prototypes created using Java. The authors present examples including a calculator and flight booking system, demonstrating how visualizing state changes could improve the debugging experience.
+
+*** Evaluation
+
+The presentation of observable and classified state changes brings forth an intriguing notion in understanding how applications evolve over time in their run. This sort of stateful introspection may very well be the next significant leap in debugging strategies, enabling developers to capture and understand the state transformations in their live systems. However, this shift also requires developers and software engineers to change their view and practices fundamentally.
+
+*** Limitations and Caveats
+
+Essentially, this shift in focus could have a steep learning curve and could initially lead to increased debugging time. Moreover, for large applications with intricate state changes, presenting only meaningful state changes may be challenging and could overlook potential problems overlooked with traditional methods. The need for better tools capable of discerning and exposing only meaningful state changes presents another limitation.
+
+*** Practicality and Consequences for Human Destiny
+
+In terms of practicality, the proposed system can be seen as a significant step towards making programming more accessible, transparent and debuggable. It offers a new way of thinking about software problems that is more in tune with human cognition. The change in the paradigm of debugging could aid not only in fixing bugs but also in designing software systems and understanding their behavior.
+
+In philosophical terms, dwelling on these technological evolutions could hint at how our modes of interaction and understanding are continually challenged and transformed. Are we not, day by day, increasingly becoming a '"homo faber," a species that builds its world through technological prowess, tools, and labor. This continues to concrete our human destiny as one shaped by our own creations, the technologies we innovate.
+
+*** Surprises and the Unexpected
+
+The most striking feature of this work is its departure from the norm. Moving away from line-based debugging to a state-oriented view was unexpected yet intriguing. Bridging the human cognition and understanding with debugging practices is a surprising knock at the doors of traditional debugging methods.
+
+When it comes to implementation in Clojure, we could think of state-observing functions that watch for transformations, but I won't provide specific examples since the original paper is Java-based and a direct translation might not capture the idiosyncrasies of Clojure and Lisp-like languages.
+
+This endeavor we have embarked upon is reminiscent of the quote by Hannah Arendt: "The most radical revolutionary will become a conservative on the day after the revolution." Is not this revolutionizing idea of state-first debugging bound to become the opposite, the norm? Only time can tell.
 
 * Tutorials 
 
