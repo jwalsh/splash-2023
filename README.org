@@ -253,10 +253,47 @@ IX. Additional Resources
 
 This syllabus aims to deliver a comprehensive understanding of generating domain-specific programs for diagram authoring using Python and large language models. Attendees will come away with practical knowledge of Python and its integration with large language models, the role and potential of domain-specific programs, conferring the aptitude to apply these concepts in professional scenarios.
 
+** Periodic and Aperiodic Task Description Mechanisms in an FRP Language for Small-Scale Embedded Systems
+
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+  Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+	    
+  - https://2023.splashcon.org/details/rebls-2023-papers/5/Periodic-and-Aperiodic-Task-Description-Mechanisms-in-an-FRP-Language-for-Small-Scale 
+
+#+end_src
+
+#+RESULTS:
+
+- Title: Periodic and Aperiodic Task Description Mechanisms in an FRP Language for Small-Scale
+- URL: https://2023.splashcon.org/details/rebls-2023-papers/5/Periodic-and-Aperiodic-Task-Description-Mechanisms-in-an-FRP-Language-for-Small-Scale
+- Author: Not available
+- Date: N/A
+
+
+*** Functional Reactive Programming (FRP)
+
+FRP is a programming paradigm that involves writing reactive programs, which can react to continuous inputs, in a functional programming style.
+
+*** Periodic and Aperiodic tasks
+
+Periodic tasks are scheduled to run repetitively over a fixed period, while aperiodic tasks, in contrast, do not have a fixed time interval for their occurrence. Both types of tasks need specific mechanisms to handle them efficiently in a punctuation-friendly manner.
+
+#+begin_src clojure
+(defn periodic-task [start end step action]
+  (doseq [i (range start end step)]
+    (action)))
+
+(defn aperiodic-task [action]
+  (action))
+#+end_src
+
+*** FRP for Small-Scale
+
+Although FRP is mostly used for complex systems, it has potential for small-scale applications as well, particularly due to its declarative nature and the fact that it can model system behavior in a concise way.
+
 ** Thorium: Verifiable, Dynamic, Reactive Software
-
-
-
 
 #+begin_src chatgpt-shell :version "gpt-4"
 Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure:
@@ -646,7 +683,6 @@ Clojure, being a functional language, can be used for similar on-demand analysis
 #+END_SRC
 In this example, the `on-demand-analysis` takes two inputs: the program (represented as a collection of parts) and a query. It filters the relevant parts of the program using the query and then applies the `analyze` function on each part. This 'analyze' function is a placeholder for any analysis operations. Clojure's laziness property ensures that the analysis will only be "on-demand", i.e., it will only run when the result is actually needed.
 
-
 ** Behavioural up/down casting for statically typed languages
 
 
@@ -846,7 +882,6 @@ While the above function adds two numbers in modulo, symbolic transformations wo
 
 In conclusion, symbolic transformations of expressions in modular arithmetic provide a valuable tool in optimizing complex symbolic computations, with implications for fields like cryptography and theorem proving.
 
-
 ** Octagons Revisited - Elegant Proofs and Simplified Algorithms
 
 
@@ -884,7 +919,6 @@ No specific Clojure code, model, or simulation examples are suggested as the pap
 (defn convex-hull-algorithm [points]...)
 #+END_SRC
 
-
 ** A Brief Introduction to the Flix Programming Language
 
 
@@ -900,17 +934,17 @@ Summarize the following article in org-mode format using the title of the articl
 #+end_src
 
 #+RESULTS:
-* A Brief Introduction to the Flix Programming Language
+
   :PROPERTIES:
   :URL: https://2023.splashcon.org/details/splash-2023-PLMW/10/A-Brief-Introduction-to-the-Flix-Programming-Language
   :Author: https://cs.au.dk/~magnusm/
   :DATE: TBD
   :END:
 
-** Flix Programming Language
+*** Flix Programming Language
 Flix is a new programming language designed for applications involving large amounts of data. It is a hybrid functional and logic programming language, supporting first-class functions, pattern matching, and algebraic data types. Flix is statically typed and supports Hindley-Milner type inference and parametric polymorphism.
 
-** Features
+*** Features
 *** Functional Programming
 Flix supports common features of functional programming languages, such as first-class functions, pattern matching, and algebraic data types.
 
@@ -920,7 +954,7 @@ In addition to its functional programming features, Flix supports features from 
 *** Static Typing
 Flix supports static typing, and uses Hindley-Milner type inference system and parametric polymorphism. This gives it the ability to handle complex data types and ensures better safety and performance.
 
-** More Information
+*** More Information
 *** Flix Official Website
 More information about Flix can be found on its official website [https://flix.dev/](https://flix.dev/).
 
@@ -930,7 +964,7 @@ The official Flix documentation is available at [https://doc.flix.dev/](https://
 *** Flix GitHub
 The source code for Flix can be found at [https://github.com/flix/flix](https://github.com/flix/flix).
 
-** Clojure Examples
+*** Clojure Examples
 Since this org-file does not mention any specific programming examples, and Flix is a different language from Clojure, no specific Clojure programming examples that directly correlate to Flix are available.
 
 However, one could always examine the features of Flix and try to implement a similar functionality in Clojure.
@@ -1052,7 +1086,6 @@ Then, using a model of interaction rules, we could simulate how cells would inte
 #+end_src
 
 Please note the above is just a speculative idea of how the system might be implemented. Without a concrete specification or clear model to base it on, it's impossible to provide a direct translation of the abstract concept of CellPond into Clojure code.
-
 
 ** Revisiting Dynamic Dispatch for Modern Architectures
 
