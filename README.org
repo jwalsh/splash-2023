@@ -1,7 +1,5 @@
 * SPLASH 2023
-
 ** Is Wasm Becoming Garbage? (Keynote)
-
 
 #+begin_src chatgpt-shell :version "gpt-4"
 Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure:
@@ -10,11 +8,6 @@ Summarize the following article in org-mode format using the title of the articl
 #+end_src
 
 #+RESULTS:
-** Is Wasm Becoming Garbage? Keynote
-
-- Source : [https://2023.splashcon.org/details/mplr-2023-papers/2/Is-Wasm-Becoming-Garbage-Keynote](https://2023.splashcon.org/details/mplr-2023-papers/2/Is-Wasm-Becoming-Garbage-Keynote)
-- Author : Not provided
-- Date : Not provided
 
 *** Overview
 
@@ -45,7 +38,7 @@ Summarize the following article in org-mode format using the title of the articl
 #+end_src
 
 #+RESULTS:
-*** On the Applicability of Annotation-Based Source Code Modification in Kotlin: Work in Progress
+
 - URL: (https://2023.splashcon.org/details/mplr-2023-papers/8/On-the-Applicability-of-Annotation-Based-Source-Code-Modification-in-Kotlin-Work-in)
 - Author: Not Available
 - Publish Date: Not Available
@@ -56,7 +49,7 @@ Summarize the following article in org-mode format using the title of the articl
 - Annotations can help to inject behavior into programs, but it's still unclear to what extent this can be utilized for source code transformation in Kotlin.
 - The authors mention the limitations of annotations and are utilizing meta-object protocols to address it.
 
-**** Potential Code Example
+*** Potential Code Example
 It's not directly mentioned in the article, but readers might want to explore using Kapt, the Kotlin annotation processing tool, to further understand annotation-based code transformations. A potential simulation in Kotlin could illustrate how annotations can be utilized to modify code behavior:
 
 #+begin_src kotlin
@@ -386,7 +379,6 @@ Summarize the following article in org-mode format using the title of the articl
 **** Conclusion
      - The Historiographer framework presents a promising approach to achieving strong consistency in distributed reactive programming with minimal latency.
 
-
 ** Complete First-Order Reasoning for Properties of Functional Programs
 
 
@@ -559,3 +551,98 @@ object Sort {
 
 Leon verifies the correctness of the sort function by ensuring that the resulting list is sorted and has the same size as the input list.
 Overall, both Liquid Haskell and Leon for Scala are used to verify properties of functional programs to ensure correctness.
+
+** Abstract Interpretation in Industry - Experience and Lessons Learned
+
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure:
+
+- https://conf.researchr.org/details/sas-2023/sas-2023-papers/4/Abstract-Interpretation-in-Industry-Experience-and-Lessons-Learned
+- https://cliplab.org/jd1mOkw/SAS2023/142840008/142840008.pdf
+
+
+#+end_src
+
+#+RESULTS:
+*** Abstract Interpretation in Industry: Experience and Lessons Learned
+
+- URL: https://conf.researchr.org/details/sas-2023/sas-2023-papers/4/Abstract-Interpretation-in-Industry-Experience-and-Lessons-Learned
+- Full Article: https://cliplab.org/jd1mOkw/SAS2023/142840008/142840008.pdf
+- Author(s): Unknown
+- Publish Date: Not mentioned
+
+- The article discusses the application of abstract interpretation in the industrial setting and shares experiences and lessons learned.
+
+**** Key Points
+
+- It examines the challenges, opportunities, and limitations linked with a wider implementation of abstract interpretation in the industry world.
+
+- The paper presents insights on how to balance theoretical computations with practical technology constraints, and how to manage analysis precision vs runtime trade-offs.
+
+- It discusses how even minor differences in the input program, abstraction used, and set of properties to be verified can lead to dramatic variations in analysis outcomes.
+
+- The article emphasizes on the importance of abstract interpretation and how it can improve programming quality and reduce errors by checking and monitoring the behavior of programs.
+
+**** Suggested Code/Model
+The discussed concepts are mainly theoretical and broad. Therefore, applying specific coding examples in Clojure may not directly apply. However, the principles of abstract interpretation can be illustrated with a general example:
+
+```clojure
+(defn abstract-interpreter [program abstraction properties]
+  (->
+    program
+    ;; Apply the abstraction
+    (transform abstraction)
+    ;; Verify the properties based on the abstracted program
+    (verify properties)))
+```
+
+In this example, `abstract-interpreter` is a function that would take three arguments: the program to be analyzed, the abstraction to be applied, and the properties to be verified. 
+
+It would then apply the abstraction to the program and verify the properties based on the abstracted program. This is a simple illustration of the process; the actual implementation would of course be much more complex. 
+
+For instance, the `transform` and `verify` functions would need to be implemented to handle specific types of programs, abstractions, and properties, and to produce meaningful results.
+
+Please note that applying specific examples of abstract interpretation to programming requires a deep knowledge of the source code semantics and the properties to be checked, so it is more common in fields like programming languages research and software verification.
+
+** Lifting On-Demand Analysis to Higher-Order Languages
+
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure:
+
+- https://conf.researchr.org/details/sas-2023/sas-2023-papers/19/Lifting-On-Demand-Analysis-to-Higher-Order-Languages
+- https://www.amazon.science/publications/lifting-on-demand-analysis-to-higher-order-languages
+- https://cliplab.org/jd1mOkw/SAS2023/142840451/142840451.pdf
+#+end_src
+
+#+RESULTS:
+*** Lifting On-Demand Analysis to Higher-Order Languages
+- URL: [[https://conf.researchr.org/details/sas-2023/sas-2023-papers/19/Lifting-On-Demand-Analysis-to-Higher-Order-Languages][Lifting On-Demand Analysis to Higher-Order Languages (researchr.org)]]
+- URL (Amazon science): [[https://www.amazon.science/publications/lifting-on-demand-analysis-to-higher-order-languages][Lifting On-Demand Analysis to Higher-Order Languages (amazon.science)]]
+- URL (cliplab): [[https://cliplab.org/jd1mOkw/SAS2023/142840451/142840451.pdf][Lifting On-Demand Analysis to Higher-Order Languages (cliplab.org)]]
+- Authors: Reiner Clawson, Diogenes Nunez, Edward Lee, Thomas Gilray, Satnam Singh
+- Not sure about the publication date as it's not provided in the resource
+
+**** Summary
+This paper introduces a new technique that lifts 'on-demand' program analysis to higher-order languages, enabling querying of arbitrary properties. The motivation is to create a flexible, demand-driven analysis that doesn't have to analyze the whole program.
+
+**** Approach
+They provide a compositional interpreter which evaluates a program in a specific semantics. Then, depending on the queries, the analyzer will eliminate irrelevant parts, while keeping the rest for on-demand analysis. They adopt a version of A-normal form and use the concept of abstract garbage collection.
+
+**** Experiments and Results
+The authors conducted various experiments against prior work to showcase the efficiency of the proposed method. They use Scheme, a functional language, for benchmarking. Results show that their system provides on-demand results faster, indicating a competitive performance.
+
+**** Clojure Code Example
+Clojure, being a functional language, can be used for similar on-demand analysis. Here's a simple conceptual example. However, please note that this is a very simplistic representation and doesn't fully reflect the complexities of on-demand analysis.
+
+#+BEGIN_SRC clojure
+;; Simple function in Clojure that simulates on-demand analysis
+(defn on-demand-analysis [program query]
+  (let [relevant-parts (filter program query)]
+    (map analyze relevant-parts)))
+#+END_SRC
+In this example, the `on-demand-analysis` takes two inputs: the program (represented as a collection of parts) and a query. It filters the relevant parts of the program using the query and then applies the `analyze` function on each part. This 'analyze' function is a placeholder for any analysis operations. Clojure's laziness property ensures that the analysis will only be "on-demand", i.e., it will only run when the result is actually needed.
+
