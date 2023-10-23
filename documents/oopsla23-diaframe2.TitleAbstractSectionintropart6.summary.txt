@@ -1,0 +1,3 @@
+
+
+This section provides an overview of the proof of a refinement for a fine-grained concurrent incrementer in Diaframe 2.0. It explains the concept of logical refinement, which implies contextual refinement, but is easier to prove. It introduces ReLoC, a separation logic for refinements based on this idea, and its soundness theorem. It then explains the four phases of the proof: symbolically executing both outer closures, determining and establishing a proper invariant for the shared mutable state, performing induction to account for the recursive call in fg incrementer, and symbolically executing the inner closures. It also introduces Iris's invariant assertion and the (cid:31) modality. Finally, it provides an overview of the formal rules for contextual refinement.

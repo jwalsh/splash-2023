@@ -1,0 +1,148 @@
+3.4. Type System
+ return type
+(return type). It also returns the static variable name that represents the interacting process’
+pid (dual). We assume that function information environment, Σ, is well-formed, meaning that
+all functions mapped ( f/n ∈ dom(Σ)) observe the following condition requiring that the body of
+function f/n is closed, i.e., for Σ( f/n) = Ω:
+
+fv(cid:0)Ω.body
+
+(cid:1) \(cid:0)Ω.params ∪ {Ω.dual}(cid:1) = ∅
+
+Intuitively, if we look at a function’s body, its only free variables will be its parameters (i.e.,
+params and dual).
+
+Session typechecking is initiated by analysing an Elixir module, rule [tModule]. A module
+is typechecked by inspecting each of its public functions, ascertaining that they correspond and
+fully consume the session types ascribed to them. The rule uses three helper functions. The
+
+function functions((cid:101)D) returns a list of all function names (and arity) of the public functions ((cid:101)D) to
+be checked individually. The function sessions((cid:101)D) obtains a mapping of all the public functions
+to their expected session types stored in ∆. This ensures that when a function f with arity n
+with details about all the public ((cid:101)D) and private functions ((cid:101)P) within the module.
+executes, it adheres to the session type associated with it using either the @session or @dual
+annotations. The helper function details(−) populates the function information environment (Σ)
+
+9
+
+
+∀ f/n ∈ functions((cid:101)D) ·
+
+∆ = sessions((cid:101)D)
+
+Σ = details((cid:101)P(cid:101)D)
+
+
+
+Σ ( f/n) = Ω
+
+Ω.param types =(cid:101)T
+
+∆( f/n) = S
+
+Ω.params =(cid:101)x
+∆ ·(cid:0)y : pid,(cid:101)x :(cid:101)T(cid:1) ⊢y
+⊢ defmodule m do(cid:101)P (cid:101)D end
+
+Ω.body = t
+Ω.return type = T
+
+Ω.dual = y
+
+Σ S ▷ t : T ◁ end
+
+[tModule]
+
+For every public function f/n in functions((cid:101)D), [tModule] checks that its body adheres to it
+
+session type using the highlighted term typing judgement detailed below:
+
+dual pid
+
+initial
+
+&
+
+residual
+
+session types
+
+∆ · Γ ⊢ w
+
+Σ
+
+S ▷ t : T ◁ S ′
+
+session typing &
+variable binding
+
+environments
+
+term
+
+expression type
+
+This judgement states that “the term t can produce a value of type T after following an interac-
+tion protocol starting from the initial session type S up to the residual session type S ′ (akin to
+parameterised monads [12]), while interacting with a dual process with pid identifier w. This
+typing is valid under some session typing environment ∆, variable binding environment Γ and
+function information environment Σ.” Since the function information environment Σ is static for
+the whole module (and by extension, for all sub-terms), it is left implicit in the term typing rules.
+We consider each rule in detail.
+
+ ∀ j ∈ 1..n ·
+∆ ·(cid:0)Γ, Γ1
+(cid:1).S i
+(cid:9)
+
+ simplepat(p j
+(cid:1) ⊢w S i ▷ ti : T ◁ S ′
+▷ receive do ({:li,(cid:101)pi} → ti∈Iend : T ◁ S ′
+
+�
+pat p j
+i,..., Γn
+i
+
+i, T j
+i )
+▷ Γ
+j
+i
+
+i : T j
+i
+
+∀� I ·
+
+∆ · Γ ⊢w &(cid:8)?li
+
+(cid:0)(cid:101)Ti
+
+[tBranch]
+
+i∈I
+
+The receive construct is typechecked using the [tBranch] rule. It expects an (external) branch-
+
+ing session type &(cid:8)...(cid:9), where each branch in the session type must match with a corresponding
+branch in the receive construct, where both (li) and payload types ((cid:101)Ti) correspond.
+Each receive branch is checked w.r.t. the common type T and a common residual session type
+S ′. The types within each receive branch are computed using the pattern typing judgement,
+⊢w
+pat p : T ▷ Γ, which assigns types to variables present in patterns (explained later in Figure 6).
+To ensure that all possible patterns are exhausted, we use Simple Patterns to filter out pattern
+structures such as lists and basic values. As a result, if a receive construct (contains exclusively
+simple patterns) is well-typed against the branching session type, then we are certain that any
+
+10
+
+
+valid incoming messages can be matched with one of the available branches. This is further
+discussed later in Proposition 3. Simple patterns do not limit the expressivity of our language:
+complex patterns can still be expressed using a combination of (simple) receives and inner
+case constructs, which allow us to use patterns that do not block receives while postponing
+more specific patterns to the subsequent case matching.
+
+Definition 3.2 (Simple Patterns). The predicate simplepat(p, T) only accepts patterns that exclu-
+sively contain variables and top-level tuples, eliminating the possibility of

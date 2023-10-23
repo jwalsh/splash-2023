@@ -1,0 +1,240 @@
+3.5. Typing in Action
+Recall the counter system from Listing 2, which contains two public functions, server and
+client, annotated with the session types, counter and counter, respectively defined in eqs. (1)
+and (2). We discuss briefly how the type system of Section 3.4 can be used to statically analyse
+this Elixir module.
+
+⊢ defmodule Counter do(cid:101)P (cid:101)D end
+
+Typechecking starts from the [tModule] rule (⊢ M), and the judgement:
+where (cid:101)D contains the functions server and client, while (cid:101)P contains the private function
+terminate. The premise of [tModule] requires that all public functions are checked individ-
+ually using the behavioural typing judgement: ∆ · Γ ⊢w
+Σ S ▷ t : T ◁ S ′ (Section 3.4). Starting
+with fn = server2, the initial session type, S , is set to counter and the expected residual session
+type, S ′, is end, since functions are only well-typed if they fully consume the session type. For
+the client function, the initial session type S is computed to get the dual type of counter, given
+in eq. (2). We focus on the behavioural typing of the server function. The function body, t, of
+server consists of the following:
+
+t =
+
+{:incr, value} -> server(client, total + value)
+{:stop} -> terminate(client, total)
+
+This receive statement is typechecked as the judgement below, using the [tBranch] rule:
+
+ receive do
+
+end
+
+∆ · Γ ⊢w &
+
+(cid:40)?incr(number).counter,
+
+(cid:41)
+
+?stop().S 1
+
+13
+
+▷ t : atom ◁ end
+
+
+Γ ⊢exp e : T
+
+[tTuple]
+
+∀i ∈ 1..n ·(cid:110)
+
+Γ ⊢exp ei : Ti
+
+Γ ⊢exp {e1, . . . , en} : {T1, , . . . , Tn}
+
+(cid:111)
+
+[tBasic]
+
+type(b) = T
+Γ ⊢exp b : T
+
+[tVariable]
+
+Γ (x) = T
+Γ ⊢exp x : T
+
+[tList]
+
+Γ ⊢exp e1 : T
+
+Γ ⊢exp e2 : [ T]
+
+Γ ⊢exp [ e1 | e2 ] : [ T]
+
+[tEList]
+
+Γ ⊢exp [ ] : [ T]
+
+[tArithmetic]
+
+Γ ⊢exp e1 : number
+
+Γ ⊢exp e2 : number
+Γ ⊢exp e1 ⋄ e2 : number
+
+⋄ ∈ {+, −, ∗, /}
+
+[tBoolean]
+
+Γ ⊢exp e1 : boolean
+
+Γ ⊢exp e2 : boolean
+Γ ⊢exp e1 ⋄ e2 : boolean
+
+⋄ ∈ {and, or}
+
+[tComparisons]
+
+⋄ ∈ {<, >, <=, >=, ==, ! =}
+Γ ⊢exp e2 : T
+Γ ⊢exp e1 : T
+Γ ⊢exp e1 ⋄ e2 : boolean
+
+[tNot]
+
+Γ ⊢exp e : boolean
+Γ ⊢exp not e : boolean
+
+Figure 5: Expression typing rules
+
+∅ ⊢exp b : T
+
+⊢w
+pat b : T ▷ ∅
+
+b (cid:44) [ ]
+
+[tpVariable] ⊢w
+
+pat x : T ▷ x : T
+
+x (cid:44) w
+
+∀i ∈ 1..n ·(cid:110)⊢w
+
+(cid:111)
+
+pat wi : Ti ▷ Γi
+
+pat {w1, . . . , wn} : {T1, . . . , Tn} ▷ Γ1, . . . , Γn
+
+⊢w
+pat p : T ▷ Γ
+
+[tpBasic]
+
+[tpList]
+
+[tpTuple] ⊢w
+⊢w
+pat w1 : T ▷ Γ1
+
+⊢w
+pat w2 : [ T] ▷ Γ2
+
+⊢w
+pat [ w1 | w2 ] : [ T] ▷ Γ1, Γ2
+
+[tpEList] ⊢w
+
+pat [ ] : [ T] ▷ ∅
+
+Figure 6: Pattern typing rules
+
+14
+
+
+where S 1 = !value(number).end and w = client.
+
+The session type in [tBranch] dictates that two branches are required, labelled incr and
+stop. The terms inside the branches must match with the continuation session type of the cor-
+responding session type (i.e., counter and S 1, respectively). For the first branch (labelled incr),
+the continuation term is a known function call (∆(server2) = counter); therefore, we use the
+[tKnownCall] rule:
+∆ · Γ
+
+′ ⊢w counter ▷ server(client, total+value) : atom ◁ end
+
+The term of the second branch (labelled stop) needs to match with the session type S 1. This
+branch makes a call to a private function (terminate). Since terminate1 is not in the domain
+of ∆, we proceed to inspect its body using the rule [tUnknownCall]. Recall that private func-
+tions are not annotated with session types. Accordingly, rule [tUnknownCall] requires us to
+inherit the outstanding session S 1 as the specification for typing this judgement, which follows
+immediately using the [tLet] rule:
+
+[tLet]
+
+[tUnknownCall]
+
+(∆, terminate1 : S 1) · Γ′′ ⊢w S 1 ▷
+
+(cid:34)
+
+(cid:35)
+∆ · Γ ⊢w S 1 ▷ terminate(client, total) : atom ◁ end
+
+...
+send(w, {:value, total})
+
+:ok
+
+: atom ◁ end
+
+Note that Γ′′ contains the type information for the client and total variable names, and
+the session typing judgement (∆) is extended to contain the session typing information for the
+function terminate1. To finish our typing analysis, we have to consider the two premises of the
+[tLet] rule. This rule checks two sub-terms in succession, as follows:
+
+(∆, terminate1 : S 1) · Γ
+
+′′ ⊢w S 1 ▷ send(w, {:value, total}) : U ◁ end
+
+(∆, terminate1 : S 1) · Γ
+
+′′ ⊢w S 1 ▷ :ok : atom ◁ end
+
+(3)
+(4)
+
+Equation (3) contains a send contruct that sends a message labelled value. This matches
+with the labels offered in S 1, which is checked using [tChoice]. Finally, Equation (4) is type-
+checked using [tExpression], which finalises our analysis.
+
+As a continuation of this, consider the first two lines of the misbehaving client function
+
+body from Listing 3, to be typechecked against counter from eq. (2):
+
+send(server, {:incr, 5})
+send(server, {:decr, 2})
+
+The first send statement is checked successfully using the [tLet] and the [tChoice] rules.
+
+The next send statement also needs to be checked using [tChoice]:
+
+(cid:40)!incr(number).counter,
+
+(cid:41)
+
+!stop().S 1
+
+′ · Γ
+∆
+
+′′′ ⊢w ⊕
+
+▷ send(server, {:decr, 2}) : number ◁ end
+
+However, the [tChoice] rule attempts to match decr with a nonexistent choice from the session
+type. Thus, this client function is deemed to be ill-typed.
+
+15

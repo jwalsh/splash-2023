@@ -1,0 +1,235 @@
+5. Validation of the ElixirST Type System
+We validate the static properties imposed by the ElixirST type system, overviewed in Sec-
+tion 3, by establishing a relation with the runtime behaviour of a typechecked Elixir program,
+using the transition semantics defined in Section 4. Broadly, we establish a form of type preser-
+vation, which states that if a well-typed term transitions, the resulting term then remains well-
+typed [10]. However, our notion of type preservation, needs to be stronger to also take into
+account (i) the side-effects produced by the execution; and (ii) the progression of the execution
+with respect to protocol expressed as a session type. Following the long-standing tradition in
+the session type community, these two aspects are captured by the refined preservation property
+called session fidelity [15, 16]. This property ensures that: (i) the communication action produced
+as a result of the execution of the typed process is one of the actions allowed by the current stage
+of the protocol; and that (ii) the resultant process following the transition is still well-typed w.r.t.
+the remaining part of the protocol that is still outstanding. We also establish a conditional form
+of progress, where well-typed processes are either a value, or else they can safely transition to a
+new term, producing an internal (or external) action.
+
+Before embarking on the proofs for session fidelity and progress, we prove an auxiliary
+proposition that acts as a sanity check for our operational semantics of Section 4. We note
+that the operational semantics assume that only closed programs are executed; an open program
+(i.e., a program containing free variables) is seen as an incomplete program that cannot execute
+correctly due to missing information. To this end, Proposition 1 ensures that a closed term
+remains closed even after transitioning.
+Proposition 1 (Closed Term). If fv(t) = ∅ and t α−→ t′, then fv(t′) = ∅
+Proof. By induction on the structure of t. Refer to Appendix B.1 for details.
+
+The statement of the session fidelity property relies on the definition of a partial function
+called after (Definition 5.1), which takes a session type and an action as arguments and returns
+another session type as a result. This function serves two purposes: (i) the function after(S , α)
+is only defined for actions α that are (immediately) permitted by the protocol S , which allows
+us to verify whether a term transition step violated a protocol or not; and (ii) since S describes
+the current stage of the protocol to be followed, we need a way to evolve this protocol to the
+next stage should α be a permitted action, and this is precisely S ′, the continuation session type
+returned where after(S , α) = S ′.
+
+Definition 5.1 (After Function). The after function is partial function defined for the following
+
+19
+
+
+cases:
+
+(cid:9)
+(cid:1).S i
+(cid:0)(cid:101)Ti
+after(⊕(cid:8)!li
+after(&(cid:8)?li
+(cid:1).S i
+(cid:0)(cid:101)Ti
+(cid:9)
+
+after(S , τ) def= S
+after(S , f/n) def= S
+i∈I, ι!
+i∈I, ?
+
+(cid:110)
+(cid:111)
+l j,(cid:101)v
+(cid:110)
+(cid:111)
+) def= S j where j ∈ I
+l j,(cid:101)v
+) def= S j where j ∈ I
+
+This function is undefined for all other cases. The after function is overloaded to range over
+session typing environments (∆) in order to compute a new session typing environment given
+some action α and session type S :
+
+after(∆, f/n, S ) def= ∆, f/n : S
+after(∆, α, S ) def= ∆
+
+if α (cid:44) f/n
+
+Intuitively, when the action produced by the transition is f/n, the session typing environment is
+extended by the new mapping f/n : S . For all other actions, the session typing environment
+■
+remains unchanged.
+
+the public functions w.r.t. their ascribed session type, ∆·(cid:0)y : pid,(cid:101)x :(cid:101)T(cid:1) ⊢y
+Recall that module typechecking using rule [tModule] entails typechecking the bodies of all
+Σ S ▷ t : T ◁ S ′ (where
+running the function body term t where the parameter variables y,(cid:101)x are instantiated with the pid
+S ′ = end for this specific case). At runtime, a spawned client handler process in a session starts
+of the client, say ι, and the function parameter values, say(cid:101)v, respectively, t [ι/y] [(cid:101)v/(cid:101)x], as modelled
+in rule [rCall2] from Figure 8. The instantiated function body is thus closed and can be typed
+w.r.t. an empty variable binding environment, Γ = ∅. Session fidelity thus states that if a closed
+term t is well-typed, i.e.,
+
+(5)
+(where S and S ′ are initial and residual session types, respectively, and T is the basic expression
+type) and this term t transitions to a new term t′ with action α, i.e.,
+
+∆ · ∅ ⊢w S ▷ t : T ◁ S ′
+
+t α−→ t′
+the new term t′ is expected to remain well-typed, i.e.,
+
+(6)
+
+′ · ∅ ⊢w S ′′ ▷ t′ : T ◁ S ′
+∆
+
+(7)
+where the expanded ∆′ is computed as after(∆, α, S ) = ∆′ and the base type of the term is pre-
+served, as described by the constant type T in eqs. (5) and (7). To understand how the evolved
+initial session type (S ′′) is computed or assumed (in eq. (7)), we have to consider the context
+of our analysis. Our type-checker analyses one side of an interaction that does not interleave
+with other sessions. We also assume that the interacting dual processes are well-behaved and
+thus follow a compatible protocol (e.g. the dual session type) during execution. Despite these
+restrictions, we obtain a certain degree of flexibility, where we can statically analyse processes
+interacting with external processes which we may not have access to their source.
+
+To this end, we make a distinction between the transition actions in Equation (6).
+
+If the
+action α depends on the context process left implicit (i.e., α is an incoming message), we only
+
+20
+
+
+require the guarantee stated in Equation (7) whenever α is permitted by the protocol S i.e.,
+S ′′ = after(S , α). More specifically, the condition S ′′ = after(S , α) is part of the antecedent of
+the first clause in Session Fidelity Theorem and captures our conditional guarantees that apply
+only when the context process is well-behaved. On the other hand, if the action α depends solely
+on the process being typechecked (i.e., α is an outputted message or an internal action), then we
+require that α is permitted by the protocol S . Concretely, the second clause of Session Fidelity
+Theorem is stronger and the condition after(S , α) forms part of the succedent.
+Theorem 2 (Session Fidelity). If ∆ · ∅ ⊢w
+— for α = ?{:l,(cid:101)v} and some session type S ′′ = after(S , α), then there exists some ∆′, such that
+∆′ · ∅ ⊢w
+— for α ∈ { f/n, τ, ι!{:l,(cid:101)v}}, then there exists some S ′′ and ∆′, such that ∆′·∅ ⊢w
+Σ S ′′ ▷t′ : T ◁S ′
+Proof. By induction on the typing derivation ∆·∅ ⊢w
+
+Σ S ′′ ▷ t′ : T ◁ S ′ and after(∆, α, S ) = ∆′
+
+for after(S , α) = S ′′ and after(∆, α, S ) = ∆′
+
+Σ S ▷ t : T ◁ S ′. Refer to Appendix B.2.
+
+Σ S ▷ t : T ◁ S ′ and t α−→
+
+t′
+
+Σ
+
+t1
+
+S 1
+
+α1
+
+t2
+
+α2
+
+. . .
+
+αn
+
+v
+
+\
+
+after(S 1, α1) = S 2
+
+after(S n, αn) = end
+
+Figure 10: Repeated applications of session fidelity
+
+As shown in Figure 10, by repeatedly applying Theorem 2, we can therefore conclude that
+all the (external) actions generated as a result of a typed computation (i.e., sequence of transition
+steps) must all be actions that follow the protocol described by the initial session type. Since
+public functions are always typed with a residual session type end, certain executions could
+reach the case where the outstanding session is updated to end as well, i.e., after(S n, αn) = end.
+In such a case, we are guaranteed that the term will not produce further side-effects, as in the
+case of Figure 10 where the term is reduced all the way down to some value, v.
+
+Example 5.1. We consider a concrete example to show the importance of session fidelity. The
+function called client/1 sends a stop label and awaits a reply with the total value.
+
+1
+2
+3
+4
+5
+6
+7
+8
+
+@dual "counter"
+def client(server) do
+
+x = send(server, {:stop})
+
+receive do
+
+{:value, num} -> num
+
+end
+
+end
+
+Listing 4: Counter client obeying the protocol counter
+
+21
+
+
+This function adheres to the following protocol (from eq. (2)):
+
+(cid:40)!incr . . . ,
+
+counter = ⊕
+
+!stop().?value(number).end
+
+A process evaluating the function client executes by first sending a message containing a
+
+stop label to the interacting processes’ pid (ιserver), as shown below.
+
+α = ιserver!(cid:8)
+
+(cid:9)
+
+stop
+
+t
+
+(cid:41)
+
+t′
+
+x = send(ιserver , {:stop})
+
+x = {:stop}

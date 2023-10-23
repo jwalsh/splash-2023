@@ -1,0 +1,3 @@
+
+
+This section provides preliminary results on modular integer arithmetic, which is a form of arithmetic that uses a modulo operation to simplify expressions. It introduces the set of modulo specifications 𝕄, which contains two kinds of elements: intervals of the form [𝑙,𝑢[ denote operations modulo 𝑢−𝑙 with result in the interval [𝑙,𝑢[, whereas the element ℤ denotes arithmetic operations without modulo. It then defines the modulo of 𝑘∈ℤ by an element of 𝕄 and the notion of 𝑘-splittability to reason about the application of consecutive modulo computations. Three properties are given to simplify consecutive modulo computations under some conditions. Finally, the syntax of an extended language is provided.

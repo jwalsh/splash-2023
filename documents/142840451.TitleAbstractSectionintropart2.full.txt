@@ -1,0 +1,184 @@
+Title-Abstract. Section intro
+. We propose a soundness
+condition for the existing on-demand analyses with respect to partial
+call graphs, formalize our algorithm as an abstract domain combinator,
+and prove it sound in Isabelle/HOL. Furthermore, we evaluate a proto-
+type implementation of the resulting on-demand call graph construction
+algorithm for a subset of JavaScript (using the Synchronized Push-Down
+Systems framework as the underlying data flow analysis) on benchmarks
+making heavy use of higher-order functions.
+
+
+2
+
+1
+
+Schoepe et al.
+
+Introduction
+
+We consider the problem of lifting on-demand static analyses to higher-order
+languages—that is, transforming, in a sound manner, an on-demand static anal-
+ysis relying on an upfront call graph into a fully on-demand analysis constructing
+its own call graph, even in the presence of first-class functions.
+
+Program analysis approaches are becoming more and more sophisticated, in-
+creasingly able to find subtle bugs or prove deep program properties of interest
+in large code bases [9, 26]. There are two key enablers for such advances, es-
+pecially needed to scale to large industrial applications. One is the ability to
+reason interprocedurally about the behavior across different functions and mod-
+ules of a program in a precise manner (rather than, e.g., relying solely on local,
+intraprocedural information or coarse-grained global information such as types).
+The other is the capabilty to be on-demand (i.e., to examine only the relevant
+portion of a program to derive a desired fact on demand).
+
+Reasoning interprocedurally requires access to a call graph linking call sites
+in the program to functions that they may invoke at run time. To apply a static
+analysis interprocedurally, many tools assume that a call graph is provided up-
+front, and is consulted by the analysis to determine which parts of the program
+should be explored. This creates two limitations. First, for higher-order, imper-
+ative languages such as JavaScript, the combination of first-class functions with
+a dynamic heap and object-oriented features may require a deep interleaving be-
+tween call graph construction and data flow analysis. This arises due to the need
+to precisely track functions as they flow from the points where they are referenced
+through higher-order functions, heap cells, inheritance hierarchies, and closure
+bindings. Without this back-and-forth between call graph construction and data
+flow analysis, precision might be limited or come at the price of soundness or
+performance trade-offs. Second, this reliance on an upfront call graph limits the
+benefit of on-demand techniques—a precise data flow analysis to compute a call
+graph upfront may significantly negate the benefits of a subsequent on-demand
+analysis. For example, Stein et al. [32] lift an arbitrary abstract interpretation
+to be on-demand (and incremental) but still assume an upfront call graph.
+
+The key insight of this work is that existing on-demand intraprocedural data
+flow analyses can themselves be leveraged in a black-box manner to bootstrap an
+on-demand construction of the call graph. The approach starts from an empty
+call graph and proceeds by interleaving backward data flow queries, resolving
+which values may flow to a given expression, and forward data flow queries,
+resolving which expressions a given value may flow to. Appropriately interleaving
+such queries allows us to bootstrap a sound overapproximation of a relevant part
+of the call graph. This technique allows us to automatically lift the results of on-
+demand analysis for first-order languages to higher-order ones, thereby further
+reducing the need for whole-program analysis. As a result, we can parametrically
+leverage progress on analysis of other challenging language features, allowing the
+on-demand call graph construction to benefit from the large body of work that
+already exists on analyzing various combinations of language features, including
+mutability. Concretely, we make the following contributions:
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+3
+
+– We propose a language-agnostic construction for bootstrapping an on-de-
+mand call graph, parameterized by a pair of underlying backward and for-
+ward on-demand data flow analyses. The two analyses are treated as black
+boxes, except for the assumption that they can resolve backward and for-
+ward queries about data flows between values and expressions with respect
+to a partial call graph (Section 2).
+
+– We present a formalization of our approach as an abstract domain combi-
+nator and determine sufficient assumptions on the input analysis and target
+language to guarantee soundness and termination (Section 3). To express
+soundness, we also introduce a notion of soundness up to a given call graph.
+This demonstrates a broader approach to formulating and proving sound-
+ness of on-demand analyses. Our theoretical results are mechanized in Is-
+abelle/HOL [23]. The theory files are available online [27].
+
+– We evaluate our technique on a prototype implementation that instantiates
+the approach for a subset of JavaScript, leveraging the intermediate represen-
+tation of the JavaScript program analyzer TAJS [17], and using Synchronized
+Push-Down Systems (SPDS) [30] as the underlying data flow analyses. For
+our evaluation, we use a benchmark set of programs generated via property-
+based testing techniques, implemented using QuickCheck [5] (Section 4).
+Our results provide some evidence that on-demand call graph construction
+introduces time savings and explores a smaller portion of the program, when
+compared with whole-program call graph construction.
+
+2 Overview of Our Approach
+
+In this section, we give an informal overview of our approach to on-demand call
+graph construction, illustrating the main ideas on a small JavaScript example
+program (Fig. 1). The presentation in this section is intentionally kept high-level:
+we assume we are given a forward and a backward data flow analysis that can
+resolve queries with the help of an existing call graph, but we gloss over the
+details of how such queries are issued and the formal requirements to make our
+construction sound. These details are formalized in Section 3.
+
+JavaScript programs frequently use callbacks, e.g., to handle user events or
+interactions between different components in UI frameworks, such as React [21].
+Consider the JavaScript snippet in Fig. 1. The function process takes two call-
+back arguments: it retrieves data by calling the callback getData and passes the
+result to the callback handle. Unfortunately, callbacks complicate the control-
+flow of programs, which makes them harder to reason about and increases the
+risk of introducing unintended and undesired behavior. Returning to our exam-
+ple program in Fig. 1, which logs sensitive user data. The leak is not immedi-
+ately visible since it happens indirectly: process is invoked with the arguments
+readUserData, a function returning sensitive data (line 6), and writeToLog, a
+function writing its argument to a public sink (log on line 2). Thus, through a
+sequence of callbacks, the program leaks sensitive user data into a log.
+
+Many existing analyses (e.g., [30]) can detect such leaks, but they typically
+require a call graph to track interprocedural flows. For example, in order to
+
+
+4
+
+Schoepe et al.
+
+log ( arg );
+
+1 function writeToLog ( arg ) {
+2
+3 }
+4 function readUserData () {
+5
+
+// placeholder for a private
+
+source
+
+return " private userData ";
+
+6
+7 }
+8 function process ( getData, handler )
+
+{
+
+var data = getData () ;
+handler ( data );
+
+9
+10
+11 }
+12 var handler = writeToLog ;
+13 process ( readUserData, handler );
+
+1 : function writeToLog(arg)
+
+4 : function readUserData()
+
+8 : function process(...)
+
+9 : getData();
+
+3
+
+10 : handler(...);
+
+8
+
+4
+
+13 : process(...);
+
+Fig. 1. A JavaScript program logging
+user data through callbacks
+
+Fig. 2. The call graph constructed for
+the example program
+
+Query
+⟨2, arg,←⟩
+↰⟨1,Log,�↰⟨13, process,←⟩�⟨9, getData,←�

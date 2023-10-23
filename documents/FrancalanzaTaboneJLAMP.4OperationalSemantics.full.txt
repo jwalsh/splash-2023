@@ -1,0 +1,310 @@
+4. Operational Semantics
+We describe the operational semantics of the Elixir language subset of Figure 3 as a labelled
+transition system (LTS) [14] describing how a handler process within a session executes while
+interacting with the session client (left implicit), as outlined in Figure 1. The transition t α−→ t′
+describes the fact that a handler process in state t performs an execution step to transition to the
+new state t′, while possibly interacting with the client via the action α as a side-effect. External
+actions are visible by, and bear an effect on the client, whereas internal actions do not. In our
+case, an action α can take the following forms:
+
+α ∈ Act (cid:70) ι!{:l,(cid:101)v}
+| ?{:l,(cid:101)v}
+|
+f/n
+| τ
+
+Output message to ι tagged as :l with payload(cid:101)v
+Input message tagged as :l with payload(cid:101)v
+
+Call function f with arity n
+Internal reduction step
+
+external action
+
+internal action
+
+Both output and input actions constitute external actions that affect either party in a session;
+the type system from Section 3.4 disciplines these external actions. Internal actions, include
+silent transition (τ) and function calls ( f/n); although the latter may be denoted as a silent action,
+
+pre-client
+
+ιserver
+
+ιclient
+
+pre-server
+
+clientFn (ιserver ,
+arg2 ,
+arg3 ,
+
+. . . )
+
+serverFn (ιclient ,
+
+arg2 ,
+arg3 ,
+
+. . . )
+
+[. . . ]ιclient
+
+[t ◁ M]ιserver
+
+. . .
+
+α
+
+[t′ ◁ M′]ιserver
+
+α′
+
+. . .
+
+Figure 7: Spawning two processes (green boxes represent spawned concurrent processes)
+
+16
+
+
+the decoration facilitates our technical development. We note that, function calls can only transi-
+tion subject to a well-formed function information environment (Σ), which contains details about
+all the functions available in the module. Since Σ remains static during transitions, we leave it
+implicit in the transitions rules.
+t α−→
+
+t′
+
+Σ
+
+[rLet1]
+
+t1
+x = t1; t2
+
+α−→ t′
+α−→ x = t′
+
+1
+
+[rLet2]
+
+x = v; t τ−→ t [v/x]
+
+[rChoice1]
+
+send (ι,{:l, v1, . . . , vk−1, ek, . . . , en}) τ−→ send
+
+:l, v1, . . . , vk−1, e′
+
+k, . . . , en
+
+1; t2
+ek → e′
+
+k
+
+(cid:110)
+
+(cid:16)
+
+ι,
+
+(cid:111)(cid:17)
+
+[rChoice2]
+
+[rBranch]
+
+l j = l
+
+send (ι,{:l, v1, . . . , vn}) ι!{:l, v1, ..., vn}
+∃ j ∈ I
+receive do ({:li,(cid:101)pi} → ti)i∈Iend
+
+−−−−−−−−−−→ {:l, v1, . . . , vn}
+match((cid:101)p j, v1, . . . , vn) = σ
+?{:l, v1, ..., vn}
+−−−−−−−−−−→ t jσ
+(cid:16)
+ek → e′
+f (v1, . . . , vk−1, ek, . . . , en) τ−→ f
+
+k
+
+k, . . . , en
+
+(cid:17)
+
+[rCall1]
+
+v1, . . . , vk−1, e′
+Ω.params = x2, . . . , xn
+f/n−−→ t [ι/y] [v2, . . . , vn/x2, . . . , xn]
+e → e′
+τ−→ case e′
+
+[rCall2]
+
+Σ ( f/n) = Ω
+
+Ω.body = t
+
+f (ι, v2, . . . , vn)
+
+Ω.dual = y
+
+[rCase1]
+
+case e do (pi → ti)i∈Iend
+match(p j, v) = σ
+τ−→ t jσ
+
+∃ j ∈ I
+case v do (pi → ti)i∈Iend
+
+[rCase2]
+
+do (pi → ti)i∈Iend
+[rExpression]
+
+e → e′
+e τ−→ e′
+
+Figure 8: Term transition semantic rules
+
+The transitions are defined by the term transition rules listed in Figure 8. Rules [rLet1] and
+[rLet2] deal with the evaluation of a let statement, x = t1; t2 modelling a call-by-value semantic,
+where the first term t1 has to transition fully to a value before being substituted for x in t2 denoted
+as [v/x] (or [v1, v2/x1, x2] for multiple substitutions). The send statement, send (ι,{:l, e1, . . . , en}),
+evaluates by first reducing each part of the message to a value from left to right. This is carried
+out via rule [rChoice1] which produces no observable side-effects. When the whole message
+is reduced to a tuple of values {:l, v1, . . . , vn}, rule [rChoice2] performs the actual message
+sending operation. This transition produces an action ι!{:l, v1, . . . , vn}, where the message
+of the receive construct, receive do ({:li,(cid:101)pi} → ti)i∈Iend, is defined by rule [rBranch]. When
+{:l, v1, . . . , vn} is sent to the interacting process with a pid value of ι. The operational semantics
+a message is received (i.e., α = ?{:l,(cid:101)v}), it is matched with a valid branch from the receive
+payload of the message ((cid:101)v) is compared to the corresponding patterns in the selected branch ((cid:101)p j)
+construct, using the label :l. Should one of the labels match (∃ j ∈ I such that :l j = :l), the
+
+17
+
+
+e → e′
+
+1 ⋄ e2
+
+1
+
+[reOperation1]
+
+e1 → e′
+e1 ⋄ e2 → e′
+v = v1 ⋄ v2
+[reOperation3] v1 ⋄ v2 → v
+e1 → e′
+1 | e2
+e′
+
+[ e1 | e2 ] →(cid:104)
+
+[reList1]
+
+1
+
+(cid:105)
+
+e2 → e′
+
+2
+
+2
+
+v1 ⋄ e2 → v1 ⋄ e′
+v′ = ¬v
+not v → v′
+(cid:105)
+
+[reNot2]
+e2 → e′
+
+2
+
+[ v1 | e2 ] →(cid:104)
+
+v1 | e′
+
+2
+
+[reOperation2]
+
+[reNot1]
+
+e → e′
+
+not e → not e′
+
+[reList2]
+
+[reTuple]
+
+{v1, . . . , vk−1, ek, . . . , en} → {v1, . . . , , vk−1, e′
+
+k, . . . , en}
+
+ek → e′
+
+k
+
+Figure 9: Expression reduction rules
+
+using match((cid:101)p j,(cid:101)v). If the values match with the pattern, the match function (Definition 4.1)
+produces the substitutions σ, mapping the matched variables in the pattern (cid:101)p j to values from(cid:101)v.
+
+This substitution σ is then used to instantiate the free variables in continuation branch t j.
+
+Definition 4.1 (Pattern Matching). The match function pairs patterns with a corresponding
+value, resulting in a sequence of substitutions (called σ), e.g., match(p, v) = [v1/x1] [v2/x2] =
+[v1, v2/x1, x2]. The match function builds a meta-level list of substitutions, which should not be
+confused with the lists defined by the Elixir syntax in Figure 3.
+
+match((cid:101)p,(cid:101)v) def= match(p1, v1), . . . , match(pn, vn)
+
+where(cid:101)p = p1, . . . , pn and(cid:101)v = v1, . . . , vn
+
+match(p, v) def=
+
+[ ]
+[v/x]
+match(w1, v1), match(w2, v2)
+match(w1, v1), . . . , match(wn, vn)
+
+p = b, v = b
+p = x
+p = [ w1 | w2 ] , v = [ v1 | v2 ]
+p = {w1, . . . , wn} and
+v = {v1, . . . , vn}
+
+■
+Example 4.1. For the pattern p1 = {x, 2, y} and the value tuple v1 = {8, 2, true}, match(p1, v1) =
+σ where σ = [8/x] [true/y] (written also as σ = [8, true/x, y]). However for pattern p2 = {x, 2, false}, the
+operation match(p2, v1) fails, since p2 expects a false value as the third element, but finds a true
+■
+value instead.
+
+
+
+Using rule [rCall1] from Figure 8, a function call is evaluated by first reducing all of its
+parameters to a value, using the expression reduction rules in Figure 9; again this models a
+call-by-value semantics. Once all arguments have been fully reduced, [rCall2], the implicit
+environment Σ is queried for function f with arity n to fetch the function’s parameter names and
+body. This results in a transition to the function body with its parameters instantiated accordingly,
+t [ι/y] [v2, . . . , vn/x2, . . . , xn], decorated by the function name, i.e., α = f/n. Along the same lines a case
+construct first reduces the expression which is being matched using rule [rCase1]. Then, rule
+
+18
+
+
+[rCase2] matches the value with the correct branch, using the match function, akin to [rBranch].
+Whenever a term consists solely of an expression, it silently reduces using [rExpression] using
+the expression reduction rules e → e′ of Figure 9. These are fairly standard.

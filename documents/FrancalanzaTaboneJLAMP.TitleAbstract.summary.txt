@@ -1,0 +1,3 @@
+
+
+This paper presents ElixirST, a session-based type system for Elixir modules. It is designed to statically determine whether functions in an Elixir module adhere to their endpoint specifications, which are expressed as session types. A tool has been developed to automate this typechecking process. The paper also provides a formal validation of the type system, an LTS-based operational semantics for the language fragment supported by the type system, and a proof of session fidelity and progress for ElixirST.

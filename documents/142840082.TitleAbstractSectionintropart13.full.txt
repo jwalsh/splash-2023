@@ -1,0 +1,75 @@
+Title-Abstract. Section intro
+,Ω𝑗)≝⦅𝑒𝑗⦆𝑅♯
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚𝑖,Ω𝑖)≝⦅𝑒𝑖⦆𝑅♯
+𝛼′≝𝛼mod𝑚𝑖
+𝑒♯𝑗∉ Const♯
+𝛼′=0
+⦅𝑒1×𝑒2⦆𝑅♯≝(ℒ□(0),ℤ,Ω𝑖∪Ω𝑗)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+(𝑒♯𝑗,[𝑙𝑗,𝑢𝑗[,Ω𝑗)≝⦅𝑒𝑗⦆𝑅♯
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚𝑖,Ω𝑖)≝⦅𝑒𝑖⦆𝑅♯
+𝛼′≝𝛼mod𝑚𝑖
+𝑒♯𝑗∉ Const♯
+𝛼′<0
+⦅𝑒1×𝑒2⦆𝑅♯≝(reduce(𝑒♯𝑗⊠ℒ□(𝛼′))𝑅♯,[𝑢𝑗𝛼′+1,𝑙𝑗𝛼′+1[,Ω𝑖∪Ω𝑗)
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑒′♯1≝rmMod(𝑒♯1,𝑚1)𝑅♯
+𝑒′♯2≝rmMod(�♯2,𝑚2)𝑅♯
+⦅𝑒1×𝑒2⦆𝑅♯≝(reduce(𝑒′♯1⊠𝑒′♯2)𝑅♯,ℤ,Ω1∪Ω2)
+
+nor MultZeroConst nor MultNegConst can be applied
+
+neither the rule Mult2Const nor MultPosConst
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+19
+
+operator is used to suppress the modulo computations in both translations of
+
+possible loss of information. The resulting abstract expression can be potentially
+simplified by the means of the reduce parametric operator. Such computation
+
+two inference rules are provided, depending on the sign of both the denominator
+and the elements of the modulo interval. In such a case, the abstract expression
+
+translation of its operands, thanks to the reduce primitive. This expression can
+be evaluated in modular arithmetic: the resulting modular ring is obtained by
+dividing by the constant both bounds of the modular ring of the numerator (or
+
+Division. Propagating modular computations across divisions is quite tricky.
+Indeed, it can be done precisely only when the following conditions are met.
+First, the numerator has to be positive. We then consider the modulo interval
+of the numerator. The denominator has to be a nonzero constant that divides
+both bounds of this interval (or the bounds of the interval that contains the
+opposite values when the constant is negative). In addition, this interval must
+
+not include both negative (i.e.,<0) and positive (i.e.,>0) values. That is why
+is obtained by reducing the result of the application of the⧄ operator to the
+its opposite when the constant is negative). Because the constant is not0, the
+computation does not yield additional error alarms. In all other cases, thermMod
+its arguments, and its result can be directly interpreted inℤ, at the cost of a
+also has to collect the potential error alarm𝜔𝑑 when the primitive𝜄 is unable to
+prove that the value of the denominator cannot be0.
+𝛼′∈ℤ∶(𝑒♯1,[𝛼′𝑙1,𝛼′𝑢1[,Ω1)≝⦅𝑒1⦆𝑅♯
+𝛼′≝𝛼mod𝑚2
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑙1≥0
+𝛼′>0
+𝜄(toExpr(𝑒♯1))𝑅♯⊆[0,+∞[
+���1∕𝑒2⦆𝑅♯≝(reduce(𝑒♯1⧄ℒ□(𝛼′))𝑅♯,[𝑙1,𝑢1[,Ω1∪Ω2)
+𝛼′∈ℤ∶(𝑒♯1,[𝛼′(𝑢1−1),𝛼′(𝑙1−1)[,Ω1)≝⦅𝑒1⦆𝑅♯
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝛼′≝𝛼mod𝑚2
+𝑢1≤1
+𝜄(toExpr(𝑒♯1))𝑅♯⊆[0,+�
+𝛼′<0
+⦅𝑒1∕𝑒2⦆𝑅♯≝(reduce(𝑒♯1⧄ℒ□(𝛼′))𝑅♯,[𝑙1,𝑢1[,�1∪Ω2)
+(�♯𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝑒′♯1≝rmMod(�′1,𝑚1)𝑅♯
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆�♯
+Ω3≝{{𝜔𝑑}
+if0∈𝜄(toExpr(𝑒′♯2))𝑅♯
+𝑒′♯2≝rmMod(𝑒′

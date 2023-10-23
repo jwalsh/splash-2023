@@ -1,0 +1,47 @@
+Title-Abstract. Section intro
+ the sub-space deﬁned
+by Y, combined with arbitrary values for variables z (cid:54)∈ Y. The abstract eﬀect
+of a guard c onto a given conjunction r can as r ∧ c = r ∧ (c ∧ r|V )
+if c is a linear equality or inequality, respectively, using variables from V. The
+abstract eﬀect of an assignment x ← e with aﬃne right-hand side e, ﬁnally, can
+be reduced to the addition of new constraints and projection onto sub-spaces.
+Relational domains may also be constructed for non-numerical values, e.g., by
+(cid:117)(cid:116)
+maintaining ﬁnite subsets of value maps.
+
+3 Weakly Relational Domains
+
+One way to tackle the high cost of relational domains is to track relationships
+not between all variables, but only between subclusters of variables. We call such
+domains Weakly Relational Domains.
+For a subset Y ⊆ X, let RY = {r | r ∈ R, r|Y = r} the set of all abstract
+values from R that contain only information on those variables in Y. For any
+
+
+4
+
+ and Helidl
+
+collection S ⊆ 2X of clusters of variables, a relation r ∈ R can be approximated
+by a meet of relationsY, Y ∈ S since for every r ∈ R,
+
+r (cid:118)(cid:100){r|Y | Y ∈ S}
+
+holds. Schwarz et al. [26] introduce the notion of 2-decomposable relational do-
+mains. These are domains where the full value can be recovered from the restric-
+tion to all clusters [X ]2 of variables of size at most 2, and all ﬁn upper
+bounds can be recovered by computing within these clusters only, i.e., where
+5)
+
+(6)
+
+(cid:100)(cid:110)
+
+r =
+
+((cid:70)R)|p =(cid:70)(cid:110)
+
+(cid:111)
+
+r|p | p ∈ [X ]2
+

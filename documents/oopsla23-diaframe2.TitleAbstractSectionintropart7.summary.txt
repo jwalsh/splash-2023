@@ -1,0 +1,3 @@
+
+
+This section discusses the use of Iris's persistence modality (cid:31) to prove the refines-closure proof obligation ⊢ (cid:31) (|= 1 () ≾ 2 () : ). It explains how exclusive resources such as ℓ ↦→ 1 and ℓ ↦→s 1 are used to signify the right to read and write to a location ℓ, and how an invariant  is used to verify concurrent accesses. The section then explains how Löb induction is used to verify recursive functions, and how the load-l rule is used to enforce the safety of the load and CAS operations of the left-hand expression. Finally, it explains how the masks E1 and E2 are used to keep track of the opened invariants and avoid invariant reentrancy.

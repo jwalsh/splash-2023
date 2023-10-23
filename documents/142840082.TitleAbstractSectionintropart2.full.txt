@@ -1,0 +1,233 @@
+Title-Abstract. Section intro
+ linear forms with integer coefficients, while simplifying them. We
+provide some rules to simplify arithmetic expressions that are involved
+in the computation of linear interpolations, while ensuring the soundness
+of the transformation.
+All these methods have been incorporated within the Astrée static ana-
+lyzer that checks for the absence of run-time errors in embedded critical
+software, but also in an available toy abstract interpreter. The effects
+of our new abstract domain are then evaluated on several code excerpts
+from industrial code.
+
+Keywords: Modular Arithmetic · Program Transformation · Sym-
+bolic Propagation · Abstract Intepretation · Interpolation.
+
+1
+
+Introduction
+
+An important Computer Science challenge is to prove that given programs can-
+not crash. It is particularly needed in critical embedded applications such as
+planes, where potential errors can be fatal. Because of Rice’s theorem, we know
+that it is impossible to create an analyzer that is both automatic (it does not re-
+quire user interaction to finish, and can do so in finite time), sound (any proved
+
+
+2
+
+J. Boillot, J. Feret.
+
+int x, y;
+if (x >= y) {
+
+unsigned int r = (unsigned int) x - y;
+assert(r == (int64_t) x - y);
+
+1
+2
+3
+4
+5
+
+}
+
+𝑋←[−231,231[⨾
+𝑌←[−231,231[⨾
+if𝑋+−𝑌≥0 then
+𝑅←((𝑋 mod[0,232[)+−(𝑌 mod[0,232[))
+mod[0,232[⨾
+//𝑅=𝑋−𝑌
+↪
+
+endif
+
+1
+2
+3
+4
+
+5
+6
+
+(a) C language
+
+(b) Article’s language
+
+Fig. 1: Distance computation example.
+
+property of the program actually holds), and complete (it is able to prove any
+property that holds). Because in general the most precise invariants are not
+computable, we decide to drop the completeness constraint. This means such
+analyzer can raise alarms that are false-positives. We are particularly interested
+in the Abstract Interpretation framework [5,6] and properties of integer expres-
+sions. Thus, the static analyzer we will present is parameterized by an auxiliary
+numerical abstract domain we will use to compute and represent numerical prop-
+erties of program instructions.
+
+There exist different numerical abstract domains that vary in precision, but
+also in time and memory costs. For example, we could name the interval do-
+main [4] that computes sound variable bounds, and the polyhedra domain [8]
+that discovers linear inequalities. In order to prove the correctness of a program,
+it is sometimes necessary to retain information about the relationships between
+variables (e.g., equalities between variables, or linear inequalities like in the poly-
+hedron domain). Such abstract domains are called relational, and their usage can
+be very costly. That is why symbolic methods have been developed: to keep rela-
+tions between variables by reasoning directly over the arithmetic expressions, and
+to apply sound program transformations on-the-fly to ease the analysis. This is
+what [21] describes with its abstraction of any arithmetic expressions into linear
+forms with interval coefficients. This abstraction allows algebraic simplifications.
+When programming in languages, like C, that allow usage of fixed-length
+integers, it is important to consider how overflows and casts between different
+integer data types are handled. In C, this semantics is detailed in the C Standard
+[14]; we take into account that, in addition to explicit casts, some implicit casts
+are performed in arithmetic operations (e.g., via the integer promotion). Un-
+signed integers do not overflow, the result is reduced modulo the largest value
+of the resulting type plus one. Casts also correspond to the use of a modulo.
+Thus, if we want to use symbolic methods, it appears necessary to deal with
+those modulo computations in the abstract representation.
+
+In this paper, we present symbolic enhancement techniques similar to the
+ones described in [21], but that allow safe modulo elimination when it is pos-
+sible. Consider, for instance, the program of Fig. 1 that computes the distance
+
+between𝑋 and𝑌 when𝑋≥𝑌. As for every further introducing examples, we
+
+provide the C code in Fig. 1a and the representation in our internal language
+in Fig. 1b. Please note that in all the following examples the int data type is
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+3
+
+(a) C language
+
+(b) Article’s language
+
+Fig. 2: Variable elimination example.
+
+𝑋←[−231,231[⨾
+𝑃0←[−231,231[⨾
+𝑃1←[−231,231[⨾
+𝐴←((𝑋 mod[0,232[)+−(𝑃0 mod[0,232[))
+mod[0,232[⨾
+𝐵←((𝑃1 mod[0,232[)+−(𝑋 mod[0,))
+↪
+mod[0,232[⨾
+if𝑃1+−𝑃0≥0 then
+↪
+𝑅←(𝐴+𝐵) mod[0,232[⨾
+//𝑅=𝑃1−𝑃0
+
+endif
+
+if𝑋+−𝑋0≥0 then
+if𝑋+−𝑋1≤0 then
+if𝑋0+−𝑋1≠
+��0+−𝑌1≤0𝑅←𝑌0+((𝑋+−𝑋0)×(𝑌1+−𝑌0))∕
+(𝑋1+−𝑋0)⨾
+//𝑌0≤𝑅≤𝑌1
+↪
+endif⨾
+endif⨾
+endif⨾
+
+endif
+
+int x, p0, p1;
+unsigned int a = (unsigned int) x - p0;
+unsigned int b = (unsigned int) p1 - x;
+if (p1 >= p0) {
+
+unsigned int r = a + b;
+assert(r == (int64_t) p1 - p0);
+
+}
+
+1
+2
+3
+4
+
+5
+
+6
+7
+8
+9
+
+unsigned int x, x0, x1, y0, y1;
+if (x0 <= x && x <= x1) {
+
+if (x0!= x1 && y0 <= y1) {
+
+unsigned int r = y0 + ((uint64_t)
+
+(x-x0) * (y1-y0) / (x1-x0));
+
+assert(y0 <= r && r <= y1);
+
+↪
+
+}
+
+}
+
+1
+2
+3
+4
+5
+
+6
+7
+8
+9
+10
+
+1
+2
+3
+4
+5
+6
+7
+
+1
+2
+3
+4
+
+5
+6
+7
+
+(a) C language
+Fig. 3: First example of linear interpolation computation.
+
+(b) Article’s language (simplified)
+
+even linearization, could not infer this invariant our mod
+technique allows us to compute it. In our second example in Fig. 2 we would
+
+ently represented using a 32-bit format. Nevertheless, this representation
+remains a parameter of the analysis. We analyzer to infer that, when
+
+𝑋≥𝑌 is verified,𝑅=𝑋−𝑌. Note that𝑋 mod[0,232[≠𝑋 and the same
+holds with𝑌. So, traditional abstract domains like integers or poly, or
+like to replace the expression�+� by𝑃1−𝑃0 by making the occurrences of the
+variable𝑋 in the expressions𝐴 and𝐵 cancel each other. This is made possible
+ple in Fig. 3 (modulos are omitted for readability), if all conditions are met𝑅
+is the linear interpolation of some function𝑓 in𝑋 such that𝑓(𝑋0)=𝑌0 and
+�(𝑋1��1. Then,� should be between�0 and𝑌1. The abstract domain we
+

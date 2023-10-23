@@ -1,0 +1,3 @@
+
+
+This section discusses the proof automation for logical atomicity in Iris. It starts by providing intuition about the need and meaning of such triples (Section 3.1). It then discusses the formal proof rules in Iris (Section 3.2) and shows the strategy for proof automation of these triples (Section 3.3). It uses the example of an incrementer function (inc) to illustrate the proof automation process. The example is verified using the iSmash tactic in Coq. The section concludes by discussing the design goals of the proof strategy and how it reflects them.

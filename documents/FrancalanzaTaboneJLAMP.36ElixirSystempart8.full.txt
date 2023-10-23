@@ -1,0 +1,15 @@
+3.6. Elixir System
+Natively, Elixir can create actors using its spawn functions (e.g. spawn/3), which take a
+function (and its arguments), spawns it and returns its pid. ElixirST extends this to provide
+a bespoke spawning function called session/4 which allows the initiation of two concurrent
+processes executing in tandem as part of a session. This session/4 function takes two pairs
+of arguments: two references of function names (that will be spawned), along with their list of
+arguments. Its participant creation flow is shown in Figure 7. Initially the actor (pre-server) is
+spawned, passing its pid (ιserver) to the second spawned actor (pre-client). Then, pre-client relays
+back its pid (ιclient) to pre-server. In this way, both actors participating in a session become aware
+of each other’s pids. From this point onwards, the two actors execute their respective function
+to behave as the participants in the binary session; the first argument of each running function
+is initiated to the respective pid of the other participant. Figure 7 shows that the server process
+executes the body t, where it has access to the mailbox, which we denote as M. As it executes,
+messages may be sent or received (shown by the action α) and stored in the (modified) mailbox
+M′. The specific working of these transitions is explained in the following section.

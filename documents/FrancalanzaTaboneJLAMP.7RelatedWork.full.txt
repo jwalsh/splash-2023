@@ -1,0 +1,132 @@
+7. Related Work
+In this section, we compare ElixirST with other type systems and implementations.
+
+7.1. Type Systems for Elixir
+
+Cassola et al. [13, 25] presented a gradual type system for Elixir. It statically typechecks
+the functional part of Elixir modules, using a gradual approach, where some terms may be left
+with an unknown expression type. In contrast to ElixirST, Cassola et al. analyse directly the
+unexpanded Elixir code which results in more explicit typechecking rules. Also, they focus on
+the static type system without formulating the operational semantics.
+
+Another static type-checker for Elixir is Gradient [26]. It is a wrapper for its Erlang coun-
+terpart tool and takes a similar approach to [13], where gradual types are used. Another project,
+TypeCheck [27], adds dynamic type validations to Elixir programs. TypeCheck performs run-
+time typechecking by wrapping checks around existing functions. Gradient and TypeCheck are
+provided as an implementation only, without any formal analysis. In contrast to ElixirST, the
+discussed type-checkers [13, 26, 27] analyse the sequential part of the Elixir language omitting
+any checks related to message-passing between processes.
+
+Some implementations aim to check issues related to message-passing. Harrison [28] stati-
+cally checks Core Erlang for such issues. For instance, it detects orphan messages (i.e., messages
+that will never be received) and unreachable receive branches. In separate work, Christakis and
+Sagonas [29] analyse Core Erlang code to construct a communication graph which depicts the
+message flow between different process. This is then used to detect errors of similar kind, e.g.
+receive constructs that never receive any messages. This work was implemented as part of
+the Dialyzer. Harrison [30] extends [28] to analyse Erlang/OTP behaviours (e.g., gen server,
+which structures processes in a hierarchical manner) by injecting runtime checks in the code.
+Compared to our work, [28, 30, 29] perform automatic analysis of the implementation, where
+they analyse send and receive primitives against each other. They analyse messages on a fine-
+grained level, which contrast with our work that uses a general protocol (e.g., session types)
+describing the full interaction within a session.
+
+Another type system for Erlang was presented by Svensson et al. [31]. Their body of work
+covers a larger subset of Erlang to what would be its equivalent in Elixir covered by our work.
+Moreover, its multi-tiered semantics captures an LTS defined over systems of concurrent actors.
+Although we opted for a smaller subset, we go beyond the pattern matching described by Svens-
+son et al. since we perform a degree of typechecking for base types (e.g.
+in the premise of
+[tBranch]).
+
+28
+
+
+7.2. Session Type Systems
+
+Closest to our work is [19], where Mostrous and Vasconcelos introduced session types to
+a fragment of Core Erlang, a dynamically typed language linked to Elixir. Their type system
+tags each message exchanged with a unique reference. This allows multiple sessions to coex-
+ist, since different messages could be matched to the corresponding session, using correlation
+sets. Mostrous and Vasconcelos take a more theoretical approach, so there is no implementation
+for [19]. Their type system guarantees session fidelity by inspecting the processes’ mailboxes
+where, at termination, no messages should be left unprocessed in their mailboxes. Our work
+takes a more restrictive but pragmatic approach, where we introduce session types for functions
+within a module. We offer additional features, including variable binding (e.g., in let statements),
+expressions (e.g., addition operation), inductive types (e.g., tuples and lists), infinite computation
+via recursion and explicit protocol definition.
+
+A session-based runtime monitoring tool for Python was initially presented by Neykova and
+Yoshida [32]. They use the Scribble [33] language to write multiparty session type (MPST) [16]
+protocols, which are then used to monitor the processes’ actions. Different processes are ascribed
+a role (defined in the MPST protocol) using function decorators (e.g. @role), which is similar to
+how we annotate functions with protocols (e.g. using @session). Similar to [32], Fowler [34]
+presented an MPST implementation for Erlang. This implementation uses Erlang/OTP be-
+haviours (e.g., gen server), which take into account Erlang’s let it crash philosophy, where
+processes may fail while executing. Neykova and Yoshida [35] extend process monitoring in
+Erlang to provide a recovery strategy for the failed processes, ensuring that all of the failed (or
+affected) processes are restarted safely. All of these Erlang tools accept a more flexible language
+than the one allowed by our work. This is done at an added runtime cost, since they flag issues at
+runtime, whereas our work provides static guarantees that flags issues at pre-deployment stages.
+Moreover, our work is able to statically analyse part of the code (and give static guarantees for
+it) without requiring access to the entire codebase.
+
+Scalas and Yoshida [36] applied binary session types to the Scala language, where session
+types are abstracted as Scala classes. Session fidelity is ensured using Scala’s compiler, which
+complains if an implementation does not follow its ascribed protocol. Bartolo Burl`o et al. [24]
+extended the aforementioned work, to monitor one side of an interaction statically and the other
+side dynamically using runtime monitors. These works relegate linearity checks to runtime. In
+contrast, ElixirST statically ensures that annotated implementations fully exhaust their associated
+protocol once. Another implementation was done by Scalas et al. [37, 38], where session types
+were added in Scala 3. This design utilises dependent function types and model checking to
+verify programs at compile-time.
+
+Harvey et al. [39] presented a new actor-based language, called EnsembleS, which offers
+session types as a native feature of the language. EnsembleS statically verifies implementations
+with respect to session types, while still allowing for adaptation of new actors at runtime, given
+that the actors obey a known protocol. Thus, actors can be terminated and discovered at runtime,
+while still maintaining static correctness.
+
+There have been several binary [40, 41] and multiparty [42, 43] session type implementations
+for Rust. These implementations exploit Rust’s affine type system to guarantee that channels
+mirror the actions prescribed by a session type. Padovani [44] created a binary session type
+library for OCaml to provide static communication guarantees. This project was extended [45]
+to include dynamic contract monitoring which flags violations at runtime. The approaches used
+in the Rust and OCaml implementations rely heavily on type-level features of the language,
+
+29
+
+
+which do not readily translate to the dynamically typed Elixir language. When we compare our
+work to the aforementioned work, we notice several limitations. ElixirST only supports a limited
+form of spawning (discussed in Section 6.2), where we constrain the number of processes in a
+single session to two processes. This contrasts to the unbounded number of parallel processes
+that are allowed in the π-calculus, where session types were first introduced [46]. Another aspect
+that we have not discussed is the lack of session delegation. ElixirST does not allow processes to
+hand over the remaining session to other processes. This stems from the approach that we use;
+our tool typechecks actors directly, whereas the aforementioned works [40, 41, 42, 43, 44, 45]
+typecheck channel endpoints that can easily be transferred between different processes.
+
+Actor-like techniques are also used in Active Objects (AO) based languages to combine the
+concept of process separation, with asynchronous method calls in object-oriented languages.
+Session types are utilised to structure method calls in such languages. For instance, Kambur-
+jan et al. [47, 48] added session types to ABS, which is an AO language that uses futures to
+resolve the results derived from method invocations. Kamburjan et al. use global protocols
+(stemming from MPSTs) to define the order of method invocation that originate from object in-
+stances. Although these global protocols are used for dynamic checking, they are also used to
+check each method statically on a more localised scale, using local types. ABS uses (abstracted)
+Erlang processes to structure their concurrent backend, similar to the backend structure used in
+our work.
+
+Actor systems are notoriously hard to analyse statically. The main reason for this is that
+actors are open to receive any kind of messages, which makes it difficult to predict or analyse
+their behaviour. Our work takes a lenient view of this, where we simply ignore malformed mes-
+sages using Elixir’s selective receive construct. On the other hand, well-formed but unsolicited
+messages can cause behavioural issues. Other works handle this by typing the actors’ mailboxes
+directly rather than their behaviour. De’Liguoro and Padovani [49] introduced a mailbox calcu-
+lus which considers mailboxes as first-class citizens. This calculus adds types to mailboxes, thus
+ensuring that processes are free from behavioural issues, such as deadlocks. Fowler et al. [50]
+built on this to implement mailbox types within a practical concurrent programming language.
+These works [47, 48, 50] are presented with an implementation for purpose-built bespoke lan-
+guages. The aims of our work are different since we start with an industry strength language
+and try to retrofit session type mechanisms so as to support the existing design patterns of the
+language.

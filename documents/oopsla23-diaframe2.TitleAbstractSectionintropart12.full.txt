@@ -1,0 +1,100 @@
+Title-Abstract. Section intro
+ The Hoare triple expresses that for each thread that owns resources
+satisfying the precondition , executing  is safe, and if the execution terminates with value ,
+the thread will end up owning resources satisfying the postcondition Φ . A naive speciﬁcation
+is {ℓ ↦→ } inc ℓ {. ⌜ = ⌝ ∗ ℓ ↦→ ( + 1)}. This states that to execute inc ℓ, we need exclusive
+write-access to location ℓ, as indicated by the precondition ℓ ↦→ . Once inc ℓ terminates, it returns
+value , and the ℓ ↦→ ( + 1) in the postcondition tells us that the value stored by ℓ has been
+incremented. Although provable, this speciﬁcation is not useful in a concurrent setting. It requires
+a thread to give up ℓ ↦→  during inc ℓ, while it usually does not have exclusive access to ℓ ↦→ .
+
+We have seen that for reﬁnements, calls to CAS can be veriﬁed in a concurrent setting. This is
+because CAS is a physically atomic instruction, which gives us access to invariant reasoning. To
+see how this works, we state Iris’s invariant rule for Hoare triples, and the speciﬁcation for load:
+
+hoare-inv-access
+{⊲  ∗  }  {. ⊲  ∗  } E\N
+
+atomic 
+
+N ⊆ E
+
+hoare-load
+
+{ℓ ↦→  }!ℓ {.⌜ =  ⌝ ∗ ℓ ↦→  } E
+
+n 
+
+N
+
+∗ o  {.  } E
+
+hoare-load gives a straightforward speciﬁcation for loading a value: the expression returns the
+stored value , and one keeps access to ℓ ↦→ . Like reﬁnement judgments, every Hoare triple is
+annotated with a mask E. When opening invariants with hoare-inv-access, the invariant names
+are removed from the masks, which prevents invariant reentrancy.
+
+We can open invariants around the load instruction with hoare-inv-access only because it is a
+physically atomic instruction, i.e., we have ‘atomic (!ℓ)’. Since we do not have ‘atomic (inc ℓ)’, this
+rule is not applicable. But although inc is not physically atomic, the eﬀects of inc appear to take place
+atomically for clients. That is, at a certain point during the execution of inc, namely, when the CAS
+succeeds, ℓ ↦→  is atomically consumed to produce ℓ ↦→ ( + 1). This gives us a characterization of
+linearizability: an operation is linearizable if it appears to take place atomically/instantly somewhere
+during its execution, and the precise moment when this happens place is called the linearization
+point. Inspired by the TaDA logic [da Rocha Pinto et al. 2014], Iris features a special kind of Hoare
+triple to specify this, called a logically atomic triple [Jung 2019; Jung et al. 2020, 2015]. We specify
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:15
+
+the behavior of inc using the following logically atomic triple:
+
+inc-logatom
+⟨. ℓ ↦→ ⟩ inc ℓ ⟨. ⌜ = ⌝ ∗ ℓ ↦→ ( + 1)⟩ ∅
+
+We replaced { with ⟨, what did we gain? In words, the meaning of a logically atomic triple ⟨⟩  ⟨Φ⟩
+is: at the linearization point in the execution of , the resources in  are consumed to
+produce the resources in Φ , where  is the ﬁnal return value of expression . Birkedal et al. [2021]
+established formally that such triples indeed imply linearizability. Logically atomic triples have the
+additional beneﬁt that they can be used inside the logic, with the following reasoning rules:
+
+la-inv
+
+N
+
+
+
+⟨®.  ∗ ⊲ ⟩  ⟨.  ∗ ⊲ ⟩ E\N
+⟨®. ⟩  ⟨. ⟩ E
+
+la-hoare
+(cid:31) ⟨®. ⟩  �. ⟩ E
+∀®. { }  {.  }⊤
+
+la-inv shows that it is indeed possible to open invariants around logically atomic triples. The
+la-hoare rule shows that logically atomic triples are stronger than ordinary Hoare triples.
+
+The curious use of binder  in inc-logatom deserves a Logically atomic triples allow
+a certain amount of interference from other threads, such as concurrent calls to inc. In such cases,
+it is enough that at each moment there is some  for which ℓ ↦→ . This  needs not be
+the function is and may well be diﬀerent at diﬀerent moments reﬂect this in the logic,
+the pre-conditions of logically atomic triples can be (a number of) quantiﬁers ®.
+
+3.2 Background: Proof Logically Atomic Triples
+
+To see how we use logically atomic triples, we will �st discuss Hoare triples in Iris in more detail.
+Hoare triples in Iris are not a primitive notion, but de� in terms of weakest preconditions:
+
+{ }  {Φ} �cid:31)(cid:0) −∗ wp  {Φ}(cid:1)
+
+The weakest precondition wp  {Φ} asserts that execution of  is safe (cannot), and if 
+terminates with value  get Φ . The Hoare triple { } �} thus states that we can persistentlyso, multiple times) relinquish  to execute , after which Φ  the return value .
+
+Like Hoare triples, logically atomic triples are deﬁned in terms of weakest preconditions:1
+
+la-def
+⟨®. ⟩  �

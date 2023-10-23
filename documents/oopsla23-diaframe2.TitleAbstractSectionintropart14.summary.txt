@@ -1,0 +1,3 @@
+
+
+This section provides a proof automation strategy for linearizability in separation logic. It outlines the goals of the proof search strategy, which include weakest preconditions, atomic updates, and goals pre-fixed by a later modality. The proof search strategy is then broken down into cases, such as when the goal is a weakest precondition, or when the goal is not a weakest precondition. The strategy also explains how atomic updates are used in the proof search, and how the rule au-access-diaframe is derived from the rules for atomic updates of Iris.

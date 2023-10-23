@@ -1,0 +1,3 @@
+
+
+This section introduces two researchers, Ike Mulder and Robbert Krebbers, from Radboud University Nijmegen in The Netherlands. It then discusses recent advances in concurrent programming that have enabled the formal verification of increasingly sophisticated fine-grained (i.e., lock-free) concurrent programs. The gold standard of correctness for such programs is linearizability, which expresses that concurrent executions always behave as some valid sequence of sequential executions. Compositional approaches to linearizability, such as contextual reﬁnement and logical atomicity, make it possible to prove linearizability of whole programs or compound data structures (e.g., a ticket lock) using proofs of linearizability of individual components.

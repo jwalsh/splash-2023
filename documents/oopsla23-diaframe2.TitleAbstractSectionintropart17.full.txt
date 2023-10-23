@@ -1,0 +1,118 @@
+Title-Abstract. Section intro
+In this section, we show that transformer hints can be combined with abduction hints to support
+rules in Category 4, like au-intro and Löb. Recall our instance of the proof strategy for the
+introduction rule for atomic updates from §3.3:
+
+• If  = ⟨®.  | .  ⇛ Φ⟩ E, and  occur in our environment Δ. Apply au-intro, the
+
+new goal has shape Δ ⊢ |⇛E
+
+?E′
+
+∃®.  ∗(cid:16)(cid:0) −
+
+|�?
+ Δid)(:�. −�
+|�?
+
+(:1id:
+
+ Δ occurs right-hand-side of the turnstile, so this rule falls outside the ﬁrst two
+categories. Checking that ⟨® | . � Φ⟩ E ∉ Δ is crucial—proof search will otherwise loop on
+the goal ⟨®.  | .  ��⟩ E ⊢ ⟨®.  | .  ⇛ Φ⟩ E. On such a goal, we want to use the abduction
+hint  ∗ [True]id:25, instead of-intro. We therefore add an intermediateAUpre,,  �, ≜�® . ⇛⟩ E and a combination of transformer and abduction hints:
+
+au-intro-pre
+
+1 ∗(cid:2)AU ®, ,, , Φ, E)(cid:3) (cid:25) ⟨®.  | .  ⇛ Φ⟩ E
+
+∃®.  ∗ (( −�
+|⇛?E′
+
+E  ∗ Δ) ∧ (∀.  −∗
+
+|⇛?E′
+
+au-intro-go
+
+Δ, AUpre ( ®, , , , Φ, E) →∼ |⇛E
+
+?E′
+
+E Φ ))i
+
+Since au-intro-pre is a last-resort hint ( by 1), we ensure that the assumption hint
+ ∗ [True] (cid:25)  is preferred. After applying au-intro-pre, the proof search strategy tries to
+establish AUpre. This will directly ﬁnd au-intro, and enact au-int
+
+The collection of these hints gives precisely the required behavior. By introducing a new con-
+struct AUpre and giving above hints, we are quite literally ‘programming the proof search’ to act
+according wishes. A similar approach works for performing Löb induction, where we use
+two intermediate goals löbpre () ≜  and löbpost () ≜ , and the following hints:
+
+(rec   := ) performs recursion, i.e.,  ∈ FV()
+
+1 ∗(cid:2)löbpre(cid:0 ((rec   :=) )�}(cid:1)(cid:3) (cid:25) wp ((rec   := ) ) {Φ}
+0 ∗(cid:2)⊲ wp  [(rec   := )/ ] [/] {Φ}(cid:3) (cid:25) löbpost(c0)wp ((rec   := ) ) {Φ}(cid:1)
+
+Δ, löbpre () →∼ctx (cid:2)( ⊲ (cid:31)(Δ −∗ )) −∗ löbpost ()(cid:3)
+
+By delegating Löb induction to the löbpre and löbpost constructs, we can easily reuse the procedure
+for reﬁnement judgments. We simply need to add variants of the ﬁrst and third hint for the
+reﬁnement judgment. The second hint we can reuse because it is generic in the goal . This
+modularity is useful for the full-blown version of automatic Löb induction in the supplementary
+material. The full-blown version generalizes over variables and thus has a more sophisticated
+version of the second hint.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:22
+
+Ike Mulder and Robbert Krebbers
+
+4.5 Overview of the Proof Search Strategy
+
+We now give a more formal description of the proof search strategy that underpins Diaframe 2.0. It
+acts on goals of the form Δ ⊢ , where  is deﬁned roughly according to the following grammar:
+
+atoms  ::=...
+
+transformers T ::=...
+
+left-goals  ::= ⌜ ⌝ |  |  ∗  | ∃. 
+
+unstructureds  ::= ⌜ ⌝ |  |  ∗  | ∃.  | ∀.  |  −∗  |
+E2 ∃®.  ∗  | T
+
+goals  ::= ∀.  |  −∗  |  |
+
+|⇛E1
+
+|⇛E1
+
+E2 
+
+To prove Δ ⊢ , the strategy proceeds by case analysis on :
+
+(1)  = ∀.  ′. Introduce variable  and continue.
+(2)  =  −∗  ′. Introduce  into the context and similar to Diaframe 1.0, ‘clean’ it. That is,
+
+eliminate existentials, disjunctions and separating conjunctions.
+
+(3)  = . Look for an abduction hint from some  ∈ Δ to . That is, ﬁnd a side-condition  ′
+
+such that  ∗ [ ′] (cid:25) . Continue with Δ \  ⊢  ′.
+
+(4)  =
+
+|⇛E1
+
+E2 ∃®.  ∗  ′. Use the existing procedure of Diaframe 1.0 [Mulder et al. 2022] to
+
+solve these goals. Roughly, that is, ﬁrst, use associativity of ∗ to obtain either:
+
+(a)  = ⌜ ⌝. Prove ∃®. , then continue with proving  ′.
+(b)  = . Now, ﬁnd a bi-abduction hint from some  ∈ Δ to . That is, ﬁnd a side-condition
+E2 ∃®.  ∗ . Our new goal will be of shape
+

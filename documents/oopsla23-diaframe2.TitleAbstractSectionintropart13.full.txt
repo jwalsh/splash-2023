@@ -1,0 +1,91 @@
+Title-Abstract. Section intro
+. ⟩ E ≜ ∀Φ. ⟨®.  | .  ⇛ Φ ⟩⊤\E −∗ wp  {Φ}
+
+This expresses that for any postcondition Φ, to prove wp  {Φ} it is enough to show an atomic
+update of the form ⟨®.  | .  ⇛ Φ ⟩⊤\E. Atomic updates represent the possibility to witness
+variables ® for which  holds, at any instant. If one uses this possibility, one either needs to hand
+back ownership of this exact  to recover the atomic update, or hand back  to obtain Φ  (commit
+the linearization point). By quantifying over Φ, Iris makes sure that the only way to prove a logically
+atomic triple is by using the atomic update ⟨®.  | .  ⇛ Φ ⟩⊤\E.
+
+Proving logically atomic triples. Proving a logically atomic triple ⟨®. ⟩  ⟨. ⟩ E is a matter
+of ‘just’ proving a weakest precondition, i.e., a goal Δ ⊢ wp  {Φ}. However, we need the atomic
+update to get temporary access to  and eventually get Φ. Atomic updates can be accessed as:
+
+au-access-iris
+
+⟨®.  | .  ⇛ ⟩ E ⊢ |⇛E
+
+∅ ∃®.  ∗(cid:16)(cid:0) −∗ |⇛∅
+
+E (cid:1)(cid:17)
+E ⟨®.  | .  ⇛ ⟩ E(cid:1) ∧(cid:0)∀.  −∗ |⇛∅
+
+1The deﬁnition of logically atomic triples does not feature the (cid:31) modality to allow for private preconditions, i.e., preconditions
+that one must relinquish completely at the start of the execution of . To make a logically atomic triple persistent, one has
+to add the persistence modality explicitly. This is for example visible in rule la-hoare.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:16
+
+Ike Mulder and Robbert Krebbers
+
+Löb
+Δ, ⊲ (cid:31)(Δ −∗ ) ⊢ 
+
+unfold-rec
+Δ ⊢ ⊲ wp  [(rec   := )/ ] [/] {Φ}
+
+Δ ⊢ 
+
+Δ ⊢ wp (rec   := )  {Φ}
+
+rec-apply
+Δ, (cid:31)(Δ′ −∗ wp  {Ψ}) ⊢ |⇛⊤ � Δ′ ∗ (∀. Ψ −∗ wp  [ ] {Φ})
+
+Δ, (cid:31)(Δ′ −∗ wp  {Ψ}) ⊢ wp  [] {Φ}
+
+Fig. 6. Selection of Iris’s proof rules for Löb induction on weakest preconditions.
+
+|⇛E
+
+This rule states that (similar to Iris’s rule for invariants inv-access) an atomic update provides
+∅ ). After we obtain , there are two ways
+access to  by changing the masks of a fancy update (
+to restore the mask, corresponding to the two sides of the (regular) conjunction. In the left conjunct,
+we need to return precisely . This corresponds to ‘peeking’ at the state, without changing it (in
+our example, this happens when the CAS fails). After peeking, we receive back the atomic update,
+deferring the linearization point. For the right conjunct, we need to provide , which corresponds
+to committing to the linearization point (in our example, this happens when the CAS succeeds).
+We then get access to , the postcondition in la-def. One might be surprised to see a regular
+conjunction (∧) in separation logic, where the separating conjunction (∗) is more common. Regular
+conjunction corresponds to a form of internal choice: if one owns a regular conjunction  ∧ , one
+can either use it as  (here, defer linearization) or as  (here, commit linearization), but not as both.
+A proof of the logically atomic triple for inc in Fig. 5 needs to account for the recursive call
+when the CAS fails. We will use Löb induction once more—Fig. 6 contains the relevant rules. By
+combining Löb, unfold-rec and ⊲-intro, we perform induction and start symbolic execution of
+the function. rec-apply shows how to apply the induction hypothesis at recursive calls.
+
+Using logically atomic triples. With a proof of a logically atomic triple at hand, clients can
+use a combination of la-hoare, la-inv and related rules to open invariants around the expression.
+In actual proofs, this is done diﬀerently, since working beneath binder ® is cumbersome in Coq.
+Client veriﬁcations in Iris usually rely on the following rule:
+
+sym-ex-logatom
+⊢ ⟨®. ⟩  ⟨. ⟩ E
+
+Δ ⊢(cid:10) ®.  | .  ⇛ wp  [] {Φ}(cid:11)⊤\E
+
+Δ ⊢ wp  [] {Φ}
+
+Instead of proving a logically atomic triple directly, one is now asked to prove an atomic update.
+Atomic updates can be introduced as follows:
+
+au-intro
+Δ ⊢ |⇛E
+
+?E′
+
+∃®.

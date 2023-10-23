@@ -1,0 +1,146 @@
+Title-Abstract. Section intro
+ overflows, dangling pointers, or race conditions [31].
+
+
+8
+
+D. Kästner et al.
+
+3.1 The Origins
+Astrée stands for Analyseur statique de logiciels temps-réel embarqués (real-time
+embedded software static analyzer). The development of Astrée started from
+scratch in Nov. 2001 at the Laboratoire d’Informatique of the École Normale
+Supérieure (LIENS), initially supported by the ASTRÉE project, the Centre
+National de la Recherche Scientifique, the École Normale Supérieure and, since
+September 2007, by INRIA (Paris—Rocquencourt).
+
+First industrial applications of Astrée appeared two years after starting the
+project. Astrée has achieved the following unprecedented results on the static
+analysis of synchronous, time-triggered, real-time, safety critical, embedded soft-
+ware written or automatically generated in the C programming language:
+– In Nov. 2003, Astrée was able to prove completely automatically the absence
+of any RTE in the primary flight control software of the Airbus A340 fly-by-
+wire system.
+
+– From Jan. 2004 on, Astrée was extended to analyze the electric flight control
+
+codes then in development and test for the A380 series.
+
+– In April 2008, Astrée was able to prove completely automatically the ab-
+sence of any RTE in a C version of the automatic docking software of the
+Jules Vernes Automated Transfer Vehicle (ATV) enabling ESA to transport
+payloads to the International Space Station [4].
+
+In Dec. 2009, AbsInt started the commercialization of Astrée in cooperation
+with LIENS, in particular Patrick Cousot, Jérôme Feret, Laurent Mauborgne,
+Antoine Miné, and Xavier Rival.
+
+3.2 Further Development
+From a technical perspective, the ensuing development activities can be grouped
+into several categories:
+
+Usability The original version of Astrée was a command-line tool, however,
+to facilitate commercial use, a graphical user interface was developed. The pur-
+pose is not merely to make the tool more intuitive to use, but – even more
+importantly – to help users understand the results. Astrée targets corner cases
+of the C semantics which requires a good understanding of the language, and it
+shows defects due to behavior unexpected by the programmer. To facilitate un-
+derstanding the unexpected behavior, we have developed a large set of graphical
+and interactive exploration views. To give some examples, all parents in the call
+stack, relevant loop iterations or conditional statements that lead to the alarm
+can be accessed by mouse click, tool tips show the values of values, the call
+graph can be interactively explored, etc. [28]. In all of this, there is one crucial
+requirement: all views and graphs have to be efficiently computable and suitable
+for large-scale software consisting of millions of lines of code [20].
+
+Further usability enhancements were the integration of a preprocessor into
+Astrée (the original version read preprocessed C code), automated preprocessor
+
+
+Abstract Interpretation in Industry – Experience and Lessons Learned
+
+9
+
+configuration based on JSON compilation files, Windows support, and the ability
+to classify and comment findings from the GUI.
+
+Apart from easy usability, an important requirement of contemporary de-
+velopment processes is the ability to integrate a tool in a CD/CI (continu-
+ous development / continuous integration) platform. To support this, Astrée
+can be started from the command line with full functionality, the configura-
+tion is given as an XML file which can be automatically created, results can
+be exported in machine-readable formats (xml, csv, html) that support post-
+processing. there is a large number of plugins and tool couplings
+which have been developed, e.g., to model-based development tools like Mat-
+lab/Simulink/TargetLink [26, 38], as well as CI tools and IDEs such as Jenkins,
+Eclipse, and Keil µVision.
+
+F The-case of Astrée is to find defects in
+safety-critical or security-relevant software, hence the same tool qualification re-
+quirements apply as described in Sec. 2.3. So, the development of a Qualification
+ for Astrée was a mandatory; its structure is similar to the aiT QSK
+as described above.
+
+Another constraint is that in certain safety processes, no code modifications
+are allowed which cannot be traced to functional software requirements. Also, in
+the case of model-based software development, where the code is automatically
+generated, it is infeasible to modify the source code to interact with a static
+analyzer.
+
+Astrée provides numerous analysis directives that allow users to interact with
+the tool, e.g., to pass certain preconditions such as constraints on input value
+ranges or volatile variable ranges to the analyzer. Alarms can be classified (e.g.,
+as true defect or false alarms) via source code comments or analysis directives.
+Finally Astrée’s domains have been specifically developed to support fine-grained
+precision tuning to eliminate false alarms. One example is the trace partitioning
+domain, a generic framework that allows the partitioning of traces based on the
+history of the control flow [52]. By inserting analysis directives into the code,
+users can influence the partitioning strategy of the analyzer for limited parts of
+the code.
+
+To also support use cases where code modifications are infeasible, a formal
+language AAL has been developed [36] which provides a robust way to locate
+analyzer directives in the abstract syntax tree without modifying the source
+code. It is also possible to automatically generate such annotations from the
+build environment or an interface specification.
+
+New Capabilities
+
+Interleaving Semantics and Integration Analysis While the first versions of As-
+trée targeted sequential code, most of today’s industry applications are multi-
+threaded. In such software systems, it is highly desirable to be able to do runtime
+
+
+10
+
+D. Kästner et al.
+
+error analysis at the integration verification stage, i.e., to analyze the entire soft-
+ware stack in order to capture the interactions between all components of the
+system, determine their effect on data and control flow and detect runtime errors
+triggered by them.
+
+To support this, Antoine Miné has developed a low-level concurrent se-
+mantics [42] which provides a scalable sound abstraction covering all possible
+thread interleavings. The interleaving semantics enables Astrée, in addition to
+the classes of runtime errors found in sequential programs, to report data races
+and lock/unlock problems, i.e., inconsistent synchronization. The set of shared
+variables does not need to be specified by the user: Astrée assumes that every
+global variable can be shared, and discovers which ones are effectively shared,
+and on which ones there is a data race. To implement its interleaving semantics,
+Astrée provides primitives which expose OS functionality to the analyzer, such
+as mutex un-/locks, interrupt dis-/enabling, thread creation, etc. Since Astrée
+is aware of all locks held for every program point in each concurrent thread, As-
+trée can also report all potential deadlocks. Astrée also supports several stages
+of concurrent execution so that initialization tasks can be separated from peri-
+odic/acyclic tasks. Each thread can be associated to one or several concurrent
+execution stages.
+
+Using the Astrée concurrency primitives, abstract OS libraries have been de-
+veloped, which currently support the OSEK/AUTOSAR and ARINC 653 norms
+[2, 43]. A particularity of OSEK/AUTOSAR is that system resources, including
+tasks, mutexes and spin-locks, are not created dynamically at program startup;
+instead they are hardcoded in the system: a specific tool reads a configuration
+file in OIL (OSEK Implementation Language) or ARXML (AutosaR XML) for-
+mat describing these resources and generates a specialized version of the system
+to be linked against the application. A

@@ -1,0 +1,170 @@
+Title-Abstract. Section intro
+ the left-hand side of the constraint for z(cid:48) is decreased with y(cid:96)(cid:48)
+r(cid:48), while at the
+same time yq is increased with y(cid:96)r. If it is contained both in (cid:96)r and (cid:96)(cid:48)
+r(cid:48), then y(cid:96)r
+in the left-hand side of the constraint for z(cid:48) is decreased with y(cid:96)(cid:48)
+r(cid:48), y(cid:96)(cid:48)
+r(cid:48) is set to
+0, yq is increased with 2 · y(cid:96)(cid:48)
+r(cid:48).
+
+Thus, in all cases, the equation is satisﬁed for the y(cid:48)
+p.
+We conclude that the combination (cid:96)r can equivalently be removed by means
+
+of the octagon combination q not involving the variable z.
+
+Therefore, now assume that y(cid:96)(cid:48)
+
+r(cid:48) > y(cid:96)r where, w.l.o.g., the maximal value of
+the non-zero y(cid:96)j equals y(cid:96)r. If (cid:96)r + (cid:96)(cid:48)
+r(cid: = 0 (otherwise the
+r(cid:48) − y(cid:96)r, and y(cid:48)
+gain were not minimal). Therefore, we set y(cid:48)
+(cid:96) = (cid:pwise to obtain a feasible solution where the minimal gain is attained. At
+the same time, the number of octagon combinations (cid:96) with y(cid:48)
+(cid:96) > 0 where z
+occurs positively has decreased. Therefore, assume that (cid:96)r + (cid:96)(cid:48)
+r(cid:48) is diﬀerent from
+0. Then there is a coeﬃcient c ∈ {1, 2} and an octagon constraint q such that
+
+r(cid:48) = 0, then b(cid:96)r + b(cid:96)(cid:48)
+= 0, y(cid:48)
+r(cid:48) = yid:96)(cid:48)
+(cid:96)(cid:48)
+
+(cid:96)r
+
+
+16
+c · q = (cid:96)r + (cid:96)(cid:48)
+
+Michael Schwarz and Helmut Seidl
+
+r(cid:48) and c · bq ≤ b(cid:96)r + b(cid:96)(cid:48)
+
+r(cid:48). Then we set
+
+
+
+y(cid:48)
+(cid:96) =
+
+0 if (cid:96) = (cid:96)r
+r(cid:48) − y(cid:96)r if (cid:96) = (cid:96)(cid:48)
+y(cid:96)(cid:48)
+r(cid:48)
+yq + c · y(cid:96)r if (cid:96) = q
+y(cid:96) otherwise
+
+Again, we obtain a feasible solution where the gain has not increased, but the
+number of octagon combinations (cid:96) with y(cid:48)
+(cid:96) > 0 where z occurs positively has
+decreased. Altogether, we conclude that, without increasing the gain, the feasible
+solution y(cid:96) can be adjusted such that y(cid:96) = 0 for (cid:96) whenever (cid:96) contains negative
+occurrences of variables in V.
+As a result, we obtain dual of the simpliﬁed LP problem
+
+ (cid:80)
+subject to yz1 +(cid:80)
+
+z1∈V yz1 · bz1 +(cid:80)
+
+z2∈V \{z1} yz1+z2 · bz1+z2
+(z1 ∈ V )
+(z1 ∈ V )
+(z1, z2 ∈ z1 (cid:54)= z2)
+
+z2∈V \{z1} yz1+z2 = az1
+≥ 0
+≥ 0
+
+yz1
+yz1+z2
+
+(15)
+
+Example 7. Assume that of program variables consists of x, z1, z z3,
+that our goal is to maximize the linear objective function 2z1 + 3z2 + z3 subject
+to the octagon constraints
+
+z1 + z2 ≤ 10
+
+z1 + z3 ≤ 1
+
+z2 + z3 ≤ 1
+
+The dual linear program then is given by
+y1 · 10 + y2 + y3
+
+minimize
+subject to y1 + y2 = 2 y1 + y3 = 3 y2 + y3 = 1
+1, y2, y3 ≥ 0
+
+In this case, there is just one possible solution for the yi, namely,
+
+y1 = 2.5 y2 = 0.5 y3 = 0.5
+
+— implying optimal value is given by 25 + 0.5 + 0.5 = 26.
+
+(cid:117)(cid:116)
+For an optimization problem with integer octagon constraints, we may, in
+principle, proceed as for rationals. Solving integer linear programs with octagon
+constraints precisely, however, is NP-hard. This can be seen, e.g., by reduction
+from the NP-complete maximum clique problem, i.e., the problem of deciding
+whether the maximal size of a clique in an undirected graph exceeds some bound.
+Let G = (V, E) denote a ﬁnirected graph, and choose V as the set of
+variables. Then we construct optimization problem
+
+maximize (cid:80)
+
+x∈V x
+subject to x + y ≤ 1
+−x ≤ 0
+x ≤ 1
+
+({x, y} (cid:54)∈ E)
+(x ∈ V )
+(x ∈ V )
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+17
+
+The constraints are all integer octagon constraints, while the solution to the
+optimization problem equals the maximal size of a clique. Since the construction
+of the integer optimization problem from the instance of the clique problem can
+be done in polynomial time, it follows that to decide whether the optimal value
+for an integer linear program with octagon constraints exceeds some value, is
+NP-hard.
+
+8 Abstract Assignments for Octagons
+
+Assume that we are given an aﬃne assignment of the form
+
+x ← b +(cid:80)
+
+z∈V az · z
+
+and that the octagon before the assignment is a closed octagon r with coeﬃcients
+b(cid:96), (cid:96) ∈ LX. W.l.o., assume that x does not occur in the right-hand side, i.e.,
+x (cid:54)∈ V the rationals, the best upper bound b(cid:48)
+(cid:96) for the octagon combination (cid:96)
+with x occurring in (cid:96) is obtained by a linear program of the form (13). Depending
+on (cid:96), the objective functions are
+
+(cid:96) objective function
+
+x (cid:80)
+−cid:80)
+z∈V az · z
+x + y y +(cid:80)
+z∈V −az · z
+x − y −y +(cid:80)
+z∈V az · z
+−x + y y +(cid:80)
+z∈V az · z
+−x − y −y +(cid:80)
+z∈V −az · z

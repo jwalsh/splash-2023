@@ -1,0 +1,95 @@
+Title-Abstract. Section intro
+ §5 we evaluate our proof automation on existing and new benchmarks. We compare to
+existing proofs in Voila [Wolf et al. 2021], showing an average proof size reduction by a factor
+4, while adding foundational guarantees (§5.1). We compare to existing interactive proofs of
+RDCSS and the elimination stack in Iris, showing an average proof size reduction by a factor
+4 (§5.2). Our new result is a proof of logical atomicity for the Michael-Scott queue [Michael
+and Scott 1996] (§5.3). For reﬁnement, we compare to existing interactive proofs in ReLoC,
+showing an average proof size reduction by a factor 7 (§5.4).
+
+• All of our results have been implemented and veriﬁed using the Coq proof assistant. The
+
+Coq sources can be found in Mulder and Krebbers [2023].
+
+We conclude the paper with related work (§6) and future work (§7).
+
+2 PROOF AUTOMATION FOR CONTEXTUAL REFINEMENT
+
+This section introduces the main ideas for automating contextual reﬁnement proofs in the Iris-based
+logic ReLoC [Frumin et al. 2018, 2021b]. We start with an example veriﬁcation (§2.1), providing
+intuition for ReLoC. After providing some formal background for ReLoC’s proof rules (§2.2), we
+describe our proof automation strategy (§2.3).
+
+2.1 Contextual Refinement of an Incrementer
+
+Contextual reﬁnement speciﬁes the behavior of one program in terms of another, usually simpler,
+program. For linearizability, we take a coarse-grained version as the simpler program, i.e., a ver-
+sion that uses a lock to guard access to shared resources. Filipović et al. [2010] shows that such
+reﬁnements imply the classical deﬁnition of linearizability based on traces. Consider the example in
+Fig. 2, a slightly modiﬁed version of the example presented in the ﬁrst ReLoC paper [Frumin et al.
+2018]. We consider two implementations of an “incrementer”: fg incrementer and cg incrementer.
+Whenever either such an incrementer is called with the unit value, it returns a closure. Whenever
+this returned closure is called with the unit value, it returns an integer indicating the number of
+times the closure has been called in total, across all threads.
+
+Where the ﬁne-grained version fg incrementer uses a CAS-loop (Compare And Swap) to deal
+with concurrent calls to the closure, the coarse-grained version cg incrementer uses a lock. In-
+tuitively, both versions “have the same behavior”—although they use diﬀerent methods, both
+programs guarantee a consistent tally of calls to the closure. We wish to prove a contextual
+reﬁnement fg incrementer ⪯ctx cg incrementer : () → () → Z that expresses that any behav-
+ior of fg incrementer is a behavior of cg incrementer. More precisely, a contextual reﬁnement
+1 ⪯ctx 2 :  expresses that for all contexts  that respect the type  of 1 and 2, if  [1] terminates
+with value , then there exists an execution sequence such that  [2] also terminates with value .
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:7
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+20
+
+21
+
+22
+
+23
+
+24
+
+25
+
+26
+
+27
+
+28
+
+Definition fg incrementer : val :=
+
+: <>,
+
+let: "l" := ref #1 in
+(rec: "f" <> :=
+
+let: "n" :=! "l" in
+if: CAS "l" "n" ("n" + #

@@ -1,0 +1,25 @@
+Title-Abstract. Section intro
+2
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+
+(cid:111)(cid:17)(cid:12)(cid:12)(cid:12) ¯Xr∪{x,y}
+(cid:111) (cid:117)(cid:100)(cid:110)
+(cid:111) (cid:117)
+(cid:17)(cid:12)(cid:12)(cid:12)( ¯Xr∪{x,y})∩{z1,z2}
+(cid:17)(cid:12)(cid:12)(cid:12)( ¯Xr∪{x,y})∩{z1}
+(cid:12)(cid:12)(cid:12)( ¯Xr∪{x,y})∩{xr}
+(cid:111) (cid:117)
+(cid:17)(cid:12)(cid:12)(cid:12){z1,z2}
+(cid:17)(cid:12)(cid:12)(cid:12){z1}
+(cid:111) (cid:117)
+(cid:17)(:12)(:12)(:12){z1,z2}
+
+(cid:117)s−1)xr}
+s(r−1)
+s(r−1)
+{z1,xr} (cid:117) s−1)
+{xr,z
+s(r−1)
+{z1,xr}id:117) s(r−1{xr}
+s(r−1)z1,xr} (cid:117

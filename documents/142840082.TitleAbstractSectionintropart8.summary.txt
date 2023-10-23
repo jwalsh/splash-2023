@@ -1,0 +1,3 @@
+
+
+This section introduces an abstract syntax for expressions in order to highlight patterns that can be simplified symbolically. The syntax includes linear combinations, operators, constants, variables, and variable differences. Intervals are introduced by the means of the convex join operator. The translation of classical expressions into abstract ones is parametric, with respect to the choice of an abstract domain, to reason about semantics states. The meaning of an abstract expression is defined thanks to a function toExpr which translates abstract expressions in the set expr♯ back to expressions in the set expr. The function is defined inductively.

@@ -1,0 +1,226 @@
+6.3. Case Study
+We use ElixirST to verify an Elixir (CLI) application which interacts with a third-party service
+(i.e., Duffel [20]). Duffel offers a real-time flight selling service, where flights can be fetched and
+booked via a REST application programming interface (API).
+
+Elixir ecosystem – FlightSystem
+
+Client
+
+S client
+
+Gateway
+
+HTTP messages
+
+Third-Party
+
+Duffel
+
+Flight Server
+
+Figure 12: Interactions with Duffel API
+
+Our application is built as an Elixir module, called FlightSystem, which interacts with the
+Duffel Flight Server, as shown in Figure 12. The module consists of a client which can request
+
+25
+
+
+to book flights from the Duffel Server. This server can only accept HTTP messages (e.g., GET
+or POST requests), so we use a gateway which acts as a middleman between the client and the
+third-party server.
+
+From the Duffel API documentation,5 we can get a list of API calls that can be made, along
+with their details. Thus, we can infer an order (i.e., a protocol) of calls that need to be in-
+voked in the correct order, to achieve what we want. For instance, we consider a client that
+searches and books a flight. Concretely, the client has to interact with several endnodes, includ-
+ing \offer requests, \offers and \orders, in a correct order. This order of interaction is
+formalised in the S client protocol which is then used by ElixirST to ensure that a client process
+follows it, thus interacting safely (via a gateway process which converts the requests to HTTP
+messages) with the Duffel server.
+
+!cancel()
+
+?offer
+
+!request
+
+!more details().&
+
+(cid:0)origin: binary, destination: binary,
+dep date: binary, class: atom, pass no: number(cid:1).S offers,
+(cid:0)offer no: number, total amount: number,
+stops: number, segments: binary(cid:1).S details,
+?details(. . . ). ⊕
+!make booking(. . . ).
+
+currency: binary, duration: number,
+
+?error(binary).S client
+
+?error(binary)
+
+&{?ok(. . . ), ?error(binary)},
+
+!cancel()
+
+ ,
+
+,
+
+S client = ⊕
+
+S offers = rec Y . &
+
+S details = ⊕
+
+!reject().Y
+
+For clarity, S client is split in two: S offers and S details. Furthermore, we add labels to each
+payload type to make it more apparent what data needs to be transferred – labels are also allowed
+in ElixirST, given that labels are only used for decorative purposes. We take a brief look at
+how the client can book a flight. The interaction starts with the client making request to get the
+available flights (S client). By glancing on S client, one can get more information on what the client
+needs to include the request details, such as the origin and destination locations. Note that, we
+use the binary type, which is the type for strings in Elixir. Then, the client starts receiving (and
+rejecting) one offer at a time, until the client decides to take up an offer (S offers).
+
+To learn more about the flight offer, the client sends a request to get more details (e.g., op-
+erating airline and updated price), and awaits the results (S details). Once the details are received,
+the client can decide to either cancel the order, or book the flight.
+In case of the latter, the
+booking will be finalised after the client receives back a confirmation code. Throughout this in-
+teraction, the server may reply with an error message, which the client also needs to handle (i.e.,
+?error(binary)).
+
+1
+2
+3
+4
+
+defmodule FlightSystem do
+
+use ElixirST
+
+@session "S_client =
+
++{!request(origin: binary, destination: binary...}"
+
+5https://duffel.com/docs/api/overview/welcome
+26
+
+
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+
+@spec client(g_pid, binary, binary, binary, atom, number) :: :ok
+def client(g_pid, origin, destination, dep_date, class, pas_no) do
+
+send(g_pid, {:request, origin, destination, dep_date, class, pas_no})
+IO.puts("Sending request for a flight from #{origin} to...")
+IO.puts("Waiting for a response from the server...")
+
+consume_offer(g_pid)
+
+end
+
+@spec consume_offer(pid) :: atom
+defp consume_offer(g_pid) do
+
+receive do
+
+{:offer, offer_no, total_amount , currency, dur, stops, segments} ->
+
+IO.puts("Offer ##{offer_no}: \n#{currency}#{total_amount}...")
+accept? = IO.gets("Accept offer ##{offer_no}? y/n: ")
+
+case accept? do
+
+"y\n" -> send(g_pid, {:more_details})
+
+IO.puts("Requesting updated details for offer...")
+...
+
+_ -> send(g_pid, {:reject})
+
+consume_offer(g_pid)
+
+end
+
+{:error, message} -> send(pid, {:cancel})
+
+end
+
+end
+
+end
+
+Listing 5: Session-typed snippet of a flight system written in Elixir
+
+This behaviour formalised by S client is applied in the module FlightSystem, which is
+shown partly in Listing 5. FlightSystem contains a public function client, a private function
+consume offer, and an omitted public function gateway. The client function is annotated
+with the session type S client, thus ElixirST ascertains that the client follows the expected behaviour
+(line 4). The client function sends a message containing :request and then it calls the private
+function consume offer. This latter function follows the remaining actions in the session type,
+i.e., S offers. The dual part of the interaction, the gateway function, should follow a compatible
+protocol, such as the dual session type, S client. This is not enforced, since the gateway function
+goes beyond the syntax defined in Section 3.3 (e.g., uses other modules to parse JSON responses,
+or uses dynamic types) which are not defined by our type system in Section 3.4. This function
+may also be inaccessible for static analysis (e.g. proprietary source code), so we assume that at
+runtime it obeys S client. Nevertheless, we can intiate a session executing both public functions
+using our session function, as follows:
+
+ElixirST.session(&FlightSystem.client/6,
+
+["MLA", "CDG", "2023-11-24", :economy, 2],
+
+&FlightSystem.gateway/1,
+
+[])
+
+ElixirST ensures that the function client/6 follows the pattern described by S client which mir-
+rors the implicit order of API requests by Duffel. For instance, if a client tries to make a booking
+before making a request containing the flight details (i.e., skipping line 7), then the order will fail;
+this will be flagged by our type system earlier on instead of being rejected by Duffel at runtime.
+
+27
+
+
+This case study shows that ElixirST is flexible and practical enough to be integrated in real-
+world applications.
+In addition to verifying statically the individual functions, by explicitly
+adding information about the interactions, we provide a source of documentation within the
+source code itself.
+
+In this case study we analysed the client side of the interaction, leaving the gateway process
+unverified, thus susceptible to behavioural issues. To fix this, we can use existing techniques,
+such as synthesising runtime monitors [21, 22, 23] for the unverified parts, similar to the work
+by Bartolo Burl`o et al. [24].

@@ -1,0 +1,3 @@
+
+
+This section discusses the improvements made to the Micro-architectural analysis tool developed by D. Kästner et al. for Airbus. The tool was used to accurately model the system controller of Airbus, which contributes heavily to overall system timing. The tool consists of four stages: decoding, value analysis, micro-architectural analysis, and path analysis. The results of the analysis were accurate, but Airbus wanted more precision. To increase accuracy, controlled loop unrolling was used. Additionally, annotations were added to the software to provide more information to the tool. Finally, the tool was integrated with a model-based design tool to automatically insert annotations and provide approximate timing information on the model level.

@@ -1,0 +1,146 @@
+Title-Abstract. Section intro
+ ∗(cid:0)( −∗
+
+|⇛?E′
+
+E Δ) ∧ (∀.  −∗
+
+|⇛?E′
+
+Δ ⊢ ⟨®.  | .  ⇛ ⟩ E
+
+E )(cid:1)
+
+This rule asks us to show that opening some invariants in E gives us . Additionally, we need to
+prove that obtaining  is non-destructive: the original context Δ can be restored. This ensures that
+when the implementation peeks at , it does not aﬀect the client. The other side of the conjunction
+shows that the atomic postcondition  can be used to restore the invariants, and prove .
+
+3.3 Proof Automation Strategy
+
+Our proof automation for logical atomicity should be able to make progress on the following goals:
+
+• Weakest preconditions: Δ ⊢ wp  {Φ}, by deﬁnition of logically atomic triples la-def.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:17
+
+• Atomic updates: Δ ⊢ ⟨®.  | .  ⇛ ⟩ E, when applying a known triple sym-ex-logatom.
+• Goals of the form Δ ⊢
+
+E2 ∃®.  ∗ , after introducing atomic updates au-intro or to
+establish the precondition of heap operations such as load and CAS. The context Δ might
+contain atomic updates that should be eliminated via au-access-iris.
+
+|⇛E1
+
+• Goals preﬁxed by a later modality: Δ ⊢ ⊲ , when using unfold-rec after Löb induction.
+
+Our proof search strategy for these goal extends the existing proof search strategy from Diaframe
+1.0 by internalizing Löb induction, and by adding support for logically atomic triples.
+
+Suppose our goal is Δ ⊢ wp  {Φ}. We proceed by case analysis on , trying the following rules
+in order (omitting some cases, e.g., those related to pure reductions and higher-order functions):
+
+(1) If  is a value , then directly continue with proving Δ ⊢ |⇛⊤ ⊤ Φ .
+(2) If  =  [ ′], then either:
+
+(a) We have a regular speciﬁcation ∀®. {}  ′ { } for  ′. Use Diaframe 1.0’s existing approach
+
+to make progress, which applies a rule similar to exec-l.
+
+(b) We have a speciﬁcation ⟨®. ⟩  ′ ⟨.  ⟩ E. Apply sym-ex-logatom, continue with new goal
+
+Δ ⊢(cid:10) ®.  | .  ⇛ wp  [] {Φ}(cid:11)⊤\E.
+
+(c) Otherwise, try to ﬁnd an induction hypothesis to use with rec-apply.
+
+(3) If  = (rec   := ) , i.e., a possibly recursive function applied to a value . Two cases:
+
+(a) There is no actual recursion, i.e.,  does not occur in . Apply unfold-rec and continue
+
+with new goal Δ ⊢ ⊲ wp  [/] {Φ}.
+
+(b) For recursive functions. Apply Löb, then apply unfold-rec. Continue with new goal
+Δ, ⊲ (cid:31)(Δ −∗ wp  {Φ}) ⊢ ⊲ wp  [/ ] [ ′/] {Φ}.2 Note that Δ will contain an atomic
+update, which we will have to relinquish on recursive calls.
+
+For Δ ⊢  with  not a weakest precondition, we distinguish the following cases:
+
+(4)  = ⊲  ′. Apply rule ⊲-intro to introduce the later laters from the context.
+(5)  = ⟨®.  | .  ⇛  ′⟩ E. Two cases:
+
+(a) If  ∈ Δ, directly use it to ﬁnish the proof. This situation occurs after applying the induction
+
+(b) Otherwise, we introduce the atomic update with au-intro. Our new goal becomes Δ ⊢
+
+hypothesis with rec-apply.
+
+?E′
+
+|⇛E
+
+∃®.  ∗(cid:16)(cid:0) −∗
+
+|⇛?E′
+
+E Δ(cid:1) ∧(cid:0)∀.  −∗
+
+|⇛?E′
+
+E (cid:1)(cid:17).
+
+(6)  =
+
+|⇛E1
+
+E2 ∃®.  ∗ . Use proof automation from Diaframe 1.0 to make progress. If enabled
+
+and when relevant, Diaframe 1.0 will backtrack to determine the linearization point.
+
+This strategy can prove the logically atomic triple in Fig. 5 without user assistance. It uses the
+iSmash instead of the iStepsS tactic, which enables backtracking for automatically determining
+the linearization point in Item 6. Proving atomic updates is covered by Item 5; we now provide
+some details on how we use atomic updates in Item 6.
+
+Using atomic updates. The veriﬁcation of a logically atomic triple crucially depends on elimi-
+nating atomic updates ⟨®.  | .  ⇛ ⟩ E with au-access-iris. The elimination of atomic updates
+needs to happen in Item 6 when the Diaframe 1.0 automation needs to obtain ownership of .
+
+This can be done by allowing Diaframe 1.0 to ‘look inside’ atomic updates, allowing it to
+determine ways of obtaining ownership of resources inside . Note that au-access-iris is similar
+to the invariant accessing rule inv-access, which Diaframe 1.0 can also apply automatically. The
+main diﬀerence is that we have two independent ways to restore the mask (indicated by the ∧): we
+either defer or commit the linearization point. We need to ensure this choice is not made too early,
+
+2In the Coq implementation we additionally generalize the Löb induction hypothesis over the arguments supplied to .
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:18
+
+Ike Mulder and Robbert Krebbers
+
+and achieve this by replacing the conjunction with a disjunction on the left-hand side of a wand:3
+
+au-access-diaframe
+
+⟨®.  | .  ⇛ ⟩ E ⊢ |⇛E
+
+∅ ∃®.  ∗ ∀.
+(( ∗ ⌜ = None⌝) ∨ (∃.  ∗ ⌜ = Some  ⌝)) −∗
+|⇛∅
+
+E match  with None ⇒ ⟨® | .  ⇛ ⟩ E | Some  ⇒  end
+
+This disjunction needs to be proven to restore the mask, and the side of the disjunction will indicate
+whether the linearization point should be deferred or committed. The rule au-access-diaframe is
+derived from the rules for atomic updates of Iris. This result is mechanized in.
+
+Let us this is used in the example from Fig. 5. To symbolically execute the load
+and CAS, ownership of ℓ ↦→ 

@@ -1,0 +1,139 @@
+Title-Abstract. Section intro
+��. Δ, ℓ ↦→s  ⊢ |=E  ≾  [ℓ] : 
+
+Δ ⊢ |=  [ref ] ≾  : 
+
+Δ ⊢ |=E  ≾  [ref ] : 
+
+newlock-r
+∀. Δ, isLock(, false) ⊢ |=E  ≾  [] : 
+
+inv-alloc
+
+Δ ⊢ ⊲  ∗ ( 
+
+N
+
+−∗|= 1 ≾ 2 : )
+
+Δ ⊢ |=E  ≾  [newlock ()] : 
+
+Δ ⊢ |= 1 ≾ 2 : 
+
+(a) Proof rules relevant for Proof Phase 1 and Proof Phase 2.
+
+Löb
+Δ, ⊲ (cid:31)(Δ −∗ ) ⊢ 
+
+Δ ⊢ 
+
+(cid:31)-elim
+(cid:31)  ⊢ 
+
+(cid:31)-dup
+(cid:31)  ⊢ (cid:31)  ∗ (cid:31) 
+
+unfold-rec-l
+Δ ⊢ ⊲(|=  [(rec   := )/ ] [/] ≾  ′ : )
+
+ ⊢|= (rec   := )  ≾  ′ : 
+
+⊲-intro
+Δ′ obtained from Δ by stripping at most one ⊲ of every hypothesis
+
+Δ′ ⊢ 
+
+Δ ⊢ ⊲ 
+
+(b) Proof rules relevant for Proof Phase 3.
+
+inv-access
+
+⊢ |⇛E
+
+N
+
+
+
+fupd-intro
+
+ ⊢ |⇛E
+
+E 
+
+fupd-elim
+|⇛E1
+ ⊢
+
+E2 
+
+Δ,  ⊢
+
+|⇛E2
+
+E3 
+
+Δ,  ⊢
+E3 
+
+|⇛E1
+
+refines-fupd
+Δ ⊢
+
+|⇛E ⊤ |= 1 ≾ 2 : 
+
+Δ ⊢ |=E 1 ≾ 2 : 
+
+N ⊆ E
+
+E\N(cid:16)⊲  ∗(cid:16)⊲  −∗
+
+|⇛E\N E True(cid:17)(cid:17)
+
+load-l
+Δ ⊢
+
+|⇛⊤
+
+E ∃. ℓ ↦→  ∗ ⊲(ℓ ↦→  −∗ |=E  [] ≾  : )
+
+Δ ⊢ |=  [!ℓ] ≾  : 
+
+cas-l
+
+Δ ⊢
+
+E ∃. ℓ ↦→  ∗ ⊲ ⌜ = 1⌝ ∗ ℓ ↦→ 2 −∗ |=E  [true] ≾  :  ∧
+⌜ ≠ 1⌝ ∗ ℓ ↦→  −∗ |=E  [false] ≾  : !
+
+|⇛⊤
+
+Δ ⊢ |=  [CAS ℓ 1 2] ≾  : 
+
+load-r
+Δ, ℓ ↦→s  ⊢ |=E  ≾  [] : 
+Δ, ℓ ↦→s  ⊢ |=E  ≾  [!ℓ] : 
+
+store-r
+
+Δ, ℓ ↦→s  ⊢ |=E  ≾  [()] : 
+
+refines-z
+
+Δ, ℓ ↦→s  ⊢ |=E  ≾  [ℓ ← ] : 
+
+Δ ⊢ |=  ≾  : Z
+
+(c) Proof rules relevant for Proof Phase 4.
+
+Fig. 3. A selection of the existing rules of Iris and ReLoC.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:11
+
+The inv-access rule shows the interplay between invariants and fancy updates. For an invari

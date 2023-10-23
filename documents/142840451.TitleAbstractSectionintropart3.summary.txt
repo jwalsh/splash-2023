@@ -1,0 +1,3 @@
+
+
+This section describes a technique for constructing a call graph for programs involving callbacks. It relies on two components: a backward data flow analysis that can track which values flow to a given expression, and a forward data flow analysis that determines to which expressions a given value may flow to. The technique is demonstrated using an example, and the resulting call graph is shown in a figure. The table in the figure details the individual steps needed to construct the call graph, as well as the queries issued to the underlying analysis during the process. It also shows the dependency between queries. The technique is not limited to tracking information leaks but can be applied to any client analysis requiring call graph information.

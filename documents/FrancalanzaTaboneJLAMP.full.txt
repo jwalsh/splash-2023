@@ -1,0 +1,4952 @@
+ElixirST: A Session-Based Type System for Elixir Modules⋆
+
+Adrian Francalanzaa, Gerard Tabonea,∗
+
+aDept. of Computer Science, University of Malta, Msida, Malta
+
+Abstract
+This paper investigates the adaptation of session types to provide behavioural information about
+Elixir modules. We devise a type system, called ElixirST, which statically determines whether
+functions in an Elixir module observe their endpoint specifications, expressed as session types;
+a corresponding tool automating this typechecking has also been constructed. In this paper we
+also formally validate this type system. An LTS-based operational semantics for the language
+fragment supported by the type system is developed, modelling its runtime behaviour when inter-
+acting with the module client. This operational semantics is then used to prove a form of session
+fidelity and progress for ElixirST.
+
+Keywords: session types, type systems, Elixir, functional programming
+
+1. Introduction
+
+Modern programming languages offer a variety of abstractions for the construction of concur-
+rent programs. In the case of message-passing functional programs, concurrency manifests itself
+as spawned computation that exhibits communication as a side-effect, potentially influencing the
+execution of other (concurrent) computation. Such side-effects inevitably increase the complex-
+ity of the programs produced and lead to new sources of errors. As a consequence, correctness
+becomes harder to verify and language support for detecting errors statically, can substantially
+decrease the number of concurrency errors.
+
+Elixir [1] is one such example of a functional programming language which supports con-
+currency based on the actor model [2, 3]. As depicted in Figure 1, Elixir programs are structured
+as a collection of modules that contain functions, the basic unit of code decomposition in the
+language. A module only exposes a subset of these functions to external invocations by defining
+them as public; these functions act as the only entry points to the functionality encapsulated by a
+module. Internally, the bodies of these public functions may then invoke other functions, which
+can either be the public ones already exposed or the private functions that can only be invoked
+from within the same module. For instance, Figure 1 depicts a module m which contains several
+
+⋆This work has been supported by the MoVeMnt project (No: 217987) of the Icelandic Research Fund and the BehAPI
+project funded by the EU H2020 RISE of the Marie Skłodowska-Curie action (No: 778233). This work is also supported
+by the Security Behavioural APIs project (No: I22LU01-01) funded by the UM Research Excellence Funds 2021 and the
+Tertiary Education Scholarships Scheme (Malta).
+
+∗Corresponding author
+Email addresses: adrian.francalanza@um.edu.mt (Adrian Francalanza), gerard.tabone@um.edu.mt
+
+(Gerard Tabone)
+Preprint submitted to JLAMP
+
+July 4, 2023
+
+
+Module m
+
+g1
+
+g2
+
+...
+
+g j
+
+f1
+
+...
+
+fn
+
+S 1
+
+S 1
+
+client1
+
+...
+
+S n
+
+S n
+
+clientk
+
+private
+
+public
+
+Figure 1: An Elixir module consisting of public and private functions, interacting with client processes
+
+public functions (i.e., f1, . . . , fn) and private functions (i.e., g1, . . . , g j). The public function f1
+delegates part of its computation by calling the private functions g1 and g j, whereas the body of
+the public function fn invokes the other public function f1 when executed. Internally, the body of
+the private function g1 calls the other private function g2, which in turn can call g1 again, whereas
+the private function g j can recursively call itself.
+
+A prevalent Elixir design pattern is that of a server listening for client requests, which we refer
+to as the service handler design pattern.1 For each request, the server spawns a (public) function
+to execute independently and act as a dedicated client handler: after the respective process IDs
+of the client and the spawned handler are made known to each other, a session of interaction
+commences between the two concurrent entities (via message-passing). For instance, in Figure 1,
+a handler process running public function f1 is assigned to the session with client client1 whereas
+the request from clientk is assigned a dedicated handler running function fn. Although traditional
+interface elements such as function parameters (used to instantiate the executing function body
+with values such as the client process ID) and the function return value (reporting the eventual
+outcome of handled request) are important, the messages exchanged between the two concurrent
+parties within a session are equally or more important for software correctness. More specifically,
+communication incompatibilities between the interacting parties could lead to various runtime
+errors. For example, if in a session a message is sent with an unexpected payload, it could cause
+the receiver’s subsequent computation depending on it to crash (e.g. multiplying by a string when
+a number should have been received instead). Also, if messages are exchanged in an incorrect
+
+1Some projects which build on this service handler design pattern include etorrent [4] and cowboy [5]. The latter is
+an HTTP server which spawns a handler process for each new request; this is scalable since spawning (and maintaining)
+actors is extremely efficient in Elixir. In literature, this pattern is also called thread-per-session [6].
+
+2
+
+
+order, they may cause deadlocks, e.g. Elixir uses blocking receive constructs that wait until a
+suitable message arrives, so if a process sends an invalid message, then the other process ends up
+waiting forever for a proper message to arrive.
+
+In many cases, the expected protocol of interactions within a session can be statically deter-
+mined from the respective endpoint implementations, namely the function bodies; for simplicity,
+our discussion assumes that endpoint interaction protocols are dual, e.g. S 1 and S 1 in Figure 1.
+Although Elixir provides mechanisms for specifying (and checking) the parameters and return
+values of a function within a module, it does not provide any further static guarantees for pro-
+grams that adhere to this design pattern due to two major obstacles. Firstly, Elixir does not
+provide any support for describing (and verifying) the interaction protocol of a function in terms
+of its communication side-effects. Secondly, in open settings, it is often the case that only one
+side of the code is available, so it is difficult to obtain static guarantees without the full codebase.
+
+Contribution. We present a type checker to assist Elixir module construction (following the
+service handler pattern) in two ways: (a) it allows module designers to formalise the session
+endpoint protocol as a session type, and ascribe it to a public function; (b) it statically verifies
+whether the body of a function respects the ascribed session type protocol specification. The
+type-checker analyses one side of an interaction, i.e., the module side, without requiring access
+to the code invoking the module public functions. This analysis assumes that the invoking code is
+well-behaved (even though it may or may not have been verified against the session type protocol
+specification), e.g. client1 follows S 1 throughout the whole session in Figure 1. The code for the
+type-checker, called ElixirST, is available at:
+
+https://github.com/gertab/ElixirST
+
+In this paper we present the underlying type system (Section 3) on which the ElixirST type-
+checker is built and discuss its implementation details (Section 6). We also validate the type
+system; more concretely, in Section 4 we formalise the runtime semantics of the Elixir language
+fragment supported by ElixirST as a labelled transition system (LTS), modelling the execution of
+a spawned handler interacting with a client within a session (left implicit). This operational se-
+mantics then allows us to prove a conditional form of the session fidelity and progress properties
+for the ElixirST type system (Section 5). Intuitively they state that, if the interacting processes
+(that are left implicit) follow the prescribed protocol correctly, then the module code being type-
+checked is guaranteed to behave correctly w.r.t. the protocol (expressed in terms of the adapted
+session fidelity and progress properties).
+
+In this paper we merge and extend the work presented in [7, 8].
+
+In addition to [8], we
+include the full typing rules which were originally relegated to the appendix. We also present
+two additional sections (adapted from [7]): (a) Section 2 introduces a motivating example; and
+(b) Section 6 describes the implementation details of the ElixirST tool, along with a case study.
+The validation part of the paper is also expanded, by including all proofs. We also add a new
+result, showing that ElixirST observes a form of the progress property.
+
+2. Motivating Example
+
+Consider a simple counter system, adapted from [9], whereby a (server) process stores a
+counter total which can be increased by a (client) interacting process or else terminated by this
+same (client) process. A sample Elixir Counter module is shown in Listing 1. It offers one
+
+3
+
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+
+defmodule Counter do
+
+@spec server(pid, number) :: atom
+def server(client, total) do
+
+receive do
+
+{:incr, value} -> server(client, total + value)
+{:stop}
+
+-> terminate(client, total)
+
+end
+
+end
+
+@spec terminate(pid, number) :: atom
+defp terminate(client,total) do
+
+send(client, {:value, total})
+:ok
+
+end
+
+end
+
+Listing 1: Counter written in Elixir
+
+public function called server on lines 3–8 taking two arguments: the pid of the client, client,
+and the initial counter total, total. A process executing this function waits to receive client
+requests as messages in its mailbox using the receive do ...
+end statement; this construct
+is blocking, meaning that the process stops until a message with the expected format is received.
+The server function accepts two types of messages, namely, increment requests with label
+:incr carrying payload val, or termination requests denoted by the label :stop. This function
+branches accordingly: for increment requests, it recurses while updating the running total to
+total+value on line 5, whereas termination requests on line 6 are handled by calling the private
+function terminate. Private functions, defined using defp, are only visible from within a
+module. In this case, the function terminate (defined on lines 11–14) sends a :value message
+carrying the final total value total to the client process and terminates with the atom value
+:ok. Assuming that a client process carrying a pid bound to variable cid already exists, a counter
+server linked to cid initialised with a running total of 0 can be launched using the statement:
+
+sid = spawn(Counter, :server, [cid, 0]).
+
+Elixir conducts dynamic typechecking to catch runtime errors. In addition, @spec annota-
+tions such as those on lines 2 and 10 can help with detecting potential errors at compile-time.
+However, the language offers limited support to assist the static detection of errors relating to
+the concurrent messaging. For instance, it might not be immediately apparent that the payload
+carried by a :incr request should be a number value. Similarly, the code in Listing 1 does
+not necessarily convey enough information that the intended interaction with a server process
+should follow the protocol depicted in Figure 2. This abstract specification states that a server
+can be incremented an arbitrary number of times, followed by a single termination request (i.e.,
+no further increment or termination requests can succeed it).
+
+From the perspective of the server, the entire session of interactions can be formalised as the
+
+session type (called counter) below:
+
+(cid:40)?incr(number).counter,
+
+(cid:41)
+
+counter = &
+
+?stop().!value(number).end
+
+(1)
+
+It states that the server can branch (i.e., &) in two ways: if it receives (i.e., ?) an incr label
+with a number payload, the server recurses back to the beginning; and if it receives a stop label,
+
+4
+
+
+Server
+
+cu r s e
+
+e
+
+r
+
+Client
+
+1
+
+2
+
+c
+h
+o
+c
+e
+
+i
+
+incr(number)
+
+stop()
+
+value(number)
+
+Figure 2: Counter protocol
+
+it has to send (i.e., !) back a label value with a payload of type number (i.e., !value(number)).
+No further interactions are allowed when the end statement is reached. Accordingly, the client
+has to follow a compatible protocol, such as the dual of the same session type.
+
+(cid:40)!incr(number).counter,
+
+(cid:41)
+
+counter = ⊕
+
+(2)
+Concretely, it can repeatedly make a choice (i.e., ⊕) to send one of two labels, either increment
+or stop. The former ensures that it recurses back to the beginning, while the latter results in the
+client receiving a value of type number.
+
+!stop().?value(number).end
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+
+defmodule Counter do
+
+use ElixirST
+
+@session "counter = &{?incr(number).counter,
+
+?stop().!value(number).end}"
+
+@spec server(pid, number) :: atom
+def server(client, value) do
+
+receive do
+
+{:incr, value} -> server(client, total + value)
+{:stop}
+
+-> terminate(client, total)
+
+end
+
+end
+
+@spec terminate(pid, number) :: atom
+defp terminate(client,total) do
+
+send(client, {:value, total})
+:ok
+
+end
+
+@dual "counter"
+@spec client(pid) :: number
+def client(server) do
+
+...
+
+end
+
+end
+
+Listing 2: Counter annotated with session types
+
+This paper proposes an approach whereby module definitions are augmented with a @session
+annotation for functions, as shown in Listing 2. Whereas line 4 requires the public function
+
+5
+
+
+server to adhere to the session type counter, no session annotation is required for the private
+function terminate on line 15. Lines 22–24 present a case in which the client code is defined
+as a public function within the same module; in such a case, we can annotate it with the @dual
+information on line 20.
+
+Our proposed session type annotations serve two important purposes. On the one hand, they
+provide a high-level (yet formal) specification as to how a public function is to be interacted
+with, without the need to look inside its implementation, as in the case of line 4. For instance,
+by inspecting the counter session type on line 4 of Listing 2, one can immediately tell that a
+process running function server accepts two types of messages with labels incr or stop. On
+the other hand, they allow function implementations to be typechecked against such specifica-
+tions. E.g., we are able to statically check that the function server (and its ancillary function
+terminate) adheres to the protocol dictated by session type counter on line 4. We can also re-
+ject the problematic client implementation given in Listing 3 at compile-time, on the grounds
+that it violates the dual session type of counter. Concretely, the client selects an illegal choice
+decr on line 23, since the server cannot handle an incoming message labelled decr. The client
+also expects to receive a value with a number (line 26) after ‘forgetting’ to send a termination
+request (i.e., a message with a stop label). Both cases breach the counter protocol.
+
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+
+@dual "counter"
+def client(server) do
+
+send(server, {:incr, 5})
+send(server, {:decr, 2})
+# send(server , {:stop})
+
+receive do
+
+{:value, num} -> num
+
+end
+
+end
+
+Listing 3: Counter client with issues
+
+3. A Formal Analysis
+
+We introduce a core Elixir subset and define the typing rules for the ElixirST type system.
+
+3.1. The Actor Model
+
+Elixir uses the actor concurrency model [2, 3]. It describes computation as a group of con-
+current processes, called actors, which do not share any memory and interact exclusively via
+asynchronous messages. Every actor is identified via a unique process identifier (pid) which is
+used as the address when sending messages to a specific actor. Messages are communicated
+asynchronously, and stored in the mailbox of the addressee actor. An actor is the only entity that
+can fetch messages from its mailbox, using pattern matching. This allows us to provide a static
+behavioural abstraction for public functions used for the service handler design pattern. Apart
+from sending and reading messages, an actor can also spawn other actors and obtain their fresh
+pid as a result; this pid can be communicated as a value to other actors via messaging, which
+allows for a dynamically linked structure amongst active actors.
+
+6
+
+
+3.2. Session Types
+The ElixirST type system assumes the standard expression types, including basic types, such
+as boolean, number, atom and pid, and inductively defined types, such as tuples, {T1, . . . , Tn},
+and lists, [ T] ; these already exist in the Elixir language and they are dynamically checked. The
+type system extends these with (binary) session types, which are used to statically check the
+message-passing interactions.
+
+Expression types
+
+Session types
+
+T (cid:70) boolean | number | atom | pid | {T1, . . . , Tn} | [ T]
+
+S (cid:70) &(cid:8)?li
+(cid:0)(cid:101)Ti
+(cid:1).S i
+(cid:9)
+(cid:1).S i
+(cid:0)(cid:101)Ti
+| ⊕(cid:8)!li
+(cid:9)
+
+i∈I
+i∈I
+
+| rec X . S
+| X
+| end
+
+Branch
+Choice
+Recursion
+Variable
+Termination
+
+(cid:0)(cid:101)Ti
+
+(cid:1).S i
+
+(cid:9)
+
+The branching construct, &(cid:8)?li
+is labelled by any one of the labels li, with the respective list of values of type (cid:101)Ti (where (cid:101)T
+i∈I, requires the code to be able to receive a message that
+stands for T 1, . . . , T k for some k ≥ 0), and then adhere to the continuation session type S i. The
+choice construct is its dual and describes the range and format of outputs the code is allowed
+to perform at that point of execution.
+In both cases, the labels need to be pairwise distinct.
+Recursive types are treated equi-recursively [10], and used interchangeably with their unfolded
+counterparts. For brevity, the symbols & and ⊕ are occasionally omitted for singleton options,
+
+(cid:9) is written as !l(number).S 1; similarly end may be omitted as well, e.g.,
+e.g., ⊕(cid:8)!l(number).S 1
+(cid:0)(cid:101)Ti
+&(cid:8)?li
+= ⊕(cid:8)!li
+(cid:1).S i
+(cid:9)
+⊕(cid:8)!li
+(cid:0)(cid:101)Ti
+(cid:1).S i
+(cid:9)
+= &(cid:8)?li
+
+?l() stands for ?l().end. The dual of a session type S is denoted as S (shown in Definition 3.1).
+
+Definition 3.1 (Duality).
+
+rec X . S = rec X . S
+
+(cid:1).S i
+(cid:1).S i
+
+(cid:0)(cid:101)Ti
+(cid:0)(cid:101)Ti
+
+end = end
+
+X = X
+
+(cid:9)
+(cid:9)
+
+■
+
+3.3. Elixir Syntax
+
+Elixir programs are organised as modules, i.e., defmodule m do (cid:101)P (cid:101)D end. Modules are
+defined by their name, m, and contain two sets of public (cid:101)D and private(cid:101)P functions, declared as
+sequences. Public functions, def f (y,(cid:101)x) do t end, are defined by the def keyword, and can
+be called from any module. In contrast, private functions, defp f (y,(cid:101)x) do t end, can only be
+t, and parametrised by a sequence of distinct variables, y,(cid:101)x, the length of which, |y,(cid:101)x|, is called
+
+called from within the defining module. Functions are defined by their name, f , and their body,
+
+the arity. The first parameter (y), is reserved for the pid of the dual process. Although a module
+may contain functions with the same name, their arity must be different, so we refer to a function
+with name f and arity n as f/n.
+
+notation, f ((cid:101)T) :: T, describing the parameter types,(cid:101)T, and the return type, T. This information
+
+In Elixir, function parameters and return values can be assigned a type using the @spec an-
+
+is then used by the Dialyzer to perform static checking using success typing [11]. In our for-
+malisation, we require that functions are annotated by their type specification, denoted by B in
+
+7
+
+i∈I
+
+i∈I
+
+i∈I
+
+i∈I
+
+
+Modules
+Public functions
+Private functions
+Type annotations
+Session annotations
+
+M (cid:70) defmodule m do(cid:101)P (cid:101)D end
+D (cid:70) K B def f (y, (cid:101)x) do t end
+P (cid:70) B defp f (y, (cid:101)x) do t end
+B (cid:70) @spec f(cid:0)(cid:101)T(cid:1) :: T
+K (cid:70) @session “X = S ” | @dual “X”
+
+Expressions
+Operators
+Basic values
+Values
+Identifiers
+Patterns
+Terms
+
+e (cid:70) w | not e | e1 ⋄ e2 | [ e1 | e2 ] | {e1, . . . , en}
+⋄ (cid:70) < | > | <= | >= | == | ! = | + | − | ∗ | /| and| or
+b (cid:70) boolean | number | atom | pid | [ ]
+v (cid:70) b | [ v1 | v2 ] | {v1, . . . , vn}
+w (cid:70) b | x
+p (cid:70) w | [ w1 | w2 ] | {w1, . . . , wn}
+t (cid:70) e
+
+(cid:16)(cid:110)
+
+| x = t1; t2
+| send (w,{:l, e1, . . . , en})
+| receive do
+|
+f (w, e1, . . . , en)
+| case e do (pi → ti)i∈Iend
+
+:li, p1
+
+i , . . . , pn
+i
+
+(cid:111) → ti
+
+(cid:17)
+
+end
+
+i∈I
+
+Figure 3: Elixir syntax
+
+Figure 3. In addition to this, we decorate public functions with session types, defined in Sec-
+tion 3.2, to describe their side-effect protocol. Public functions can be annotated directly using
+@session “X = S ”, or indirectly using the dual session type, @dual “X”, where X = S is
+shorthand for rec X . S .
+
+In the case of the let construct, x = t1;
+
+The body of a function consists of a term, t, which can take the form of an expression,
+a let statement, a send or receive construct, a case statement or a function call; see Fig-
+t2, the variable x is a binder for the vari-
+ure 3.
+ables in t2, acting as a placeholder for the value that the subterm t1 evaluates to. We write
+t1; t2, as syntactic sugar for x = t1;
+t2 whenever x is not used in t2. The send statement,
+send (x,{:l, e1, . . . , en}), allows a process to send a message to the pid stored in the vari-
+able x, containing a message {:l, e1, . . . , en}, where :l is the label. The receive construct,
+end, allows a process to receive a message tagged with a
+receive do
+i , . . . , pn
+label that matches one of the labels :li and a list of payloads that match the patterns p1
+i ,
+branching to continue executing as ti. Patterns, p, defined in Figure 3, can take the form of a
+
+variable, a basic value, a tuple or a list (e.g. (cid:2) x | y(cid:3), where x is the head and y is the tail of the
+
+(cid:111) → ti
+
+i , . . . , pn
+i
+
+:li, p1
+
+(cid:17)
+
+i∈I
+
+list). The remaining constructs are fairly standard. Variables in patterns p1
+i employed
+i ,
+by the receive and case statements are binders for the respective continuation branches ti. In
+our formalisation, the case construct is assumed to have a catch-all pattern which acts as a fail-
+
+. . . , pn
+
+(cid:16)(cid:110)
+
+8
+
+
+safe mechanism for unmatchable values. This provides stronger static guarantees, however, it
+is more conservative when compared to Elixir’s common let it crash philosophy, which allows
+unmatched values to crash the whole process.
+
+Terms can also take the form of an expression, e. An expression can be a variable, basic
+value (e.g. boolean), list, tuple, or other operations (e.g. +, <, and). Note that in the original
+Elixir syntax, there is no separation between terms (t) and expressions (e). However, with this
+distinction we are able to keep the type system in Section 3.4 more manageable and concise. We
+assume standard notions of open (i.e., fv(t) (cid:44) ∅) and closed (i.e., fv(t) = ∅) terms and work up to
+alpha-conversion of bound variables.
+
+3.4. Type System
+
+Our session type system statically verifies that public functions within a module observe the
+
+communication protocols ascribed to them. It uses three environments:
+
+Variable binding env.
+Session typing env.
+
+Function information env.
+
+Γ (cid:70) ∅ | Γ, x : T
+∆ (cid:70) ∅ | ∆,
+f/n : S
+Σ (cid:70) ∅ | Σ,
+
+f/n :
+
+params =(cid:101)x, param types =(cid:101)T ,
+
+body = t, return type = T, dual = y
+
+
+
+The variable binding environment, Γ, maps (data) variables to basic types (x : T). We write
+Γ, x : T to extend Γ with the new mapping x : T, where x (cid:60) dom(Γ). The session typing envi-
+ronment, ∆, maps function names and arity pairs to their session type ( f/n : S ); this will be used
+when recursing (i.e., function calls) to check whether a function is already mapped to a session
+type. If a function f/n has a known session type, then it can be found in ∆, i.e., ∆( f/n) = S .
+Each module has a static function information environment, Σ, that holds information related
+to the function definitions. For a function f , with arity n, Σ( f/n) returns the tail list of param-
+eters (params) and their types (param types), the function’s body (body), and its return type
+(return type). It also returns the static variable name that represents the interacting process’
+pid (dual). We assume that function information environment, Σ, is well-formed, meaning that
+all functions mapped ( f/n ∈ dom(Σ)) observe the following condition requiring that the body of
+function f/n is closed, i.e., for Σ( f/n) = Ω:
+
+fv(cid:0)Ω.body
+
+(cid:1) \(cid:0)Ω.params ∪ {Ω.dual}(cid:1) = ∅
+
+Intuitively, if we look at a function’s body, its only free variables will be its parameters (i.e.,
+params and dual).
+
+Session typechecking is initiated by analysing an Elixir module, rule [tModule]. A module
+is typechecked by inspecting each of its public functions, ascertaining that they correspond and
+fully consume the session types ascribed to them. The rule uses three helper functions. The
+
+function functions((cid:101)D) returns a list of all function names (and arity) of the public functions ((cid:101)D) to
+be checked individually. The function sessions((cid:101)D) obtains a mapping of all the public functions
+to their expected session types stored in ∆. This ensures that when a function f with arity n
+with details about all the public ((cid:101)D) and private functions ((cid:101)P) within the module.
+executes, it adheres to the session type associated with it using either the @session or @dual
+annotations. The helper function details(−) populates the function information environment (Σ)
+
+9
+
+
+∀ f/n ∈ functions((cid:101)D) ·
+
+∆ = sessions((cid:101)D)
+
+Σ = details((cid:101)P(cid:101)D)
+
+
+
+Σ ( f/n) = Ω
+
+Ω.param types =(cid:101)T
+
+∆( f/n) = S
+
+Ω.params =(cid:101)x
+∆ ·(cid:0)y : pid,(cid:101)x :(cid:101)T(cid:1) ⊢y
+⊢ defmodule m do(cid:101)P (cid:101)D end
+
+Ω.body = t
+Ω.return type = T
+
+Ω.dual = y
+
+Σ S ▷ t : T ◁ end
+
+[tModule]
+
+For every public function f/n in functions((cid:101)D), [tModule] checks that its body adheres to it
+
+session type using the highlighted term typing judgement detailed below:
+
+dual pid
+
+initial
+
+&
+
+residual
+
+session types
+
+∆ · Γ ⊢ w
+
+Σ
+
+S ▷ t : T ◁ S ′
+
+session typing &
+variable binding
+
+environments
+
+term
+
+expression type
+
+This judgement states that “the term t can produce a value of type T after following an interac-
+tion protocol starting from the initial session type S up to the residual session type S ′ (akin to
+parameterised monads [12]), while interacting with a dual process with pid identifier w. This
+typing is valid under some session typing environment ∆, variable binding environment Γ and
+function information environment Σ.” Since the function information environment Σ is static for
+the whole module (and by extension, for all sub-terms), it is left implicit in the term typing rules.
+We consider each rule in detail.
+
+ ∀ j ∈ 1..n ·
+∆ ·(cid:0)Γ, Γ1
+(cid:1).S i
+(cid:9)
+
+ simplepat(p j
+(cid:1) ⊢w S i ▷ ti : T ◁ S ′
+▷ receive do ({:li,(cid:101)pi} → ti)i∈Iend : T ◁ S ′
+
+⊢w
+pat p j
+i , . . . , Γn
+i
+
+i , T j
+i )
+▷ Γ
+j
+i
+
+i : T j
+i
+
+∀i ∈ I ·
+
+∆ · Γ ⊢w &(cid:8)?li
+
+(cid:0)(cid:101)Ti
+
+[tBranch]
+
+i∈I
+
+The receive construct is typechecked using the [tBranch] rule. It expects an (external) branch-
+
+ing session type &(cid:8) . . .(cid:9), where each branch in the session type must match with a corresponding
+branch in the receive construct, where both the labels (li) and payload types ((cid:101)Ti) correspond.
+Each receive branch is checked w.r.t. the common type T and a common residual session type
+S ′. The types within each receive branch are computed using the pattern typing judgement,
+⊢w
+pat p : T ▷ Γ, which assigns types to variables present in patterns (explained later in Figure 6).
+To ensure that all possible patterns are exhausted, we use Simple Patterns to filter out pattern
+structures such as lists and basic values. As a result, if a receive construct (contains exclusively
+simple patterns) is well-typed against the branching session type, then we are certain that any
+
+10
+
+
+valid incoming messages can be matched with one of the available branches. This is further
+discussed later in Proposition 3. Simple patterns do not limit the expressivity of our language:
+complex patterns can still be expressed using a combination of (simple) receives and inner
+case constructs, which allow us to use patterns that do not block receives while postponing
+more specific patterns to the subsequent case matching.
+
+Definition 3.2 (Simple Patterns). The predicate simplepat(p, T) only accepts patterns that exclu-
+sively contain variables and top-level tuples, eliminating the possibility of patterns with structures
+such as lists or basic values. It is defined as follows:
+
+simplepat(p, T) def=(cid:0)(p = {x1, . . . , xn} and T = {T1, . . . , Tn}) or p = x(cid:1)
+
+■
+
+Example 3.1. Consider the following receive construct (following the ?incr(number) . . . ses-
+sion type) which does not satisfy simplepat:
+
+receive do
+
+{:incr, 5} → . . .
+
+end
+
+This can only accept messages of the form {:incr, 5}, so other messages that are valid for the
+?incr(number) . . . session type, e.g. {:incr, 9}, cannot be processed, since not all valid patterns
+are exhausted. In contrast, simplepat limits us to branches such as the one below where the
+variable (called value) can accept any value:
+
+receive do
+
+{:incr, value} → . . .
+
+end
+
+■
+
+Another crucial typing rule is [tChoice], which typechecks the sending of messages.
+
+∆ · Γ ⊢w ⊕(cid:8)!li
+
+(cid:0)(cid:101)Ti
+
+(cid:1).S i
+
+(cid:9)
+µ ∈ I
+i∈I
+
+∀ j ∈ 1..n ·(cid:110)
+(cid:110)
+(cid:16)
+
+(cid:111)
+(cid:111)(cid:17)
+Γ ⊢exp e j : T j
+:lµ, e1, . . . , en
+
+w,
+
+µ
+
+: {atom,(cid:101)Tµ} ◁ S µ
+
+[tChoice]
+
+▷ send
+
+This rule requires an internal choice session type ⊕(cid:8) . . .(cid:9), where the label tagging the message
+payloads must also match with the corresponding types associated with the label ((cid:101)Tµ of lµ) stated
+to be sent must match with one of the labels (lµ) offered by the session choice. The message
+via the expression typing judgement Γ ⊢exp e : T (see Figure 5). The resulting expression type
+{atom,(cid:101)Tµ}. The typing rule also checks the pid of the addressee of the send statement which
+of the send construct is equivalent to the type of message being sent, i.e.,
+has type
+
+(cid:110)
+:lµ,(cid:101)ei
+
+must match with the dual pid (w) in the judgment itself to ensure that messages are only sent to
+the correct addressee.
+
+(cid:111)
+
+∆ ( f/n) = S
+
+∀i ∈ 2..n ·(cid:110)
+
+(cid:111)
+
+Γ ⊢exp ei : Ti
+Ω.param types =(cid:101)T
+
+[tKnownCall]
+
+Σ ( f/n) = Ω
+
+Ω.return type = T
+
+∆ · Γ ⊢w S ▷ f (w, e2, . . . , en) : T ◁ end
+
+Since public functions are decorated with a session type explicitly using the @session (or
+@dual) annotation, they are listed in dom(∆). Calls to public functions are typechecked using the
+[tKnownCall] rule, which verifies that the expected initial session type is equivalent to the func-
+tion’s known session type (S ) obtained from the session typing environment, i.e., ∆ ( f/n) = S .
+
+11
+
+
+[tLet]
+
+∆ · Γ ⊢w S ▷ t1 : T′ ◁ S ′′
+
+∆ · (Γ, x : T′) ⊢w S ′′ ▷ t2 : T ◁ S ′
+
+∆ · Γ ⊢w S ▷ x = t1; t2 : T ◁ S ′
+
+x (cid:44) w
+
+Γ ⊢exp e : U
+∀i ∈ I ·
+
+ ⊢w
+∆ ·(cid:16)
+
+∆ · (Γ, xall : U) ⊢w S ▷ tall : T ◁ S ′
+pat pi : U ▷ Γ′
+
+(cid:17) ⊢w S ▷ ti : T ◁ S ′
+
+Γ, Γ′
+
+i
+
+i
+
+[tCase]
+
+∆ · Γ ⊢w S ▷ case e do (pi → ti)i∈I (xall → tall) end : T ◁ S ′
+
+[tExpression]
+
+Γ ⊢exp e : T
+
+∆ · Γ ⊢w S ▷ e : T ◁ S
+
+Figure 4: Remaining term typing rules
+
+Without typechecking the function’s body, which is done in rule [tModule], this rule ensures
+that the parameters have the correct types (using the expression typing rules). From the check
+performed in rule [tModule], it can also safely assume that this session type S is fully con-
+sumed, thus the residual type becomes end. Rule [tKnownCall] also ensures that the pid (w) is
+preserved during a function call, by requiring it to be passed as a parameter and comparing it to
+the expected dual pid (i.e., ∆ · Γ ⊢ w S ▷ f
+
+: T ◁ end).
+
+w , . . .
+
+(cid:16)
+
+(cid:17)
+
+Ω.params =(cid:101)x Ω.param type =(cid:101)T Ω.body = t Ω.return type = T
+
+f/n (cid:60) dom(∆)
+
+Ω.dual = y
+
+Σ ( f/n) = Ω
+
+∀i ∈ 2..n ·(cid:110)
+
+(∆, f/n : S ) ·(cid:0)y : pid,(cid:101)x :(cid:101)T(cid:1) ⊢y S ▷ t : T ◁ S ′
+
+Γ ⊢exp ei : Ti
+
+∆ · Γ ⊢w S ▷ f (w, e2, . . . , en) : T ◁ S ′
+
+(cid:111)
+
+[tUnknownCall]
+
+In contrast, a call to a (private) function, f/n, with an unknown session type associated to it is
+typechecked using the [tUnknownCall] rule. As in the other rule, it ensures that parameters
+have the correct types (Γ ⊢exp ei : Ti). In addition, it also analyses the function’s body t (obtained
+from Σ) with respect to the session type S inherited from the initial session type of the call,
+This session type is appended to the session typing environment ∆ for future reference, i.e.,
+∆′ = (∆, f/n : S ) which allows it to handle recursive calls to itself; should the function be called
+again, rule [tKnownCall] is used thus bypassing the need to re-analyse its body.
+
+The remaining rules (Figure 4) make up the functional aspect of the language. The let state-
+ment x = t1; t2 is typechecked using the rule [tLet]. The initial session type S is first transformed
+to S ′ due to some actions in t1 and finally becomes S ′′ after the actions in t2. The rule [tCase]
+checks the case construct, where each case has to match the corresponding type T and session
+type S . The final pattern (xall) of the case construct acts as a catch-all alternative to ensure that
+all values are matched to at least one case. The catch-all case is sometimes omitted for ease of
+
+12
+
+
+readability. Finally, [tExpression] checks all expressions e using expression typing. Expressions
+do not have a side effect, so the continuation session type S remains unchanged.
+Expression Typing. Expressions are typechecked using the judgement Γ ⊢exp e : T, where ex-
+pression e has type T subject to the variable environment Γ. The expressions typing rules (Fig-
+ure 5) are adapted from [13]. Rule [tBasic] checks the type of basic values using the function
+type, which returns the type for basic values, e.g., type(true) = boolean. Rule [tVariable]
+checks that variables have the correct type, as specified in Γ. Rules [tTuple], [tEList] and
+[tList] check the types of tuples, empty lists and lists, respectively. Rule [tArithmetic] en-
+sures that numbers are used when doing arithmetic operations. The remaining rules, [tBoolean],
+[tNot] and [tComparisons], are analogous.
+
+Pattern Typing. In the term typing rules [tBranch] and [tCase], new variables are introduced as
+a result of pattern matching. These need to be assigned to their respective type for typechecking
+purposes. This is obtained via the judgement ⊢p
+pat T : Γ ▷ defined in Figure 6, which states
+that all variables in a pattern p are collected (with their type) in Γ. Basic values are checked in
+[tpBasic], and new variables are introduced in [tpVariable]. The latter also ensures that the pid of
+the dual process remains unchanged (i.e., x (cid:44) w), which allows to statically locate the destination
+pid of the messages. Each element in a tuple is checked individually for either values or variables
+([tpTuple]). Lists are checked using [tpEList] and [tpList]. Multiple variable environments Γ
+and Γ′ are joined together as Γ, Γ′ (their domains must be distinct).
+
+3.5. Typing in Action
+
+Recall the counter system from Listing 2, which contains two public functions, server and
+client, annotated with the session types, counter and counter, respectively defined in eqs. (1)
+and (2). We discuss briefly how the type system of Section 3.4 can be used to statically analyse
+this Elixir module.
+
+⊢ defmodule Counter do(cid:101)P (cid:101)D end
+
+Typechecking starts from the [tModule] rule (⊢ M), and the judgement:
+where (cid:101)D contains the functions server and client, while (cid:101)P contains the private function
+terminate. The premise of [tModule] requires that all public functions are checked individ-
+ually using the behavioural typing judgement: ∆ · Γ ⊢w
+Σ S ▷ t : T ◁ S ′ (Section 3.4). Starting
+with fn = server2, the initial session type, S , is set to counter and the expected residual session
+type, S ′, is end, since functions are only well-typed if they fully consume the session type. For
+the client function, the initial session type S is computed to get the dual type of counter, given
+in eq. (2). We focus on the behavioural typing of the server function. The function body, t, of
+server consists of the following:
+
+t =
+
+{:incr, value} -> server(client, total + value)
+{:stop} -> terminate(client, total)
+
+This receive statement is typechecked as the judgement below, using the [tBranch] rule:
+
+ receive do
+
+end
+
+∆ · Γ ⊢w &
+
+(cid:40)?incr(number).counter,
+
+(cid:41)
+
+?stop().S 1
+
+13
+
+▷ t : atom ◁ end
+
+
+Γ ⊢exp e : T
+
+[tTuple]
+
+∀i ∈ 1..n ·(cid:110)
+
+Γ ⊢exp ei : Ti
+
+Γ ⊢exp {e1, . . . , en} : {T1, , . . . , Tn}
+
+(cid:111)
+
+[tBasic]
+
+type(b) = T
+Γ ⊢exp b : T
+
+[tVariable]
+
+Γ (x) = T
+Γ ⊢exp x : T
+
+[tList]
+
+Γ ⊢exp e1 : T
+
+Γ ⊢exp e2 : [ T]
+
+Γ ⊢exp [ e1 | e2 ] : [ T]
+
+[tEList]
+
+Γ ⊢exp [ ] : [ T]
+
+[tArithmetic]
+
+Γ ⊢exp e1 : number
+
+Γ ⊢exp e2 : number
+Γ ⊢exp e1 ⋄ e2 : number
+
+⋄ ∈ {+, −, ∗, /}
+
+[tBoolean]
+
+Γ ⊢exp e1 : boolean
+
+Γ ⊢exp e2 : boolean
+Γ ⊢exp e1 ⋄ e2 : boolean
+
+⋄ ∈ {and, or}
+
+[tComparisons]
+
+⋄ ∈ {<, >, <=, >=, ==, ! =}
+Γ ⊢exp e2 : T
+Γ ⊢exp e1 : T
+Γ ⊢exp e1 ⋄ e2 : boolean
+
+[tNot]
+
+Γ ⊢exp e : boolean
+Γ ⊢exp not e : boolean
+
+Figure 5: Expression typing rules
+
+∅ ⊢exp b : T
+
+⊢w
+pat b : T ▷ ∅
+
+b (cid:44) [ ]
+
+[tpVariable] ⊢w
+
+pat x : T ▷ x : T
+
+x (cid:44) w
+
+∀i ∈ 1..n ·(cid:110)⊢w
+
+(cid:111)
+
+pat wi : Ti ▷ Γi
+
+pat {w1, . . . , wn} : {T1, . . . , Tn} ▷ Γ1, . . . , Γn
+
+⊢w
+pat p : T ▷ Γ
+
+[tpBasic]
+
+[tpList]
+
+[tpTuple] ⊢w
+⊢w
+pat w1 : T ▷ Γ1
+
+⊢w
+pat w2 : [ T] ▷ Γ2
+
+⊢w
+pat [ w1 | w2 ] : [ T] ▷ Γ1, Γ2
+
+[tpEList] ⊢w
+
+pat [ ] : [ T] ▷ ∅
+
+Figure 6: Pattern typing rules
+
+14
+
+
+where S 1 = !value(number).end and w = client.
+
+The session type in [tBranch] dictates that two branches are required, labelled incr and
+stop. The terms inside the branches must match with the continuation session type of the cor-
+responding session type (i.e., counter and S 1, respectively). For the first branch (labelled incr),
+the continuation term is a known function call (∆(server2) = counter); therefore, we use the
+[tKnownCall] rule:
+∆ · Γ
+
+′ ⊢w counter ▷ server(client, total+value) : atom ◁ end
+
+The term of the second branch (labelled stop) needs to match with the session type S 1. This
+branch makes a call to a private function (terminate). Since terminate1 is not in the domain
+of ∆, we proceed to inspect its body using the rule [tUnknownCall]. Recall that private func-
+tions are not annotated with session types. Accordingly, rule [tUnknownCall] requires us to
+inherit the outstanding session S 1 as the specification for typing this judgement, which follows
+immediately using the [tLet] rule:
+
+[tLet]
+
+[tUnknownCall]
+
+(∆, terminate1 : S 1) · Γ′′ ⊢w S 1 ▷
+
+(cid:34)
+
+(cid:35)
+∆ · Γ ⊢w S 1 ▷ terminate(client, total) : atom ◁ end
+
+...
+send(w, {:value, total})
+
+:ok
+
+: atom ◁ end
+
+Note that Γ′′ contains the type information for the client and total variable names, and
+the session typing judgement (∆) is extended to contain the session typing information for the
+function terminate1. To finish our typing analysis, we have to consider the two premises of the
+[tLet] rule. This rule checks two sub-terms in succession, as follows:
+
+(∆, terminate1 : S 1) · Γ
+
+′′ ⊢w S 1 ▷ send(w, {:value, total}) : U ◁ end
+
+(∆, terminate1 : S 1) · Γ
+
+′′ ⊢w S 1 ▷ :ok : atom ◁ end
+
+(3)
+(4)
+
+Equation (3) contains a send contruct that sends a message labelled value. This matches
+with the labels offered in S 1, which is checked using [tChoice]. Finally, Equation (4) is type-
+checked using [tExpression], which finalises our analysis.
+
+As a continuation of this, consider the first two lines of the misbehaving client function
+
+body from Listing 3, to be typechecked against counter from eq. (2):
+
+send(server, {:incr, 5})
+send(server, {:decr, 2})
+
+The first send statement is checked successfully using the [tLet] and the [tChoice] rules.
+
+The next send statement also needs to be checked using [tChoice]:
+
+(cid:40)!incr(number).counter,
+
+(cid:41)
+
+!stop().S 1
+
+′ · Γ
+∆
+
+′′′ ⊢w ⊕
+
+▷ send(server, {:decr, 2}) : number ◁ end
+
+However, the [tChoice] rule attempts to match decr with a nonexistent choice from the session
+type. Thus, this client function is deemed to be ill-typed.
+
+15
+
+
+3.6. Elixir System
+
+Natively, Elixir can create actors using its spawn functions (e.g. spawn/3), which take a
+function (and its arguments), spawns it and returns its pid. ElixirST extends this to provide
+a bespoke spawning function called session/4 which allows the initiation of two concurrent
+processes executing in tandem as part of a session. This session/4 function takes two pairs
+of arguments: two references of function names (that will be spawned), along with their list of
+arguments. Its participant creation flow is shown in Figure 7. Initially the actor (pre-server) is
+spawned, passing its pid (ιserver) to the second spawned actor (pre-client). Then, pre-client relays
+back its pid (ιclient) to pre-server. In this way, both actors participating in a session become aware
+of each other’s pids. From this point onwards, the two actors execute their respective function
+to behave as the participants in the binary session; the first argument of each running function
+is initiated to the respective pid of the other participant. Figure 7 shows that the server process
+executes the body t, where it has access to the mailbox, which we denote as M. As it executes,
+messages may be sent or received (shown by the action α) and stored in the (modified) mailbox
+M′. The specific working of these transitions is explained in the following section.
+
+4. Operational Semantics
+
+We describe the operational semantics of the Elixir language subset of Figure 3 as a labelled
+transition system (LTS) [14] describing how a handler process within a session executes while
+interacting with the session client (left implicit), as outlined in Figure 1. The transition t α−→ t′
+describes the fact that a handler process in state t performs an execution step to transition to the
+new state t′, while possibly interacting with the client via the action α as a side-effect. External
+actions are visible by, and bear an effect on the client, whereas internal actions do not. In our
+case, an action α can take the following forms:
+
+α ∈ Act (cid:70) ι!{:l,(cid:101)v}
+| ?{:l,(cid:101)v}
+|
+f/n
+| τ
+
+Output message to ι tagged as :l with payload(cid:101)v
+Input message tagged as :l with payload(cid:101)v
+
+Call function f with arity n
+Internal reduction step
+
+external action
+
+internal action
+
+Both output and input actions constitute external actions that affect either party in a session;
+the type system from Section 3.4 disciplines these external actions. Internal actions, include
+silent transition (τ) and function calls ( f/n); although the latter may be denoted as a silent action,
+
+pre-client
+
+ιserver
+
+ιclient
+
+pre-server
+
+clientFn (ιserver ,
+arg2 ,
+arg3 ,
+
+. . . )
+
+serverFn (ιclient ,
+
+arg2 ,
+arg3 ,
+
+. . . )
+
+[. . . ]ιclient
+
+[t ◁ M]ιserver
+
+. . .
+
+α
+
+[t′ ◁ M′]ιserver
+
+α′
+
+. . .
+
+Figure 7: Spawning two processes (green boxes represent spawned concurrent processes)
+
+16
+
+
+the decoration facilitates our technical development. We note that, function calls can only transi-
+tion subject to a well-formed function information environment (Σ), which contains details about
+all the functions available in the module. Since Σ remains static during transitions, we leave it
+implicit in the transitions rules.
+t α−→
+
+t′
+
+Σ
+
+[rLet1]
+
+t1
+x = t1; t2
+
+α−→ t′
+α−→ x = t′
+
+1
+
+[rLet2]
+
+x = v; t τ−→ t [v/x]
+
+[rChoice1]
+
+send (ι,{:l, v1, . . . , vk−1, ek, . . . , en}) τ−→ send
+
+:l, v1, . . . , vk−1, e′
+
+k, . . . , en
+
+1; t2
+ek → e′
+
+k
+
+(cid:110)
+
+(cid:16)
+
+ι,
+
+(cid:111)(cid:17)
+
+[rChoice2]
+
+[rBranch]
+
+l j = l
+
+send (ι,{:l, v1, . . . , vn}) ι!{:l, v1, ..., vn}
+∃ j ∈ I
+receive do ({:li,(cid:101)pi} → ti)i∈Iend
+
+−−−−−−−−−−→ {:l, v1, . . . , vn}
+match((cid:101)p j, v1, . . . , vn) = σ
+?{:l, v1, ..., vn}
+−−−−−−−−−−→ t jσ
+(cid:16)
+ek → e′
+f (v1, . . . , vk−1, ek, . . . , en) τ−→ f
+
+k
+
+k, . . . , en
+
+(cid:17)
+
+[rCall1]
+
+v1, . . . , vk−1, e′
+Ω.params = x2, . . . , xn
+f/n−−→ t [ι/y] [v2, . . . , vn/x2, . . . , xn]
+e → e′
+τ−→ case e′
+
+[rCall2]
+
+Σ ( f/n) = Ω
+
+Ω.body = t
+
+f (ι, v2, . . . , vn)
+
+Ω.dual = y
+
+[rCase1]
+
+case e do (pi → ti)i∈Iend
+match(p j, v) = σ
+τ−→ t jσ
+
+∃ j ∈ I
+case v do (pi → ti)i∈Iend
+
+[rCase2]
+
+do (pi → ti)i∈Iend
+[rExpression]
+
+e → e′
+e τ−→ e′
+
+Figure 8: Term transition semantic rules
+
+The transitions are defined by the term transition rules listed in Figure 8. Rules [rLet1] and
+[rLet2] deal with the evaluation of a let statement, x = t1; t2 modelling a call-by-value semantic,
+where the first term t1 has to transition fully to a value before being substituted for x in t2 denoted
+as [v/x] (or [v1, v2/x1, x2] for multiple substitutions). The send statement, send (ι,{:l, e1, . . . , en}),
+evaluates by first reducing each part of the message to a value from left to right. This is carried
+out via rule [rChoice1] which produces no observable side-effects. When the whole message
+is reduced to a tuple of values {:l, v1, . . . , vn}, rule [rChoice2] performs the actual message
+sending operation. This transition produces an action ι!{:l, v1, . . . , vn}, where the message
+of the receive construct, receive do ({:li,(cid:101)pi} → ti)i∈Iend, is defined by rule [rBranch]. When
+{:l, v1, . . . , vn} is sent to the interacting process with a pid value of ι. The operational semantics
+a message is received (i.e., α = ?{:l,(cid:101)v}), it is matched with a valid branch from the receive
+payload of the message ((cid:101)v) is compared to the corresponding patterns in the selected branch ((cid:101)p j)
+construct, using the label :l. Should one of the labels match (∃ j ∈ I such that :l j = :l), the
+
+17
+
+
+e → e′
+
+1 ⋄ e2
+
+1
+
+[reOperation1]
+
+e1 → e′
+e1 ⋄ e2 → e′
+v = v1 ⋄ v2
+[reOperation3] v1 ⋄ v2 → v
+e1 → e′
+1 | e2
+e′
+
+[ e1 | e2 ] →(cid:104)
+
+[reList1]
+
+1
+
+(cid:105)
+
+e2 → e′
+
+2
+
+2
+
+v1 ⋄ e2 → v1 ⋄ e′
+v′ = ¬v
+not v → v′
+(cid:105)
+
+[reNot2]
+e2 → e′
+
+2
+
+[ v1 | e2 ] →(cid:104)
+
+v1 | e′
+
+2
+
+[reOperation2]
+
+[reNot1]
+
+e → e′
+
+not e → not e′
+
+[reList2]
+
+[reTuple]
+
+{v1, . . . , vk−1, ek, . . . , en} → {v1, . . . , , vk−1, e′
+
+k, . . . , en}
+
+ek → e′
+
+k
+
+Figure 9: Expression reduction rules
+
+using match((cid:101)p j,(cid:101)v). If the values match with the pattern, the match function (Definition 4.1)
+produces the substitutions σ, mapping the matched variables in the pattern (cid:101)p j to values from(cid:101)v.
+
+This substitution σ is then used to instantiate the free variables in continuation branch t j.
+
+Definition 4.1 (Pattern Matching). The match function pairs patterns with a corresponding
+value, resulting in a sequence of substitutions (called σ), e.g., match(p, v) = [v1/x1] [v2/x2] =
+[v1, v2/x1, x2]. The match function builds a meta-level list of substitutions, which should not be
+confused with the lists defined by the Elixir syntax in Figure 3.
+
+match((cid:101)p,(cid:101)v) def= match(p1, v1), . . . , match(pn, vn)
+
+where(cid:101)p = p1, . . . , pn and(cid:101)v = v1, . . . , vn
+
+match(p, v) def=
+
+[ ]
+[v/x]
+match(w1, v1), match(w2, v2)
+match(w1, v1), . . . , match(wn, vn)
+
+p = b, v = b
+p = x
+p = [ w1 | w2 ] , v = [ v1 | v2 ]
+p = {w1, . . . , wn} and
+v = {v1, . . . , vn}
+
+■
+Example 4.1. For the pattern p1 = {x, 2, y} and the value tuple v1 = {8, 2, true}, match(p1, v1) =
+σ where σ = [8/x] [true/y] (written also as σ = [8, true/x, y]). However for pattern p2 = {x, 2, false}, the
+operation match(p2, v1) fails, since p2 expects a false value as the third element, but finds a true
+■
+value instead.
+
+
+
+Using rule [rCall1] from Figure 8, a function call is evaluated by first reducing all of its
+parameters to a value, using the expression reduction rules in Figure 9; again this models a
+call-by-value semantics. Once all arguments have been fully reduced, [rCall2], the implicit
+environment Σ is queried for function f with arity n to fetch the function’s parameter names and
+body. This results in a transition to the function body with its parameters instantiated accordingly,
+t [ι/y] [v2, . . . , vn/x2, . . . , xn], decorated by the function name, i.e., α = f/n. Along the same lines a case
+construct first reduces the expression which is being matched using rule [rCase1]. Then, rule
+
+18
+
+
+[rCase2] matches the value with the correct branch, using the match function, akin to [rBranch].
+Whenever a term consists solely of an expression, it silently reduces using [rExpression] using
+the expression reduction rules e → e′ of Figure 9. These are fairly standard.
+
+5. Validation of the ElixirST Type System
+
+We validate the static properties imposed by the ElixirST type system, overviewed in Sec-
+tion 3, by establishing a relation with the runtime behaviour of a typechecked Elixir program,
+using the transition semantics defined in Section 4. Broadly, we establish a form of type preser-
+vation, which states that if a well-typed term transitions, the resulting term then remains well-
+typed [10]. However, our notion of type preservation, needs to be stronger to also take into
+account (i) the side-effects produced by the execution; and (ii) the progression of the execution
+with respect to protocol expressed as a session type. Following the long-standing tradition in
+the session type community, these two aspects are captured by the refined preservation property
+called session fidelity [15, 16]. This property ensures that: (i) the communication action produced
+as a result of the execution of the typed process is one of the actions allowed by the current stage
+of the protocol; and that (ii) the resultant process following the transition is still well-typed w.r.t.
+the remaining part of the protocol that is still outstanding. We also establish a conditional form
+of progress, where well-typed processes are either a value, or else they can safely transition to a
+new term, producing an internal (or external) action.
+
+Before embarking on the proofs for session fidelity and progress, we prove an auxiliary
+proposition that acts as a sanity check for our operational semantics of Section 4. We note
+that the operational semantics assume that only closed programs are executed; an open program
+(i.e., a program containing free variables) is seen as an incomplete program that cannot execute
+correctly due to missing information. To this end, Proposition 1 ensures that a closed term
+remains closed even after transitioning.
+Proposition 1 (Closed Term). If fv(t) = ∅ and t α−→ t′, then fv(t′) = ∅
+Proof. By induction on the structure of t. Refer to Appendix B.1 for details.
+
+The statement of the session fidelity property relies on the definition of a partial function
+called after (Definition 5.1), which takes a session type and an action as arguments and returns
+another session type as a result. This function serves two purposes: (i) the function after(S , α)
+is only defined for actions α that are (immediately) permitted by the protocol S , which allows
+us to verify whether a term transition step violated a protocol or not; and (ii) since S describes
+the current stage of the protocol to be followed, we need a way to evolve this protocol to the
+next stage should α be a permitted action, and this is precisely S ′, the continuation session type
+returned where after(S , α) = S ′.
+
+Definition 5.1 (After Function). The after function is partial function defined for the following
+
+19
+
+
+cases:
+
+(cid:9)
+(cid:1).S i
+(cid:0)(cid:101)Ti
+after(⊕(cid:8)!li
+after(&(cid:8)?li
+(cid:1).S i
+(cid:0)(cid:101)Ti
+(cid:9)
+
+after(S , τ) def= S
+after(S , f/n) def= S
+i∈I, ι!
+i∈I, ?
+
+(cid:110)
+(cid:111)
+l j,(cid:101)v
+(cid:110)
+(cid:111)
+) def= S j where j ∈ I
+l j,(cid:101)v
+) def= S j where j ∈ I
+
+This function is undefined for all other cases. The after function is overloaded to range over
+session typing environments (∆) in order to compute a new session typing environment given
+some action α and session type S :
+
+after(∆, f/n, S ) def= ∆, f/n : S
+after(∆, α, S ) def= ∆
+
+if α (cid:44) f/n
+
+Intuitively, when the action produced by the transition is f/n, the session typing environment is
+extended by the new mapping f/n : S . For all other actions, the session typing environment
+■
+remains unchanged.
+
+the public functions w.r.t. their ascribed session type, ∆·(cid:0)y : pid,(cid:101)x :(cid:101)T(cid:1) ⊢y
+Recall that module typechecking using rule [tModule] entails typechecking the bodies of all
+Σ S ▷ t : T ◁ S ′ (where
+running the function body term t where the parameter variables y,(cid:101)x are instantiated with the pid
+S ′ = end for this specific case). At runtime, a spawned client handler process in a session starts
+of the client, say ι, and the function parameter values, say(cid:101)v, respectively, t [ι/y] [(cid:101)v/(cid:101)x], as modelled
+in rule [rCall2] from Figure 8. The instantiated function body is thus closed and can be typed
+w.r.t. an empty variable binding environment, Γ = ∅. Session fidelity thus states that if a closed
+term t is well-typed, i.e.,
+
+(5)
+(where S and S ′ are initial and residual session types, respectively, and T is the basic expression
+type) and this term t transitions to a new term t′ with action α, i.e.,
+
+∆ · ∅ ⊢w S ▷ t : T ◁ S ′
+
+t α−→ t′
+the new term t′ is expected to remain well-typed, i.e.,
+
+(6)
+
+′ · ∅ ⊢w S ′′ ▷ t′ : T ◁ S ′
+∆
+
+(7)
+where the expanded ∆′ is computed as after(∆, α, S ) = ∆′ and the base type of the term is pre-
+served, as described by the constant type T in eqs. (5) and (7). To understand how the evolved
+initial session type (S ′′) is computed or assumed (in eq. (7)), we have to consider the context
+of our analysis. Our type-checker analyses one side of an interaction that does not interleave
+with other sessions. We also assume that the interacting dual processes are well-behaved and
+thus follow a compatible protocol (e.g. the dual session type) during execution. Despite these
+restrictions, we obtain a certain degree of flexibility, where we can statically analyse processes
+interacting with external processes which we may not have access to their source.
+
+To this end, we make a distinction between the transition actions in Equation (6).
+
+If the
+action α depends on the context process left implicit (i.e., α is an incoming message), we only
+
+20
+
+
+require the guarantee stated in Equation (7) whenever α is permitted by the protocol S i.e.,
+S ′′ = after(S , α). More specifically, the condition S ′′ = after(S , α) is part of the antecedent of
+the first clause in Session Fidelity Theorem and captures our conditional guarantees that apply
+only when the context process is well-behaved. On the other hand, if the action α depends solely
+on the process being typechecked (i.e., α is an outputted message or an internal action), then we
+require that α is permitted by the protocol S . Concretely, the second clause of Session Fidelity
+Theorem is stronger and the condition after(S , α) forms part of the succedent.
+Theorem 2 (Session Fidelity). If ∆ · ∅ ⊢w
+— for α = ?{:l,(cid:101)v} and some session type S ′′ = after(S , α), then there exists some ∆′, such that
+∆′ · ∅ ⊢w
+— for α ∈ { f/n, τ, ι!{:l,(cid:101)v}}, then there exists some S ′′ and ∆′, such that ∆′·∅ ⊢w
+Σ S ′′ ▷t′ : T ◁S ′
+Proof. By induction on the typing derivation ∆·∅ ⊢w
+
+Σ S ′′ ▷ t′ : T ◁ S ′ and after(∆, α, S ) = ∆′
+
+for after(S , α) = S ′′ and after(∆, α, S ) = ∆′
+
+Σ S ▷ t : T ◁ S ′. Refer to Appendix B.2.
+
+Σ S ▷ t : T ◁ S ′ and t α−→
+
+t′
+
+Σ
+
+t1
+
+S 1
+
+α1
+
+t2
+
+α2
+
+. . .
+
+αn
+
+v
+
+\
+
+after(S 1, α1) = S 2
+
+after(S n, αn) = end
+
+Figure 10: Repeated applications of session fidelity
+
+As shown in Figure 10, by repeatedly applying Theorem 2, we can therefore conclude that
+all the (external) actions generated as a result of a typed computation (i.e., sequence of transition
+steps) must all be actions that follow the protocol described by the initial session type. Since
+public functions are always typed with a residual session type end, certain executions could
+reach the case where the outstanding session is updated to end as well, i.e., after(S n, αn) = end.
+In such a case, we are guaranteed that the term will not produce further side-effects, as in the
+case of Figure 10 where the term is reduced all the way down to some value, v.
+
+Example 5.1. We consider a concrete example to show the importance of session fidelity. The
+function called client/1 sends a stop label and awaits a reply with the total value.
+
+1
+2
+3
+4
+5
+6
+7
+8
+
+@dual "counter"
+def client(server) do
+
+x = send(server, {:stop})
+
+receive do
+
+{:value, num} -> num
+
+end
+
+end
+
+Listing 4: Counter client obeying the protocol counter
+
+21
+
+
+This function adheres to the following protocol (from eq. (2)):
+
+(cid:40)!incr . . . ,
+
+counter = ⊕
+
+!stop().?value(number).end
+
+A process evaluating the function client executes by first sending a message containing a
+
+stop label to the interacting processes’ pid (ιserver), as shown below.
+
+α = ιserver!(cid:8)
+
+(cid:9)
+
+stop
+
+t
+
+(cid:41)
+
+t′
+
+x = send(ιserver , {:stop})
+
+x = {:stop}
+
+# ...
+
+# ...
+
+As the process evaluates, the initial term t transitions to t′, where it sends a message as a side-
+
+effect. This side-effect is denoted as an action α, where α = ιserver!(cid:8)
+
+(cid:9). By the After Function
+
+stop
+
+Definition, counter evolves to a new session type X:
+
+X = after(counter, α) = ?value(number).end
+
+For t′ to remain well-typed, it must now match with the evolved session type X, where it
+has to be able to receive a message labelled value, before terminating. As a result, by the
+session fidelity property, we know that each step of execution will be in line with the original
+■
+protocol.
+
+We will also show that ElixirST observes a conditional form of the progress property, which
+describes how well-typed terms transition within the aforementioned analysis context. However,
+we consider the most problematic scenario first, where a process depends on external factors
+to progress. When a process executes a term that is following the branching session type, the
+process has to be able to handle (and pattern match) any valid incoming message. Concretely,
+
+a term t following the session type &(cid:8) . . .(cid:9) has to be able to accept incoming messages, by
+
+(successfully) pattern matching them to one of the branches. This holds due to the [tBranch]
+rule (from Section 3.4) where we restrict all branching patterns to simple ones. In Proposition 3
+we show that valid messages can always be matched to one of the branches.
+Proposition 3. Any well-typed term (∆ · Γ ⊢w
+type is able to process any valid incoming message, i.e.,
+
+(cid:111) → ti
+
+Σ S ▷ t : T ◁ S ′) following the branching session
+(cid:17)
+(cid:1).S i
+
+ =⇒ match(p j
+
+k, v j)i∈1..n is defined
+
+end
+
+i , . . . , pn
+i
+
+(cid:0)T 1
+
+(cid:9)
+i∈I
+) = S k for some k ∈ I
+
+i , . . . , T n
+i
+
+i∈I
+
+(cid:16)(cid:110)
+S = &(cid:8)?li
+lk, v1, . . . , vn(cid:111)
+
+:li, p1
+
+t = receive do
+
+after(S , ?
+
+(cid:110)
+
+(cid:16)(cid:110)
+
+(cid:111) → ti
+
+(cid:17)
+
+:li, p1
+
+i , . . . , pn
+i
+
+end
+
+i∈I
+
+Proof. Note that ∆ · Γ ⊢w
+imply simplepat(p j
+
+i , T j
+
+Σ S ▷ t : T ◁ S ′ and t = receive do
+i )i∈I, j∈1..n. Refer to Appendix B.3.
+
+By Proposition 3 we know that if a process depends on external factors (i.e., a term expects
+an incoming message), then it should not have a problem to be able to handle these messages.
+
+22
+
+
+From this, we can infer that a well-typed receive construct is able to transition to a new term,
+when a message is received. If we extend this to all terms, we can form the Progress Theorem,
+where we establish that a process can always transition from one form to another. If no further
+transitions are possible (see Figure 10), then the process must be itself a (final) value. In this
+theorem we also establish that the action produced during the transition is always allowed by the
+protocol; this is checked using the after function.
+Theorem 4 (Progress). If ∆·∅ ⊢w
+term t′ and action α such that t α−→
+Proof. By induction on the typing derivation ∆·∅ ⊢w
+
+Σ S ▷ t : T ◁ S ′, then either t is a value, or else there exists some
+
+Σ S ▷ t : T ◁ S ′. Refer to Appendix B.3.
+
+t′ and after(S , α) is defined
+
+Σ
+
+6. Implementation
+
+This section describes how the type system of Section 3 is implemented as the session type
+checker tool called ElixirST. This tool is integrated in Elixir with minimal changes to the syntax
+of the surface language. The source code is written in Elixir and is available open-source.
+
+6.1. Elixir Compilation with Session Types
+
+Elixir Source Code +
+
+Session Type Annotations
+
+Elixir AST
+
+ElixirST
+
+Macros Expanded
+
+BEAM Code
+
+Core Erlang
+
+Erlang
+
+Figure 11: Stages of Elixir compilation along with the session type implementation (in red)
+
+The Elixir source code is compiled in several steps (see Figure 11). The original Elixir
+source code is initially parsed into an Abstract Syntax Tree (AST). Then, Elixir’s powerful macro
+system expands all non-special form2 into special form macros (e.g., if/unless statements are
+converted into case constructs) [17]. Afterwords, the expanded Elixir AST is converted into
+Erlang abstract format and Core Erlang. Finally, it is compiled into BEAM code which can be
+executed on the Erlang Virtual Machine (BEAM).
+
+Our implementation integrates seamlessly within this compilation pipeline (see Figure 11,
+red). Inside the Elixir source code, processes are described with a specific session type using
+annotations (starting with @). Annotations are able to hold information about a module during
+compile-time. We provide normal labelled session types (@session) and their dual (@dual,
+referenced by a label):
+
+@session "X = !ping().?pong().X"
+# ...
+@dual "X" # Equivalent to X’ = ?ping().!pong().X’
+
+2Special form macros cannot be expanded further, forming the basic building blocks of the Elixir language.
+
+23
+
+
+The annotations set up the rules of the session types, which need to be enforced later on in the
+compilation process. Elixir provides several compile-time hooks which provide a way to alter or
+append to the compilation pipeline. In this implementation, we initially use the on definition
+hook to parse the session type (from the annotations) and compute the dual type where required;
+this is done using the Erlang modules leex3 and yecc4, which create a lexer and a parser,
+respectively, based on the session type syntax rules shown in Figure 3. Then, the after compile
+hook is used to run ElixirST right after the BEAM code is produced. Since the BEAM code stores
+directly the expanded Elixir AST, ElixirST is able to traverse this AST and verify its concurrent
+parts using session types.
+
+6.2. Bridging between Elixir and Our Model
+
+Every construct in Figure 3 maps directly to a corresponding construct in the actual Elixir
+language. The @spec annotation which decorates functions with types is already present in the
+latest distribution of the language. It is typically used for code documentation and to statically
+analyse programs using the Dialyzer [11], a tool that detects potential (type) errors in Core
+Erlang programs using success typing [9]. We use the @spec information to specify the types
+for the parameters and the return type of the functions, supplementing our session typechecking
+analysis. A similar approach to ours was adopted by Cassola et al. [13] for a gradual static type
+system for Elixir.
+
+receive do
+
+{:A} -> send(p, {:C})
+{:B} -> send(p, {:C})
+
+:ok
+
+:ok
+
+end
+
+receive do
+
+{:A} ->
+
+{:B} ->
+
+:ok
+
+:ok
+
+end
+
+send(p, {:C})
+
+.
+
+.
+
+The typing rules of Section 3 are also designed in a way to minimally alter common coding
+patterns in the language. For instance, branches in session types might have common contin-
+
+uations, such as !C().end in the type &(cid:8)?A().!C().end, ?B().!C().end(cid:9). Many type systems force
+
+programs to structure their code as shown in the left-hand side code snippet above (which per-
+forms the same send action twice). However, in Elixir it is common to express this as a fork-join
+pattern, with a single continuation performing the common action once as shown in the right-
+hand side code snippet. Our type system can typecheck both code snippets.
+
+The only aspect left to discuss is the mechanism used by our implementation to guarantee an
+interaction between the two processes implementing the respective endpoints of binary session
+type. To achieve this end, we implemented a bespoke spawning function (refer to Section 3.6)
+that takes the code of the respective endpoints and returns a tuple with the pids of the two pro-
+cesses that are already linked. The implementation of our session initiation is given below:
+
+1
+2
+3
+4
+5
+
+def session(serverFn, server_args, clientFn, client_args)
+
+when is_function(serverFn) and is_function(clientFn) do
+server_pid = spawn(fn ->
+
+receive do
+
+{:pid, client_pid} ->
+
+3https://erlang.org/doc/man/leex.html
+4https://erlang.org/doc/man/yecc.html
+
+24
+
+
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+
+apply(serverFn, [client_pid | server_args])
+
+end
+
+end)
+
+client_pid = spawn(fn ->
+
+send(server_pid, {:pid, self()})
+apply(clientFn, [server_pid | client_args])
+
+end)
+
+{server_pid, client_pid}
+
+end
+
+This modified session/4 function takes two pairs of arguments: two references of function
+names (that should be spawned) and their list of arguments. The code implements the initial-
+isation protocol depicted in Figure 7.
+It first spawns one process (pre-server in Figure 7 for
+line 3) and passes its pid to the second spawned process (pre-client in Figure 7, as the variable
+server pid on lines 11 and 12). Then, the pre-client process sends its pid to the pre-server pro-
+cess (line 11 and lines 4 and 5). At this point, both processes execute their respective functions
+to transform into the actual first and second processes participating in the session, passing the
+respective pids as the first argument of the executing functions (lines 6 and 12).
+
+The current implementation of the session/4 function can only launch two processes at a
+time, in line with the binary sessions. This can however, be extended to handle more than two
+processes in the case of hierarchical processes, where a process may interact in several separate
+binary sessions, similar to the notion of intuitionistic session types [18].
+
+Our implementation still allows spawned processes to receive messages from any other pro-
+cess. Unfortunately, unsolicited messages can interfere with a session-typed process, since the
+receiver is not able to distinguish where the message is originating from in the present implemen-
+tation. An improvement would be exploiting Elixir’s ability to cherry-pick messages out-of-order
+from the queue using pattern matching. As soon as a session is launched, a unique session ID
+would be shared with the two parties, and each message exchanged between them would use this
+ID to identify the source (and destination). This would enable selective reads to filter unsolicited
+messages. Mostrous and Vasconcelos [19] created a similar system to distinguish messages by
+attaching a unique reference to each message.
+
+6.3. Case Study
+
+We use ElixirST to verify an Elixir (CLI) application which interacts with a third-party service
+(i.e., Duffel [20]). Duffel offers a real-time flight selling service, where flights can be fetched and
+booked via a REST application programming interface (API).
+
+Elixir ecosystem – FlightSystem
+
+Client
+
+S client
+
+Gateway
+
+HTTP messages
+
+Third-Party
+
+Duffel
+
+Flight Server
+
+Figure 12: Interactions with Duffel API
+
+Our application is built as an Elixir module, called FlightSystem, which interacts with the
+Duffel Flight Server, as shown in Figure 12. The module consists of a client which can request
+
+25
+
+
+to book flights from the Duffel Server. This server can only accept HTTP messages (e.g., GET
+or POST requests), so we use a gateway which acts as a middleman between the client and the
+third-party server.
+
+From the Duffel API documentation,5 we can get a list of API calls that can be made, along
+with their details. Thus, we can infer an order (i.e., a protocol) of calls that need to be in-
+voked in the correct order, to achieve what we want. For instance, we consider a client that
+searches and books a flight. Concretely, the client has to interact with several endnodes, includ-
+ing \offer requests, \offers and \orders, in a correct order. This order of interaction is
+formalised in the S client protocol which is then used by ElixirST to ensure that a client process
+follows it, thus interacting safely (via a gateway process which converts the requests to HTTP
+messages) with the Duffel server.
+
+!cancel()
+
+?offer
+
+!request
+
+!more details().&
+
+(cid:0)origin: binary, destination: binary,
+dep date: binary, class: atom, pass no: number(cid:1).S offers,
+(cid:0)offer no: number, total amount: number,
+stops: number, segments: binary(cid:1).S details,
+?details(. . . ). ⊕
+!make booking(. . . ).
+
+currency: binary, duration: number,
+
+?error(binary).S client
+
+?error(binary)
+
+&{?ok(. . . ), ?error(binary)},
+
+!cancel()
+
+ ,
+
+,
+
+S client = ⊕
+
+S offers = rec Y . &
+
+S details = ⊕
+
+!reject().Y
+
+For clarity, S client is split in two: S offers and S details. Furthermore, we add labels to each
+payload type to make it more apparent what data needs to be transferred – labels are also allowed
+in ElixirST, given that labels are only used for decorative purposes. We take a brief look at
+how the client can book a flight. The interaction starts with the client making request to get the
+available flights (S client). By glancing on S client, one can get more information on what the client
+needs to include the request details, such as the origin and destination locations. Note that, we
+use the binary type, which is the type for strings in Elixir. Then, the client starts receiving (and
+rejecting) one offer at a time, until the client decides to take up an offer (S offers).
+
+To learn more about the flight offer, the client sends a request to get more details (e.g., op-
+erating airline and updated price), and awaits the results (S details). Once the details are received,
+the client can decide to either cancel the order, or book the flight.
+In case of the latter, the
+booking will be finalised after the client receives back a confirmation code. Throughout this in-
+teraction, the server may reply with an error message, which the client also needs to handle (i.e.,
+?error(binary)).
+
+1
+2
+3
+4
+
+defmodule FlightSystem do
+
+use ElixirST
+
+@session "S_client =
+
++{!request(origin: binary, destination: binary...}"
+
+5https://duffel.com/docs/api/overview/welcome
+26
+
+
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+
+@spec client(g_pid, binary, binary, binary, atom, number) :: :ok
+def client(g_pid, origin, destination, dep_date, class, pas_no) do
+
+send(g_pid, {:request, origin, destination, dep_date, class, pas_no})
+IO.puts("Sending request for a flight from #{origin} to...")
+IO.puts("Waiting for a response from the server...")
+
+consume_offer(g_pid)
+
+end
+
+@spec consume_offer(pid) :: atom
+defp consume_offer(g_pid) do
+
+receive do
+
+{:offer, offer_no, total_amount , currency, dur, stops, segments} ->
+
+IO.puts("Offer ##{offer_no}: \n#{currency}#{total_amount}...")
+accept? = IO.gets("Accept offer ##{offer_no}? y/n: ")
+
+case accept? do
+
+"y\n" -> send(g_pid, {:more_details})
+
+IO.puts("Requesting updated details for offer...")
+...
+
+_ -> send(g_pid, {:reject})
+
+consume_offer(g_pid)
+
+end
+
+{:error, message} -> send(pid, {:cancel})
+
+end
+
+end
+
+end
+
+Listing 5: Session-typed snippet of a flight system written in Elixir
+
+This behaviour formalised by S client is applied in the module FlightSystem, which is
+shown partly in Listing 5. FlightSystem contains a public function client, a private function
+consume offer, and an omitted public function gateway. The client function is annotated
+with the session type S client, thus ElixirST ascertains that the client follows the expected behaviour
+(line 4). The client function sends a message containing :request and then it calls the private
+function consume offer. This latter function follows the remaining actions in the session type,
+i.e., S offers. The dual part of the interaction, the gateway function, should follow a compatible
+protocol, such as the dual session type, S client. This is not enforced, since the gateway function
+goes beyond the syntax defined in Section 3.3 (e.g., uses other modules to parse JSON responses,
+or uses dynamic types) which are not defined by our type system in Section 3.4. This function
+may also be inaccessible for static analysis (e.g. proprietary source code), so we assume that at
+runtime it obeys S client. Nevertheless, we can intiate a session executing both public functions
+using our session function, as follows:
+
+ElixirST.session(&FlightSystem.client/6,
+
+["MLA", "CDG", "2023-11-24", :economy, 2],
+
+&FlightSystem.gateway/1,
+
+[])
+
+ElixirST ensures that the function client/6 follows the pattern described by S client which mir-
+rors the implicit order of API requests by Duffel. For instance, if a client tries to make a booking
+before making a request containing the flight details (i.e., skipping line 7), then the order will fail;
+this will be flagged by our type system earlier on instead of being rejected by Duffel at runtime.
+
+27
+
+
+This case study shows that ElixirST is flexible and practical enough to be integrated in real-
+world applications.
+In addition to verifying statically the individual functions, by explicitly
+adding information about the interactions, we provide a source of documentation within the
+source code itself.
+
+In this case study we analysed the client side of the interaction, leaving the gateway process
+unverified, thus susceptible to behavioural issues. To fix this, we can use existing techniques,
+such as synthesising runtime monitors [21, 22, 23] for the unverified parts, similar to the work
+by Bartolo Burl`o et al. [24].
+
+7. Related Work
+
+In this section, we compare ElixirST with other type systems and implementations.
+
+7.1. Type Systems for Elixir
+
+Cassola et al. [13, 25] presented a gradual type system for Elixir. It statically typechecks
+the functional part of Elixir modules, using a gradual approach, where some terms may be left
+with an unknown expression type. In contrast to ElixirST, Cassola et al. analyse directly the
+unexpanded Elixir code which results in more explicit typechecking rules. Also, they focus on
+the static type system without formulating the operational semantics.
+
+Another static type-checker for Elixir is Gradient [26]. It is a wrapper for its Erlang coun-
+terpart tool and takes a similar approach to [13], where gradual types are used. Another project,
+TypeCheck [27], adds dynamic type validations to Elixir programs. TypeCheck performs run-
+time typechecking by wrapping checks around existing functions. Gradient and TypeCheck are
+provided as an implementation only, without any formal analysis. In contrast to ElixirST, the
+discussed type-checkers [13, 26, 27] analyse the sequential part of the Elixir language omitting
+any checks related to message-passing between processes.
+
+Some implementations aim to check issues related to message-passing. Harrison [28] stati-
+cally checks Core Erlang for such issues. For instance, it detects orphan messages (i.e., messages
+that will never be received) and unreachable receive branches. In separate work, Christakis and
+Sagonas [29] analyse Core Erlang code to construct a communication graph which depicts the
+message flow between different process. This is then used to detect errors of similar kind, e.g.
+receive constructs that never receive any messages. This work was implemented as part of
+the Dialyzer. Harrison [30] extends [28] to analyse Erlang/OTP behaviours (e.g., gen server,
+which structures processes in a hierarchical manner) by injecting runtime checks in the code.
+Compared to our work, [28, 30, 29] perform automatic analysis of the implementation, where
+they analyse send and receive primitives against each other. They analyse messages on a fine-
+grained level, which contrast with our work that uses a general protocol (e.g., session types)
+describing the full interaction within a session.
+
+Another type system for Erlang was presented by Svensson et al. [31]. Their body of work
+covers a larger subset of Erlang to what would be its equivalent in Elixir covered by our work.
+Moreover, its multi-tiered semantics captures an LTS defined over systems of concurrent actors.
+Although we opted for a smaller subset, we go beyond the pattern matching described by Svens-
+son et al. since we perform a degree of typechecking for base types (e.g.
+in the premise of
+[tBranch]).
+
+28
+
+
+7.2. Session Type Systems
+
+Closest to our work is [19], where Mostrous and Vasconcelos introduced session types to
+a fragment of Core Erlang, a dynamically typed language linked to Elixir. Their type system
+tags each message exchanged with a unique reference. This allows multiple sessions to coex-
+ist, since different messages could be matched to the corresponding session, using correlation
+sets. Mostrous and Vasconcelos take a more theoretical approach, so there is no implementation
+for [19]. Their type system guarantees session fidelity by inspecting the processes’ mailboxes
+where, at termination, no messages should be left unprocessed in their mailboxes. Our work
+takes a more restrictive but pragmatic approach, where we introduce session types for functions
+within a module. We offer additional features, including variable binding (e.g., in let statements),
+expressions (e.g., addition operation), inductive types (e.g., tuples and lists), infinite computation
+via recursion and explicit protocol definition.
+
+A session-based runtime monitoring tool for Python was initially presented by Neykova and
+Yoshida [32]. They use the Scribble [33] language to write multiparty session type (MPST) [16]
+protocols, which are then used to monitor the processes’ actions. Different processes are ascribed
+a role (defined in the MPST protocol) using function decorators (e.g. @role), which is similar to
+how we annotate functions with protocols (e.g. using @session). Similar to [32], Fowler [34]
+presented an MPST implementation for Erlang. This implementation uses Erlang/OTP be-
+haviours (e.g., gen server), which take into account Erlang’s let it crash philosophy, where
+processes may fail while executing. Neykova and Yoshida [35] extend process monitoring in
+Erlang to provide a recovery strategy for the failed processes, ensuring that all of the failed (or
+affected) processes are restarted safely. All of these Erlang tools accept a more flexible language
+than the one allowed by our work. This is done at an added runtime cost, since they flag issues at
+runtime, whereas our work provides static guarantees that flags issues at pre-deployment stages.
+Moreover, our work is able to statically analyse part of the code (and give static guarantees for
+it) without requiring access to the entire codebase.
+
+Scalas and Yoshida [36] applied binary session types to the Scala language, where session
+types are abstracted as Scala classes. Session fidelity is ensured using Scala’s compiler, which
+complains if an implementation does not follow its ascribed protocol. Bartolo Burl`o et al. [24]
+extended the aforementioned work, to monitor one side of an interaction statically and the other
+side dynamically using runtime monitors. These works relegate linearity checks to runtime. In
+contrast, ElixirST statically ensures that annotated implementations fully exhaust their associated
+protocol once. Another implementation was done by Scalas et al. [37, 38], where session types
+were added in Scala 3. This design utilises dependent function types and model checking to
+verify programs at compile-time.
+
+Harvey et al. [39] presented a new actor-based language, called EnsembleS, which offers
+session types as a native feature of the language. EnsembleS statically verifies implementations
+with respect to session types, while still allowing for adaptation of new actors at runtime, given
+that the actors obey a known protocol. Thus, actors can be terminated and discovered at runtime,
+while still maintaining static correctness.
+
+There have been several binary [40, 41] and multiparty [42, 43] session type implementations
+for Rust. These implementations exploit Rust’s affine type system to guarantee that channels
+mirror the actions prescribed by a session type. Padovani [44] created a binary session type
+library for OCaml to provide static communication guarantees. This project was extended [45]
+to include dynamic contract monitoring which flags violations at runtime. The approaches used
+in the Rust and OCaml implementations rely heavily on type-level features of the language,
+
+29
+
+
+which do not readily translate to the dynamically typed Elixir language. When we compare our
+work to the aforementioned work, we notice several limitations. ElixirST only supports a limited
+form of spawning (discussed in Section 6.2), where we constrain the number of processes in a
+single session to two processes. This contrasts to the unbounded number of parallel processes
+that are allowed in the π-calculus, where session types were first introduced [46]. Another aspect
+that we have not discussed is the lack of session delegation. ElixirST does not allow processes to
+hand over the remaining session to other processes. This stems from the approach that we use;
+our tool typechecks actors directly, whereas the aforementioned works [40, 41, 42, 43, 44, 45]
+typecheck channel endpoints that can easily be transferred between different processes.
+
+Actor-like techniques are also used in Active Objects (AO) based languages to combine the
+concept of process separation, with asynchronous method calls in object-oriented languages.
+Session types are utilised to structure method calls in such languages. For instance, Kambur-
+jan et al. [47, 48] added session types to ABS, which is an AO language that uses futures to
+resolve the results derived from method invocations. Kamburjan et al. use global protocols
+(stemming from MPSTs) to define the order of method invocation that originate from object in-
+stances. Although these global protocols are used for dynamic checking, they are also used to
+check each method statically on a more localised scale, using local types. ABS uses (abstracted)
+Erlang processes to structure their concurrent backend, similar to the backend structure used in
+our work.
+
+Actor systems are notoriously hard to analyse statically. The main reason for this is that
+actors are open to receive any kind of messages, which makes it difficult to predict or analyse
+their behaviour. Our work takes a lenient view of this, where we simply ignore malformed mes-
+sages using Elixir’s selective receive construct. On the other hand, well-formed but unsolicited
+messages can cause behavioural issues. Other works handle this by typing the actors’ mailboxes
+directly rather than their behaviour. De’Liguoro and Padovani [49] introduced a mailbox calcu-
+lus which considers mailboxes as first-class citizens. This calculus adds types to mailboxes, thus
+ensuring that processes are free from behavioural issues, such as deadlocks. Fowler et al. [50]
+built on this to implement mailbox types within a practical concurrent programming language.
+These works [47, 48, 50] are presented with an implementation for purpose-built bespoke lan-
+guages. The aims of our work are different since we start with an industry strength language
+and try to retrofit session type mechanisms so as to support the existing design patterns of the
+language.
+
+8. Conclusion
+
+In this work we established a correspondence between the ElixirST type system [7] and the
+runtime behaviour of a client handler running an Elixir module function that has been type-
+checked w.r.t.
+its session type protocol. In particular, we showed that this session-based type
+system observes the standard session fidelity property, meaning that processes executing a typed
+function always follow their ascribed protocols at runtime. This property provides the neces-
+sary underlying guarantees to attain various forms of communication safety, whereby should two
+processes following mutually compatible protocols (e.g. S and its dual S ), they avoid certain
+communication errors (e.g., a send statement without a corresponding receive construct).
+
+Future work. There are a number of avenues we intend to pursue. One line of investigation is
+the augmentation of protocols that talk about multiple entry points to a module perhaps from
+the point of view of a client that is engaged in multiple sessions at one time, possibly involving
+
+30
+
+
+multiple modules. The obvious starting points to look at here are the well-established notions of
+multiparty session types [16, 38] or the body of work on intuitionistic session types organising
+processes hierarchically [51, 18]. Another natural extension to our work would be to augment
+our session type protocol in such a way to account for process failure and supervisors, which
+is a core part of the Elixir programming model. For this, we will look at previous work on
+process/session type extensions that account for failure [52, 53, 39, 54, 55, 56, 57]. We also
+plan to augment our session typed protocols to account for resource usage and cost, along the
+lines of [58, 59]. It should also be relatively straightforward to integrate the elaborate expression
+typechecking mechanisms developed by Castagna et al. [60] to replace our (limited) expression
+typing in Figure 5. This would considerably enhance the expressivity of our framework to handle
+a wider range of Elixir programs.
+
+References
+[1] D. Thomas, Programming Elixir: Functional, Concurrent, Pragmatic, Fun, Pragmatic Bookshelf, 2018.
+[2] C. Hewitt, P. B. Bishop, R. Steiger, A universal modular ACTOR formalism for artificial intelligence,
+
+in: N. J.
+Nilsson (Ed.), Proceedings of the 3rd International Joint Conference on Artificial Intelligence. Standford, CA,
+USA, August 20-23, 1973, William Kaufmann, 1973, pp. 235–245.
+
+[3] G. A. Agha, ACTORS - a model of concurrent computation in distributed systems, MIT Press series in artificial
+
+intelligence, MIT Press, 1990.
+
+[4] J. L. Andersen, etorrent, GitHub repository, 2013. URL: https://github.com/jlouis/etorrent.
+[5] ninenines, Cowboy, GitHub repository, 2022. URL: https://github.com/ninenines/cowboy.
+[6] D. C. Schmidt, S. Vinoski, Object interconnections comparing alternative programming techniques for multi-
+
+threaded CORBa servers (column 7), 1996.
+
+[7] G. Tabone, A. Francalanza, Session Types in Elixir, in: E. Castegren, J. D. Koster, S. Fowler (Eds.), Proceedings
+of the 11th ACM SIGPLAN International Workshop on Programming Based on Actors, Agents, and Decentralized
+Control, AGERE 2021, Virtual Event / Chicago, IL, USA, 17 October 2021, ACM, 2021, pp. 12–23. doi:10.1145/
+3486601.3486708.
+
+[8] G. Tabone, A. Francalanza, Session Fidelity for ElixirST: A Session-Based Type System for Elixir Modules, in:
+C. Aubert, C. Di Giusto, L. Safina, A. Scalas (Eds.), Proceedings 15th Interaction and Concurrency Experience,
+ICE 2022, Lucca, Italy, 17 June 2022, volume 365 of EPTCS, 2022, pp. 17–36. doi:10.4204/EPTCS.365.2.
+
+[9] S. Nystr¨om, A soft-typing system for erlang, in: B. D¨acker, T. Arts (Eds.), Proceedings of the 2003 ACM SIGPLAN
+Workshop on Erlang, Uppsala, Sweden, August 29, 2003, ACM, 2003, pp. 56–71. doi:10.1145/940880.940888.
+
+[10] B. C. Pierce, Types and Programming Languages, MIT Press, 2002.
+[11] T. Lindahl, K. Sagonas, Practical type inference based on success typings,
+
+in: A. Bossi, M. J. Maher (Eds.),
+Proceedings of the 8th International ACM SIGPLAN Conference on Principles and Practice of Declarative Pro-
+gramming, July 10-12, 2006, Venice, Italy, ACM, 2006, pp. 167–178. doi:10.1145/1140335.1140356.
+
+[12] R. Atkey,
+
+Parameterised notions of computation,
+
+J. Funct. Program. 19 (2009) 335–376. doi:10.1017/
+
+S095679680900728X.
+
+[13] M. Cassola, A. Talagorria, A. Pardo, M. Viera, A gradual type system for Elixir, Journal of Computer Languages
+
+68 (2022) 101077. doi:10.1016/j.cola.2021.101077.
+
+[14] R. M. Keller, Formal verification of parallel programs, Commun. ACM 19 (1976) 371–384. doi:10.1145/
+
+360248.360251.
+
+1145/2827695.
+
+[15] L. Caires, F. Pfenning, Session types as intuitionistic linear propositions, in: CONCUR 2010 - Concurrency Theory,
+21th International Conference, CONCUR 2010, Paris, France, August 31-September 3, 2010. Proceedings, 2010,
+pp. 222–236. doi:10.1007/978-3-642-15375-4_16.
+
+[16] K. Honda, N. Yoshida, M. Carbone, Multiparty asynchronous session types, J. ACM 63 (2016) 9:1–9:67. doi:10.
+
+[17] C. MacCord, Metaprogramming Elixir - Write Less Code, Get More Done (and Have Fun!, The Pragmatic Pro-
+
+grammers, O’Reilly, 2015. URL: http://www.oreilly.de/catalog/9781680500417/index.html.
+
+[18] K. Pruiksma, F. Pfenning, Back to futures,
+
+Journal of Functional Programming 32 (2022) e6. doi:10.1017/
+
+S0956796822000016.
+
+[19] D. Mostrous, V. T. Vasconcelos, Session typing for a featherweight erlang, in: W. D. Meuter, G. Roman (Eds.),
+Coordination Models and Languages - 13th International Conference, COORDINATION 2011, Reykjavik, Iceland,
+June 6-9, 2011. Proceedings, volume 6721 of Lecture Notes in Computer Science, Springer, 2011, pp. 95–109.
+doi:10.1007/978-3-642-21464-6_7.
+
+31
+
+
+[20] Duffel Technology Ltd, Duffel, 2023. URL: https://duffel.com/.
+[21] A. Francalanza, A. Seychell, Synthesising correct concurrent runtime monitors, Formal Methods Syst. Des. 46
+
+(2015) 226–261. doi:10.1007/s10703-014-0217-9.
+
+[22] A. Francalanza, A Theory of Monitors, Inf. Comput. 281 (2021) 104704. doi:10.1016/j.ic.2021.104704.
+[23] L. Aceto, I. Cassar, A. Francalanza, A. Ing´olfsd´ottir, Bidirectional runtime enforcement of first-order branching-
+
+time properties, Log. Methods Comput. Sci. 19 (2023). doi:10.46298/lmcs-19(1:14)2023.
+
+[24] C. Bartolo Burl`o, A. Francalanza, A. Scalas, On the monitorability of session types, in theory and practice,
+
+in:
+A. Møller, M. Sridharan (Eds.), 35th European Conference on Object-Oriented Programming, ECOOP 2021, July
+11-17, 2021, Aarhus, Denmark (Virtual Conference), volume 194 of LIPIcs, Schloss Dagstuhl - Leibniz-Zentrum
+f¨ur Informatik, 2021, pp. 20:1–20:30. doi:10.4230/LIPIcs.ECOOP.2021.20.
+
+[25] M. Cassola, A. Talagorria, A. Pardo, M. Viera, A gradual type system for elixir, Proceedings of the 24th Brazil-
+ian Symposium on Context-Oriented Programming and Advanced Modularity (2020). doi:10.1145/3427081.
+3427084.
+
+[26] Erlang Solutions, Gradient, GitHub repository, 2022. URL: https://github.com/esl/gradient.
+[27] W.-M. Wijnja, Typecheck: Fast and flexible runtime type-checking for your elixir projects, GitHub repository,
+
+2022. URL: https://github.com/Qqwy/elixir-type_check.
+
+[28] J. Harrison, Automatic detection of core erlang message passing errors, in: N. Chechina, A. Francalanza (Eds.),
+Proceedings of the 17th ACM SIGPLAN International Workshop on Erlang, ICFP 2018, St. Louis, MO, USA,
+September 23-29, 2018, ACM, 2018, pp. 37–48. doi:10.1145/3239332.3242765.
+
+[29] M. Christakis, K. Sagonas, Detection of asynchronous message passing errors using static analysis, in: R. Rocha,
+J. Launchbury (Eds.), Practical Aspects of Declarative Languages - 13th International Symposium, PADL 2011,
+Austin, TX, USA, January 24-25, 2011. Proceedings, volume 6539 of Lecture Notes in Computer Science, Springer,
+2011, pp. 5–18. doi:10.1007/978-3-642-18378-2_3.
+
+[30] J. Harrison, Runtime type safety for Erlang/OTP behaviours, in: A. Francalanza, V. F¨ord´os (Eds.), Proceedings
+of the 18th ACM SIGPLAN International Workshop on Erlang, Erlang@ICFP 2019, Berlin, Germany, August 18,
+2019, ACM, 2019, pp. 36–47. doi:10.1145/3331542.3342571.
+
+[31] H. Svensson, L. Fredlund, C. B. Earle, A unified semantics for future erlang, in: S. L. Fritchie, K. Sagonas (Eds.),
+Proceedings of the 9th ACM SIGPLAN workshop on Erlang, Baltimore, Maryland, USA, September 30, 2010,
+ACM, 2010, pp. 23–32. doi:10.1145/1863509.1863514.
+
+[32] R. Neykova, N. Yoshida, Multiparty session actors, Log. Methods Comput. Sci. 13 (2017). doi:10.23638/
+
+LMCS-13(1:17)2017.
+
+[33] K. Honda, A. Mukhamedov, G. Brown, T. Chen, N. Yoshida, Scribbling Interactions with a Formal Foundation,
+in: R. Natarajan, A. K. Ojo (Eds.), Distributed Computing and Internet Technology - 7th International Confer-
+ence, ICDCIT 2011, Bhubaneshwar, India, February 9-12, 2011. Proceedings, volume 6536 of Lecture Notes in
+Computer Science, Springer, 2011, pp. 55–75. doi:10.1007/978-3-642-19056-8_4.
+
+[34] S. Fowler, An Erlang implementation of multiparty session actors, in: M. Bartoletti, L. Henrio, S. Knight, H. T.
+Vieira (Eds.), Proceedings 9th Interaction and Concurrency Experience, ICE 2016, Heraklion, Greece, 8-9 June
+2016, volume 223 of EPTCS, 2016, pp. 36–50. doi:10.4204/EPTCS.223.3.
+
+[35] R. Neykova, N. Yoshida, Let it recover: Multiparty protocol-induced recovery,
+
+in: Proceedings of the 26th
+International Conference on Compiler Construction, CC 2017, Association for Computing Machinery, New York,
+NY, USA, 2017, p. 98–108. doi:10.1145/3033019.3033031.
+
+[36] A. Scalas, N. Yoshida, Lightweight session programming in scala, in: S. Krishnamurthi, B. S. Lerner (Eds.), 30th
+European Conference on Object-Oriented Programming, ECOOP 2016, July 18-22, 2016, Rome, Italy, volume 56
+of LIPIcs, Schloss Dagstuhl - Leibniz-Zentrum f¨ur Informatik, 2016, pp. 21:1–21:28. doi:10.4230/LIPIcs.
+ECOOP.2016.21.
+
+[37] A. Scalas, N. Yoshida, E. Benussi, Effpi: verified message-passing programs in Dotty,
+
+in: J. I. Brachth¨auser,
+S. Ryu, N. Nystrom (Eds.), Proceedings of the Tenth ACM SIGPLAN Symposium on Scala, Scala@ECOOP 2019,
+London, UK, July 17, 2019, ACM, 2019, pp. 27–31. doi:10.1145/3337932.3338812.
+
+[38] A. Scalas, N. Yoshida, E. Benussi, Verifying message-passing programs with dependent behavioural types,
+
+in:
+K. S. McKinley, K. Fisher (Eds.), Proceedings of the 40th ACM SIGPLAN Conference on Programming Language
+Design and Implementation, PLDI 2019, Phoenix, AZ, USA, June 22-26, 2019, ACM, 2019, pp. 502–516. doi:10.
+1145/3314221.3322484.
+
+[39] P. Harvey, S. Fowler, O. Dardha, S. J. Gay, Multiparty session types for safe runtime adaptation in an actor language,
+in: A. Møller, M. Sridharan (Eds.), 35th European Conference on Object-Oriented Programming, ECOOP 2021,
+July 11-17, 2021, Aarhus, Denmark (Virtual Conference), volume 194 of LIPIcs, Schloss Dagstuhl - Leibniz-
+Zentrum f¨ur Informatik, 2021, pp. 10:1–10:30. doi:10.4230/LIPIcs.ECOOP.2021.10.
+
+[40] T. B. L. Jespersen, P. Munksgaard, K. F. Larsen, Session types for rust, in: P. Bahr, S. Erdweg (Eds.), Proceedings
+of the 11th ACM SIGPLAN Workshop on Generic Programming, WGP@ICFP 2015, Vancouver, BC, Canada,
+August 30, 2015, ACM, 2015, pp. 13–22. doi:10.1145/2808098.2808100.
+
+32
+
+
+[41] W. Kokke, Rusty variation: Deadlock-free sessions with failure in rust, in: M. Bartoletti, L. Henrio, A. Mavridou,
+A. Scalas (Eds.), Proceedings 12th Interaction and Concurrency Experience, ICE 2019, Copenhagen, Denmark,
+20-21 June 2019, volume 304 of EPTCS, 2019, pp. 48–60. doi:10.4204/EPTCS.304.4.
+
+[42] N. Lagaillardie, R. Neykova, N. Yoshida, Implementing multiparty session types in rust, in: S. Bliudze, L. Boc-
+chi (Eds.), Coordination Models and Languages - 22nd IFIP WG 6.1 International Conference, COORDINATION
+2020, Held as Part of the 15th International Federated Conference on Distributed Computing Techniques, Dis-
+CoTec 2020, Valletta, Malta, June 15-19, 2020, Proceedings, volume 12134 of Lecture Notes in Computer Science,
+Springer, 2020, pp. 127–136. doi:10.1007/978-3-030-50029-0_8.
+
+[43] Z. Cutner, N. Yoshida, Safe session-based asynchronous coordination in rust, in: F. Damiani, O. Dardha (Eds.),
+Coordination Models and Languages - 23rd IFIP WG 6.1 International Conference, COORDINATION 2021, Held
+as Part of the 16th International Federated Conference on Distributed Computing Techniques, DisCoTec 2021,
+Valletta, Malta, June 14-18, 2021, Proceedings, volume 12717 of Lecture Notes in Computer Science, Springer,
+2021, pp. 80–89. doi:10.1007/978-3-030-78142-2_5.
+
+[44] L. Padovani, A simple library implementation of binary sessions, J. Funct. Program. 27 (2017) e4. doi:10.1017/
+
+[45] H. C. Melgratti, L. Padovani, Chaperone contracts for higher-order sessions, Proc. ACM Program. Lang. 1 (2017)
+
+S0956796816000289.
+
+35:1–35:29. doi:10.1145/3110279.
+
+[46] K. Honda, V. T. Vasconcelos, M. Kubo, Language primitives and type discipline for structured communication-
+based programming,
+in: Programming Languages and Systems: 7th European Symposium on Programming,
+ESOP’98 Held as Part of the Joint European Conferences on Theory and Practice of Software, ETAPS’98 Lisbon,
+Portugal, March 28–April 4, 1998 Proceedings 7, Springer, 1998, pp. 122–138. doi:10.1007/BFb0053567.
+
+[47] E. Kamburjan, C. C. Din, T. Chen, Session-based compositional analysis for actor-based languages using futures,
+in: K. Ogata, M. Lawford, S. Liu (Eds.), Formal Methods and Software Engineering - 18th International Conference
+on Formal Engineering Methods, ICFEM 2016, Tokyo, Japan, November 14-18, 2016, Proceedings, volume 10009
+of Lecture Notes in Computer Science, 2016, pp. 296–312. doi:10.1007/978-3-319-47846-3_19.
+
+[48] R. H¨ahnle, A. W. Haubner, E. Kamburjan, Locally static, globally dynamic session types for active objects, in: F. S.
+de Boer, J. Mauro (Eds.), Recent Developments in the Design and Implementation of Programming Languages,
+Gabbrielli’s Festschrift, November 27, 2020, Bologna, Italy, volume 86 of OASIcs, Schloss Dagstuhl - Leibniz-
+Zentrum f¨ur Informatik, 2020, pp. 1:1–1:24. doi:10.4230/OASIcs.Gabbrielli.1.
+
+[49] U. de’Liguoro, L. Padovani, Mailbox types for unordered interactions, in: T. D. Millstein (Ed.), 32nd European
+Conference on Object-Oriented Programming, ECOOP 2018, July 16-21, 2018, Amsterdam, The Netherlands,
+volume 109 of LIPIcs, Schloss Dagstuhl - Leibniz-Zentrum f¨ur Informatik, 2018, pp. 15:1–15:28. doi:10.4230/
+LIPIcs.ECOOP.2018.15.
+
+[50] S. Fowler, D. P. Attard, F. Sowul, S. J. Gay, P. Trinder, Special delivery: Programming with mailbox types, Proc.
+
+[51] S. Balzer, F. Pfenning, Manifest sharing with session types, Proc. ACM Program. Lang. 1 (2017) 37:1–37:29.
+
+[52] A. Francalanza, M. Hennessy, A Theory for Observational Fault Tolerance, J. Log. Algebraic Methods Program.
+
+[53] A. Francalanza, M. Hennessy, A Theory of System Behaviour in the Presence of Node and Link Failure,
+
+Inf.
+
+ACM Program. Lang. (2023).
+
+doi:10.1145/3110281.
+
+73 (2007) 22–50.
+
+Comput. 206 (2008) 711–759.
+
+[54] L. Bocchi, J. Lange, S. Thompson, A. L. Voinea, A model of actors and grey failures,
+
+in: COORDINATION,
+
+volume 13271 of Lecture Notes in Computer Science, Springer, 2022, pp. 140–158.
+
+[55] K. Peters, U. Nestmann, C. Wagner, Fault-tolerant multiparty session types, in: FORTE, volume 13273 of Lecture
+
+Notes in Computer Science, Springer, 2022, pp. 93–113.
+
+[56] A. D. Barwell, A. Scalas, N. Yoshida, F. Zhou, Generalised multiparty session types with crash-stop failures, in:
+
+CONCUR, volume 243 of LIPIcs, Schloss Dagstuhl - Leibniz-Zentrum f¨ur Informatik, 2022, pp. 35:1–35:25.
+
+[57] M. A. L. Brun, O. Dardha, Magπ: Types for failure-prone communication, in: ESOP, volume 13990 of Lecture
+
+Notes in Computer Science, Springer, 2023, pp. 363–391.
+
+[58] A. Das, J. Hoffmann, F. Pfenning, Work analysis with resource-aware session types, in: A. Dawar, E. Gr¨adel (Eds.),
+Proceedings of the 33rd Annual ACM/IEEE Symposium on Logic in Computer Science, LICS 2018, Oxford, UK,
+July 09-12, 2018, ACM, 2018, pp. 305–314. doi:10.1145/3209108.3209146.
+
+[59] A. Francalanza, E. de Vries, M. Hennessy, Compositional reasoning for explicit resource management in channel-
+
+based concurrency, Log. Methods Comput. Sci. 10 (2014). doi:10.2168/LMCS-10(2:15)2014.
+
+[60] G. Castagna, G. Duboc, J. Valim, The design principles of the elixir type system, CoRR abs/2306.06391 (2023).
+
+33
+
+
+
+
+
+
+fv(e) def=
+
+fv(t) def=
+
+{x}
+∅
+fv(e1) ∪ fv(e2)
+fv(e′)
+∪i∈1..nfv(ei)
+fv(t1) ∪ (fv(t2) \ {x})
+∪i∈I[fv(ti) \ vars((cid:101)pi)]
+∪i∈1..nfv(ei) ∪ fv(w)
+∪i∈2..nfv(ei) ∪ fv(w)
+∪i∈I[fv(ti) \ vars(pi)] ∪ fv(e)
+
+Definition A.2 (Bound Variables).
+
+bv(t) def=
+
+∅
+∪i∈I[bv(ti) ∪ vars((cid:101)pi)]
+{x} ∪ bv(t1) ∪ bv(t2)
+∪i∈I[bv(ti) ∪ vars(pi)]
+Definition A.3 (Variable Substitution).
+
+e = x
+e = b
+e = e1 ⋄ e2 or e = [ e1 | e2 ]
+e = not e′
+e = {e1, . . . , en}
+
+t = (x = t1; t2)
+t = receive do ({:li,(cid:101)pi} → ti)i∈Iend
+t = send (w,{:l, e1, . . . , en})
+t = f (w, e2, . . . , en)
+t = case e do (pi → ti)i∈Iend
+t = e or t = send (w,{:l,(cid:101)e}) or t = f ((cid:101)e)
+t = receive do ({:li,(cid:101)pi} → ti)i∈Iend
+t = (x = t1; t2)
+t = case e do (pi → ti)i∈Iend
+
+A. Additional Definitions
+
+In this appendix, we formalise some auxiliary definitions that are used in Sections 3–5 and
+
+Appendix B.
+
+Definition A.1 (Free Variables). The set of free variables is defined inductively as:
+
+■
+
+■
+
+■
+
+
+
+
+e [v/x] def=
+
+t [v/x] def=
+
+v
+y
+b
+e1 [v/x] ⋄ e2 [v/x]
+not (e′ [v/x])
+[ e1 [v/x] | e2 [v/x] ]
+{e1 [v/x] , . . . , en [v/x]}
+receive do ({li,(cid:101)pi} → ti [v/x])i∈Iend
+send (w [v/x] ,{: l, e1 [v/x] , . . . , en [v/x]})
+f (e1 [v/x] , . . . , en [v/x])
+case e [v/x] do (pi → ti [v/x])i∈Iend
+y = t1 [v/x] ; t2 [v/x]
+
+e = x
+e = y, y (cid:44) x
+e = b
+e = e1 ⋄ e2
+e = not e′
+e = [ e1 | e2 ]
+e = {e1, . . . , en}
+t = receive do ({li,(cid:101)pi} → ti)i∈Iend
+t = send (w,{: l, e1, . . . , en})
+t = f (e1, . . . , en)
+t = case e do (pi → ti)i∈Iend
+t = (y = t1; t2), x (cid:44) y, y (cid:44) v
+
+34
+
+
+Definition A.4 (Type). This partial function defines the types of basic values.
+
+type(boolean) def= boolean
+
+type(number) def= number
+
+type(atom) def= atom
+
+type(ι) def= pid, where ι is a pid instance
+
+■
+
+Definition A.5 (Variable Patterns). Computes an ordered set of variables from a given pattern p.
+
+vars((cid:101)p) def= vars(p1, . . . , pn) def= vars(p1) ∪ ··· ∪ vars(pn)
+
+p = b
+p = x
+p = [ w1 | w2 ]
+p = {w1, . . . , wn}
+
+vars(p) def=
+
+∅
+{x}
+vars(w1) ∪ vars(w2)
+∪i∈1..nvars(wi)
+
+
+dual = y, params =(cid:101)x,
+param types =(cid:101)T ,
+
+■
+
+■
+
+■
+
+(P) functions.
+
+ f/n :
+
+Definition A.6 (Function Details). We can extract function details (i.e., params, body,
+
+param types, return type, dual) from a list of functions ((cid:101)Q) and build a mapping, using
+set-comprehension, as follows. The list of functions ((cid:101)Q) may consist of public (D) and private
+[@session “S ”]
+ ∈ (cid:101)Q
+
+(cid:16)
+(cid:17)
+details((cid:101)Q) def=
+pid,(cid:101)T
+def[p] f (y,(cid:101)x) do t end
+((cid:101)D) as input, and returns a set of all public function names and their arity.
+@session . . . ; @spec . . .
+
+Definition A.7 (Functions Names and Arity). This definition takes the set of all public function
+
+functions((cid:101)D) def=
+
+return type = T, body = t
+
+ ∈ (cid:101)D
+
+
+
+ f/n
+
+@spec f
+
+:: T
+
+def f (y, x2, . . . , xn) do t end
+
+
+
+(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)
+
+(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)
+
+Definition A.8 (All Session Types). The function sessions((cid:101)D), returns the session type corre-
+
+sponding to each annotated public function.
+
+sessions((cid:101)D) def=
+
+ f/n : S
+
+(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)(cid:12)
+
+@session “S ”; @spec . . .
+
+def f (y, x2, . . . , xn) do t end
+
+ ∈ (cid:101)D
+
+
+
+In case the @dual annotation is used instead of @session, the dual session type is computed
+■
+automatically.
+
+B. Proofs
+
+In this appendix, we present the complete proofs of Proposition 1, Theorems 2 and 4, which
+
+were omitted from the main text.
+
+35
+
+
+B.1. Proofs for Proposition 1
+
+Before proving Proposition 1, we must analyse some properties related to closed terms, where
+we see how they affect variable substitutions (Definition A.3). Lemma 5 states that if a variable
+x does not exist inside a term t, then, if we initiate x with some value, term t must remain
+unaffected, i.e., t [v/x] = t. Restricting this statement, Corollary 6 states that, if x is not a free
+variable in t, then the same result should hold. Lemma 7 consists of two statements that compare
+the free variables in terms (or expressions) with those that include a substitution.
+Lemma 5. x (cid:60) fv(t) ∪ bv(t) implies t [v/x] = t
+Proof. By induction on the structure of t.
+
+Corollary 6. x (cid:60) fv(t) implies t [v/x] = t
+
+Proof. A consequence of Lemma 5.
+
+Lemma 7.
+i. x ∈ fv(t) implies fv(t [v/x]) = fv(t) \ {x}
+ii. x ∈ fv(e) implies fv(e [v/x]) = fv(e) \ {x}
+
+Proof. By induction on the structures of t and e for Items i and ii respectively.
+Lemma 8. match(p, v) = [v1, . . . , vn/x1, . . . , xn], implies vars(p) = {x1, . . . , xn}
+Proof. By induction on the structure of p.
+
+[p = b] The function match(b, v) succeeds only when v = b. So, by the match definition, when
+
+v = b,
+
+(B.1a)
+By the vars definition, vars(b) = ∅, which matches the result from eq. (B.1a) since no
+variables where substituted.
+
+match(b, b) = [ ]
+
+[p = x] By the match definition, for any v,
+
+(B.1b)
+By the vars definition, vars(x) = {x}, which matches the variable in the substitution of
+eq. (B.1b).
+
+match(x, v) = [v/x]
+
+[p = [ w1 | w2 ]] By the match definition, for v = [ v1 | v2 ],
+match(w1, v1) = [(cid:101)v1/(cid:101)x1]
+match(w2, v2) = [(cid:101)v2/(cid:101)x2]
+
+match(p, v) = match(w1, v1), match(w2, v2) = [(cid:101)v1/(cid:101)x1] [(cid:101)v2/(cid:101)x2] where
+
+(B.1c)
+(B.1d)
+(B.1e)
+
+36
+
+
+By case analysis of w1 and w2 from eqs. (B.1d) and (B.1e), we conclude that
+
+vars(w1) = {(cid:101)x1}
+vars(w2) = {(cid:101)x2}
+
+We need to show that vars([ w1 | w2 ]) = {(cid:101)x1,(cid:101)x2}. By the vars definition and eqs. (B.1f)
+and (B.1g), vars([ w1 | w2 ]) = vars((cid:101)x1) ∪ vars((cid:101)x2) = {(cid:101)x1} ∪ {(cid:101)x2}. This result matches the
+
+(B.1f)
+(B.1g)
+
+variables in the substitutions of eq. (B.1c).
+[p = {w1, . . . , wn}] Similar to the previous case.
+Lemma 9 (Closed Expression). fv(e) = ∅ and e → e′ implies fv(e′) = ∅
+Proof. By induction on the structure of e.
+
+Lemmata 5–9 allow us to prove Closed Term Proposition (Proposition 1). By this proposition,
+we can say that a closed term t remains closed, even after t transitions to some new term t′,
+producing an action α. Lemma 9 is analogous; it states that expressions remain closed after
+reductions.
+Proposition 1 (Closed Term). If fv(t) = ∅ and t α−→ t′, then fv(t′) = ∅
+Proof. By induction on the structure of t.
+
+[t = e] Holds immediately by the rule [rExpression] and the Closed Expression Lemma.
+[t = (x = t1; t2)] Given that current structure of t, we can derive t α−→ t′ using two cases:
+
+1. [rLet1] From the rule, t′ = (x = t′
+
+1; t2) and
+
+(B.2a)
+From the premise, fv(t) = ∅, so by the fv definition, fv(t1) ∪ (fv(t2) \ {x}) = ∅, or
+equivalently
+
+t1
+
+1
+
+α−→ t′
+
+fv(t1) = ∅
+
+fv(t2) \ {x} = ∅
+
+(B.2b)
+(B.2c)
+
+If we apply the inductive hypothesis to eqs. (B.2a) and (B.2b), we get
+
+fv(t′
+
+1) = ∅
+
+So, by eqs. (B.2c) and (B.2d) and the definition of fv, we get fv(x = t′
+1;
+required.
+Variables Definition, fv(v) ∪ (fv(t2) \ {x}) = ∅, or equivalently
+
+(B.2d)
+t2) = ∅ as
+t2) and t′ = t2 [v/x]. Since fv(t) = ∅, by the Free
+
+2. [rLet2] From the rule, t = (x = v;
+
+fv(v) = ∅
+
+fv(t2) \ {x} = ∅
+
+(B.2e)
+(B.2f)
+
+We need to show that fv(t′) = ∅, or fv(t2 [v/x]) = ∅, so we consider two sub-cases:
+
+37
+
+
+in fv(t2 [v/x]) = ∅, as required.
+
+a. If x (cid:60) fv(t2), then by Corollary 6, t2 = t2 [v/x]. Substituting this in eq. (B.2f), results
+b. If x ∈ fv(t2), then by Lemma 7, we get fv(t2 [v/x]) = fv(t2) \ {x}. If we substitute this
+
+in eq. (B.2f), the case holds.
+
+[t = send (w,{:l, e1, . . . , en})] Given that current structure of t, we can derive t α−→ t′ using
+
+two cases:
+1. [rChoice1] From this rule, we know that α = τ and
+
+(cid:16)
+
+(cid:110)
+:l, v1, . . . , vk−1, e′
+
+t′ = send
+
+ι,
+
+(cid:111)(cid:17)
+
+(B.3a)
+
+k, . . . , en
+
+ek → e′
+
+k
+
+Since fv(t) = ∅, then by the fv definition
+
+fv(ι) = ∅
+
+fv(vi) = ∅ for i ∈ 1..k − 1
+fv(ei) = ∅ for i ∈ k..n
+
+(B.3b)
+(B.3c)
+(B.3d)
+Applying the Closed Expression Lemma to eqs. (B.3a) and (B.3d), results in fv(ek) = ∅.
+Using this information along with eqs. (B.3b–d) and the fv definition, results in fv(t′) =
+∅ as required.
+2. [rChoice2] In this case t = {:l, v1, . . . , vn} and t′ = {:lµ, v1, . . . , vn}. Since from the
+premise fv(t) = ∅, then using the fv definition,
+
+fv(ι) = ∅,
+
+fv(vi) = ∅ for i ∈ 1..n
+
+(B.3e)
+
+[t = receive do
+fv definition,
+
+To show that fv({:lµ, v1, . . . , vn}) = ∅, we can apply eq. (B.3e) to the fv definition.
+
+(cid:1)
+i∈I end] From the premise, we know that fv(t) = ∅, so by the
+fv(ti) \ vars((cid:101)pi) = ∅
+(B.4a)
+
+for all i ∈ I
+
+(cid:110)
+Given that current structure of t, we can deduce t α−→ t′ using [rBranch], where α =
+?
+
+:l j, v1, . . . , vn
+
+(cid:0){:li,(cid:101)pi} → ti
+(cid:111)
+
+1, . . . , v′
+
+k/x1, . . . , xk]
+
+(B.4b)
+
+for some j ∈ I, and
+match((cid:101)p j,(cid:101)v) = σ where σ = [v′
+
+t′ = t jσ
+From eq. (B.4b), we can apply Lemma 8 to get
+
+vars((cid:101)p j) = {x1, . . . , xk}
+
+(B.4c)
+Substituting eq. (B.4c) in eq. (B.4a) (for i = j), we get fv(t j) \ {x1,
+. . . , xk} = ∅. Our
+aim is to get t jσ = ∅, so we check if x ∈ fv(t j). If this is valid, then by Lemma 7, we can
+. . . , xk} = ∅. In case when x (cid:60) fv(t j), the same can be
+conclude that fv(t j [v′
+concluded by Corollary 6. Applying the same procedure for a total of k times, results in
+fv(t j [v′
+
+k/x1, . . . , xk]) = ∅, as required.
+
+1/x1]) \ {x2,
+
+1, . . . , v′
+
+38
+
+
+Since fv(t) = ∅, then by the fv definition,
+
+fv(vi) = ∅
+fv(ei) = ∅
+
+for all i ∈ 1..k − 1
+for all i ∈ k..n
+
+ek → e′
+
+k
+
+fv(ek) = ∅
+
+(B.5a)
+
+(B.5b)
+(B.5c)
+
+(B.5d)
+
+[t = f (w, e2, , . . . , en)] Given the current structure of t, we can derive t α−→ t′ using two cases:
+
+1. [rCall1] From this rule, we know that α = τ, t = f (v1, . . . , vk−1, ek, . . . , en),
+
+t′ = f
+
+v1, . . . , vk−1, e′
+
+k, . . . , en
+
+and
+
+(cid:16)
+
+(cid:17)
+
+Applying the Closed Expression Lemma to eqs. (B.5a) and (B.5c) (for i = k), we get
+
+So, using the fv definition with eqs. (B.5b–d), result fv(t′) = ∅ holds as expected.
+
+2. [rCall2] From the rule, we know that α = f/n and
+
+t = f (ι, v2, . . . , vn)
+
+t′ = ¯t [ι/y] [v2, . . . , vn/x2, . . . , xn]
+
+(B.5e)
+
+Σ ( f/n) = Ω
+
+Ω.body = t
+
+Ω.params = x2, . . . , xn
+
+Ω.dual = y
+
+(B.5f)
+
+Since term reduction can only happen with respect to a well-formed function informa-
+tion environment Σ, we can assume that the only free variables in a function body are
+the parameter types, or formally, for all f/n ∈ dom(Σ), we have
+
+(cid:1) \(cid:0)Σ( f/n).params ∪ {Σ( f/n).dual}(cid:1) = ∅
+
+fv(cid:0)Σ( f/n).body
+
+Thus, using this information and substituting the information from eq. (B.5f), we get
+
+fv(¯t) \ {y, x2, . . . , xn} = ∅
+
+(B.5g)
+To obtain the expected result (i.e., fv(t′) = ∅), we check if y ∈ fv(¯t). If this is true,
+. . . , xn} = ∅. In case when
+then by Lemma 7, we can conclude that fv(¯t [ι/y]) \ {x2,
+x (cid:60) fv(¯t), the same can be concluded by Corollary 6. Applying the same procedure for
+k/x1, . . . , xk]) = ∅, as
+the remaining free variables (i.e., x2,
+expected.
+
+. . . , xn), we get fv(t j [v′
+
+1, . . . , v′
+
+[t = case e do (pi → ti)i∈I end] Given that current structure of t, which implicitely contains
+
+the catch-all pattern, we can derive t α−→ t′ using two cases:
+1. [rCase1] From the rule we know that t′ = case e′
+
+premise we know that
+Since fv(t) = ∅, by the fv definition, we know that
+
+e → e′
+
+do (pi → ti)i∈Iend, and from the
+
+(B.6a)
+
+fv(ti) \ vars(pi) = ∅
+fv(e) = ∅
+
+(B.6b)
+(B.6c)
+Applying Closed Expression Lemma to eqs. (B.6a) and (B.6c), results in fv(e′) = ∅.
+Thus, using this information, along with eq. (B.6b) and the fv definition, we get fv(t′) =
+∅ as needed.
+
+for all i ∈ I
+
+39
+
+
+2. [rCase2] From the rule, we know that t = case v′
+
+some j ∈ I,
+
+do (pi → ti)i∈Iend, e = v′ and for
+
+match(p j, v′) = σ where σ = [v1, . . . , vn/x1, . . . , xn]
+
+(B.6d)
+(B.6e)
+
+(B.6f)
+
+From the premise, we know that fv(t) = ∅, so by the fv definition, fv(v′) = ∅ and
+
+t′ = t jσ
+fv(ti) \ vars((cid:101)pi) = ∅
+
+for all i ∈ I
+
+From eq. (B.6d), we can apply Lemma 8, to get
+
+vars(p j) = {x1, . . . , xk}
+
+Substituting eq. (B.6g) in eq. (B.6f) (for i = j), we get fv(t j) \ {x1,
+similar reasoning from previous cases, we get fv(t′) = ∅, as required.
+
+(B.6g)
+. . . , xk} = ∅. By
+
+B.2. Proofs for Theorem 2
+
+Before proving Theorem 2, we consider some other necessary lemmata. The ∆-Weakening
+Lemma weakens (i.e., extends) the session typing environment (∆) without affecting the overall
+typing result.
+Lemma 10 (∆-Weakening). If ∆ · Γ ⊢w S ▷ t : T ◁ S ′, then (∆, ∆′) · Γ ⊢w S ▷ t : T ◁ S ′
+Proof. Follows by induction on the derivation of ∆ · Γ ⊢w S ▷ t : T ◁ S ′. We analyse the
+significant cases:
+
+[tUnknownCall] From the rule, we know that
+(∆, f/n : S ) · Γ
+Γ ⊢exp ei : Ti
+
+(B.7a)
+(B.7b)
+Applying the inductive hypothesis to eq. (B.7a) results in (∆, ∆′, f/n : S ) · Γ′ ⊢y S ▷ t :
+T ◁ S ′, where we assume that f/n (cid:60) dom(∆′). So, using the latter result, eq. (B.7b) and
+[tUnknownCall] results in (∆, ∆′) · Γ ⊢w S ▷ t : T ◁ S ′, as required.
+
+′ ⊢y S ▷ ¯t : T ◁ S ′
+for all i ∈ 2..n
+
+[tKnownCall] From the rule, we know that
+
+(B.8a)
+(B.8b)
+If we extend ∆ by ∆′, then (∆, ∆′)( f/n) = S remains valid. So, using this information, along
+with eq. (B.8b) in [tKnownCall], we get (∆, ∆′) · Γ ⊢w S ▷ t : T ◁ end, as required.
+
+for all i ∈ 2..n
+
+Γ ⊢exp ei : Ti
+
+∆ ( f/n) = S
+
+Cases [tChoice] and [tExpression] hold immediately since ∆ is unused. The remaining cases
+
+hold effortlessly by the inductive hypothesis.
+
+40
+
+
+The type system observes the session fidelity property if well-typed terms remain well-typed
+after transitioning. As terms transition, in particular in the rules [rLet2], [rCall2] and [rBranch],
+variables are substituted with values. The Substitution Lemma (Lemma 11) ensures that when
+free variables inside of terms and expressions are substituted with a closed value, the resulting
+terms and expressions remain well-typed. As a result, the substituted variables become redundant
+in variable binding environment (Γ), and thus can be removed from Γ. This lemma consists of
+two statements, where substitution is performed in (i) terms, and (ii) expressions.
+
+Lemma 11 (Substitution).
+i. If Γ ⊢exp v : T′ and ∆ · (Γ, x : T′) ⊢w S ▷ t : T ◁ S ′, then ∆ · Γ ⊢w[v/x] S ▷ t [v/x] : T ◁ S ′
+ii. If Γ ⊢exp v : T′ and Γ, x : T′ ⊢exp e : T, then Γ ⊢exp e [v/x] : T
+Proof. By induction on the derivation of ∆ · (Γ, x : T′) ⊢w S ▷ t : T ◁ S ′ for Item i, and by
+induction on the derivation of Γ, x : T′ ⊢exp e : T for Item ii. We show the main cases for Item i:
+[tLet] From the rule, we know that t = (x′ = t1; t2), and
+
+x′ (cid:44) w
+
+Γ ⊢exp v : T′
+
+∆ · (Γ, x : T′) ⊢w S ▷ t1 : T′′ ◁ S ′′
+
+(B.9a)
+(B.9b)
+(B.9c)
+(B.9d)
+
+∆ · (Γ, x : T′
+
+, x′ : T′′) ⊢w S ′′ ▷ t2 : T ◁ S ′
+The variable binding environment of eq. (B.9d) can be reordered to
+, x : T′) ⊢w S ′′ ▷ t2 : T ◁ S ′
+
+∆ · (Γ, x′ : T′′
+
+(B.9e)
+We need to show that ∆ · Γ ⊢w[v/x] S ▷ (x′ = t1; t2) [v/x] : T ◁ S ′, which by the Variable
+Substitution Definition, is equivalent to
+
+∆ · Γ ⊢w[v/x] S ▷ x′ = t1 [v/x] ; t2 [v/x] : T ◁ S ′
+
+(B.9f)
+for x (cid:44) x′ and x′ (cid:44) v. To obtain eq. (B.9f), we need some preliminary results. Applying
+the inductive hypothesis to eqs. (B.9b) and (B.9c), and similarly to eqs. (B.9b) and (B.9e),
+results in
+
+∆ · Γ ⊢w[v/x] S ▷ t1 [v/x] : T′′ ◁ S ′′
+
+∆ · (Γ, x′ : T′′) ⊢w[v/x] S ′′ ▷ t2 [v/x] : T ◁ S ′
+
+(B.9g)
+(B.9h)
+From eq. (B.9a) and the Variable Substitution Definition we know that x (cid:44) w [v/x]. Apply-
+ing this information, along with eqs. (B.9g) and (B.9h) to the premise of [tLet] results in
+eq. (B.9f), as required.
+
+[tBranch] From the rule, [tBranch], we know that for some n ∈ N and
+(cid:17)
+
+Γ ⊢exp v : T′
+(cid:16)(cid:110)
+
+S = &(cid:8)?li
+
+i , . . . , T n
+i
+
+(cid:0)T 1
+
+(cid:9)
+
+(cid:1).S i
+
+i∈I
+
+t = receive do
+
+(cid:111) → ti
+
+end
+
+i∈I
+
+i , . . . , pn
+i
+
+:li, p1
+41
+
+(B.10a)
+
+(B.10b)
+
+
+From the premise, we also know that, for all i ∈ I and j ∈ 1..n:
+
+This case holds if the following statement is obtained:
+
+∆ ·(cid:0)Γ, x : T′
+
+i , T j
+i )
+▷ Γ
+j
+i
+
+simplepat(p j
+⊢w
+pat p j
+i : T j
+i
+i , . . . , Γn
+, Γ1
+i
+
+(cid:1) ⊢w S i ▷ ti : T ◁ S ′
+(cid:16)(cid:110)
+(cid:111) →(cid:17)
+∆ · Γ ⊢w[v/x] S ▷ t [v/x] : T ◁ S ′
+:li, p1
+(cid:1) ⊢w[v/x] S i ▷ ti [v/x] : T ◁ S ′
+
+i∈I
+
+for all i ∈ I
+
+∆ ·(cid:0)Γ, Γ1
+
+i , . . . , Γn
+i
+
+where t [v/x] = receive do
+end. To obtain eq. (B.10f) we need
+to use the [tBranch] rule which requires multiple premises. Applying the inductive hy-
+pothesis to eqs. (B.10a) and (B.10e) results in
+
+i , . . . , pn
+i
+
+(B.10c)
+(B.10d)
+(B.10e)
+
+(B.10f)
+
+(B.10g)
+
+(B.10h)
+
+If w (cid:44) x, then eq. (B.10d)
+
+⊢w[v/x]
+
+pat
+
+p j
+i : T j
+i
+
+▷ Γ
+
+j
+i
+
+for all j ∈ 1..n
+
+since by the Variable Substitution Definition, w = w [v/x]. Therefore, eqs. (B.10c), (B.10g)
+and (B.10h) can be applied to the premise of [tBranch] to obtain eq. (B.10f):
+
+∆ · Γ ⊢w[v/x] S ▷ t [v/x] : T ◁ S ′
+
+which is the required result. In case when w = x, then an additional mapping may be
+obtained from the pattern type rule which maps the dual pid to some type. However, since
+in this case x would be substituted to a variable, then the extra mapping does not affect the
+result, obtaining eq. (B.10f) as required.
+
+[tChoice] From the rule, we know that for some µ ∈ I, T = {atom, T 1
+µ ,
+
+⊕(cid:8)!lµ
+
+(cid:0)(cid:102)Tµ
+
+(cid:1).S µ
+
+(cid:9)
+
+i∈I and
+
+(cid:16)
+
+(cid:110)
+Γ, x : T′ ⊢exp e j : T j
+
+t = send
+
+ι,
+
+µ
+
+(cid:111)(cid:17)
+for all j ∈ 1..n
+
+:lµ, e1, . . . , en
+
+Γ ⊢exp v : T′
+
+. . . , T n
+
+µ}, S =
+
+(B.11a)
+
+(B.11b)
+(B.11c)
+
+Applying eqs. (B.11b) and (B.11c) to Item ii of Lemma 11 results in Γ ⊢exp e j [v/x] : T j
+all j ∈ 1..n. Applying this result to [tChoice] results in
+(cid:111)(cid:17)
+
+(cid:110)
+∆ · Γ ⊢w[v/x] S ▷ t [v/x] : T ◁ S ′
+
+(cid:16)
+
+which is the required result, since t [v/x] = send
+
+w [v/x],
+
+:lµ, e1 [v/x] , . . . , en [v/x]
+
+.
+
+µ for
+
+Lemma 12 links expression types to the basic values (and vice versa), e.g. the value 5 has
+
+type number.
+
+42
+
+
+Lemma 12 (Value Typing).
+i. Γ ⊢exp v : boolean iff v = boolean
+ii. Γ ⊢exp v : number iff v = number
+iii. Γ ⊢exp v : atom iff v = atom
+Proof. By case analysis on the expression typing rules.
+
+iv. Γ ⊢exp v : pid iff v = ι
+vi. Γ ⊢exp v : {(cid:101)T} iff v =
+v. Γ ⊢exp v : [ T] iff v = [ v1 | v2 ] or v = [ ]
+
+(cid:110)(cid:101)v′(cid:111)
+
+Lemma 13 provides a guarantee that the variables inside the substitutions produced by the
+match function have the expected types. It also ensures that the variables from the same sub-
+stitutions, which are stored in Γ, are assigned with the same types. Consequently, Corollary 14
+provides the same guarantees but for a sequence of patterns and values.
+
+Lemma 13. For all patterns p and values v,
+match(p, v) = [v1, . . . , vn/x1, . . . , xn]
+⊢w
+pat p : T ▷ Γ
+∅ ⊢exp v : T
+
+ =⇒
+
+ Γ = x1 : T1, . . . , xn : Tn
+
+∅ ⊢exp vi : Ti
+
+for i ∈ 1..n
+
+Proof. By induction on the definition match(p, v). We proceed by case analysis:
+[p = b, v = b] By the definition, match(b, b) = [ ], so no substitutions are expected. By ⊢w
+
+pat b :
+T ▷ Γ and [tpBasic], the variable binding environment (i.e., Γ) must be empty, so case
+holds immediately.
+
+[p = x] By definition, match(x, v) = [v/x], and from the premise we know that
+
+(B.12a)
+pat x : T ▷ Γ and [tpVariable], we know that Γ must contain x : T only. Therefore,
+
+∅ ⊢exp v : T.
+
+From ⊢w
+case holds by eq. (B.12a).
+[p = [ w1 | w2 ] , v = [ v1 | v2 ]]
+
+(B.13a)
+(B.13b)
+
+(B.13c)
+
+(B.13d)
+
+(B.13e)
+(B.13f)
+
+Using the match definition, match([ w1 | w2 ] , [ v1 | v2 ]) =
+match(w1, v1), match(w2, v2), or equivalently
+1, . . . , v′
+k, . . . , v′
+
+j/x1, . . . , x j]
+n/xk, . . . , xn] where k = j + 1
+From the premise, applying [tList] to ∅ ⊢exp [ v1 | v2 ] : [ T] , results in
+
+match(w1, v1) = [v′
+match(w2, v2) = [v′
+
+Applying also [tpList] to ⊢w
+
+∅ ⊢exp v1 : T and ∅ ⊢exp v2 : [ T]
+pat [ w1 | w2 ] : [ T] ▷ Γ, results in
+
+⊢w
+pat w1 : T ▷ Γ
+
+′ and ⊢w
+
+pat w2 : [ T] ▷ Γ
+
+′′
+
+Applying the inductive hypothesis twice to eqs. (B.13a–d) results in
+
+′ = x1 : T1, . . . , x j : T j and Γ
+
+′′ = xk : Tk, . . . , xn : Tn
+
+Γ
+
+∅ ⊢exp v′
+
+i : Ti for all i ∈ 1..n
+
+Therefore, case holds by eqs. (B.13e) and (B.13f), since Γ = Γ′, Γ′′.
+
+43
+
+
+[p = {w1, . . . , wm} , v = {v1, . . . , vm}]
+
+Using the match definition, match({w1, . . . , wm} ,{v1, . . . , vm}) =
+match(w1, v1), . . . , match(wm, vm) = σ , or equivalently, for i ∈ 1..m,
+match(wi, vi) = σi given that σ = σ1, . . . , σm
+From ∅ ⊢exp {v1, . . . , v2} : {T1, . . . , Tm}, by [tTuple], we know that
+
+(B.14a)
+
+Applying also [tpTuple] to ⊢w
+
+∅ ⊢exp vi : Ti
+
+(B.14b)
+pat {w1, . . . , wm} : {T1, . . . , Tm} ▷ Γ1, . . . , Γm, results in
+(B.14c)
+
+⊢w
+pat wi : Ti ▷ Γi
+
+Applying the inductive hypothesis m times to eqs. (B.14a–c) results in
+
+Γ = Γ1, . . . , Γm = x1 : T1, . . . , xn : Tn
+
+∅ ⊢exp v j : T j for all j ∈ 1..n
+
+as required.
+
+following implication holds.
+
+. . . , pn, values(cid:101)v = v1,
+Corollary 14. For all patterns(cid:101)p = p1,
+ =⇒
+(cid:101)Γ = Γ1, . . . , Γ j = x1 : T1, . . . , xk : Tk
+
+match((cid:101)p,(cid:101)v) = [v′
+
+k/x1, . . . , xk]
+⊢y
+pat p j : T j ▷ Γ j
+∅ ⊢exp v j : T j
+
+for i ∈ 1..k
+
+∅ ⊢exp v′
+
+i : Ti
+
+1, . . . , v′
+
+. . . , vn and ∀ j ∈ 1..n, then the
+
+Proof. Take j = 1, where we know that match(p1, v1) = σ1, ⊢y
+Then, applying this information to Lemma 13, we get
+
+pat p1 : T 1 ▷ Γ1 and ∅ ⊢exp v1 : T 1.
+
+Γ1 = x1
+∅ ⊢exp v1
+Generalising for j ∈ 1..n, then (cid:101)Γ = Γ1,
+∅ ⊢exp v′
+n times.
+
+1 : T 1
+i : T 1
+
+1 , . . . , x1
+m : T 1
+m
+i for i ∈ 1..m
+
+. . . , Γn holds by generalising eq. (B.15a). Also,
+i : Ti for i ∈ 1..k holds by eq. (B.15b). Thus, Corollary 14 holds by applying Lemma 13
+
+(B.15a)
+(B.15b)
+
+Lemma 15 shows that the type of expressions remains unchanged (or preserved) after an
+expression is reduced. This means that expressions have a constant type in all steps of reductions,
+until the expression cannot be reduced further.
+Lemma 15 (Preservation (Expressions)). If ∅ ⊢exp e : T and e → e′, then ∅ ⊢exp e′ : T
+Proof. Follows by induction on ∅ ⊢exp e : T. We consider the main cases:
+
+44
+
+
+[tTuple] From the rule, we know that e = {e1, . . . , ek, . . . , en}, T = {T1, . . . , Tn} and
+
+∅ ⊢exp ei : Ti
+
+(cid:110)
+for all i ∈ 1..n
+Deriving e → e′ using [reTuple] results in e′ =
+ek → e′
+
+k
+
+v1, . . . , vk−1, e′
+
+k, . . . , en
+
+(cid:111)
+
+and
+
+(B.16a)
+
+(B.16b)
+
+Applying eqs. (B.16a) and (B.16b) to the inductive hypothesis results in ∅ ⊢exp e′
+the latter, eq. (B.16a) and [tTuple], we get ∅ ⊢exp e′ : T, as required.
+[tArithmetic] From the rule we know that e = e1 ⋄ e2, T = number and
+
+k : Tk. By
+
+∅ ⊢exp e1 : number
+∅ ⊢exp e2 : number
+
+(B.17a)
+(B.17b)
+
+e → e′ can be derived using different rules, so we consider three sub-cases:
+1. [reOperation1] From this rule we know that e′ = e′
+
+1 ⋄ e2 and
+
+e1 → e′
+
+(B.17c)
+Applying eqs. (B.17a) and (B.17c) to the inductive hypothesis results in ∅ ⊢exp e′
+1 :
+number. Using this information, along with eq. (B.17b) in [tArithmetic], results in
+∅ ⊢exp e′ : number, as required.
+
+1
+
+2. [reOperation2] Analogous to [reOperation1].
+3. [reOperation3] From the rule, we know that e = v1 ⋄ v2 and e′ has some value
+v = v1 ⋄ v2. Since we know that ∅ ⊢exp e : T, or ∅ ⊢exp v1 ⋄ v2 : T, then ∅ ⊢exp e′ : T
+follows immediately given that e′ = v = v1 ⋄ v2.
+
+Regarding the remaining cases: Cases [tBasic], [tVariable] and [tEList] hold trivially,
+since e → e′ does not apply. Cases [tComparison] and [tBoolean] are analogous to
+[tArithmetic]. Cases [tList] and [tNot] take a similar approach to [tTuple].
+
+Lemmata 10–15 allow us to prove the Session Fidelity Theorem. This is one of the main
+
+Σ S ▷ t : T ◁ S ′ and t α−→
+
+results of Section 5.
+Theorem 2 (Session Fidelity). If ∆ · ∅ ⊢w
+— for α = ?{:l,(cid:101)v} and some session type S ′′ = after(S , α), then there exists some ∆′, such that
+∆′ · ∅ ⊢w
+— for α ∈ { f/n, τ, ι!{:l,(cid:101)v}}, then there exists some S ′′ and ∆′, such that ∆′·∅ ⊢w
+Σ S ′′ ▷t′ : T ◁S ′
+Proof. By induction on the typing derivation ∆ · ∅ ⊢w
+
+Σ S ′′ ▷ t′ : T ◁ S ′ and after(∆, α, S ) = ∆′
+
+for after(S , α) = S ′′ and after(∆, α, S ) = ∆′
+
+Σ S ▷ t : T ◁ S ′.
+
+t′
+
+Σ
+
+45
+
+
+[tLet] From the rule, we know that x (cid:44) w, and
+
+t = (x = t1; t2)
+
+∆ · ∅ ⊢w S ▷ t1 : T′ ◁ S ′′′
+
+∆ ·(cid:0)x : T′(cid:1) ⊢w S ′′′ ▷ t2 : T ◁ S ′
+
+(B.18a)
+(B.18b)
+(B.18c)
+From the structure of t (eq. (B.18a)), term transitions (t α−→ t′) can be derived using two
+rules, so we consider two sub-cases:
+1. [rLet1] From this rule, we know that t′ = (x = t′
+α−→ t′
+
+If α = ?{:l,(cid:101)v}, then by α, eqs. (B.18b) and (B.18d) and the inductive hypothesis we
+where after(∆, α, S ) = ∆′. In case that α (cid:44) ?{:l,(cid:101)v}, eq. (B.18e) can be obtained as
+
+well, however we also require after(S , α) = S ′′, which holds immediately. Also, by the
+After Function Definition, we know that ∆′ is an extension of ∆, so we can apply the
+∆-Weakening Lemma on eq. (B.18c) to get
+
+′ · ∅ ⊢w S ′′ ▷ t′
+∆
+
+1 : T′ ◁ S ′′′
+
+1; t2) and
+
+(B.18d)
+
+(B.18e)
+
+obtain
+
+t1
+
+1
+
+′ ·(cid:0)x : T′(cid:1) ⊢w S ′′′ ▷ t2 : T ◁ S ′
+
+∆
+
+(B.18f)
+
+x (cid:44) w
+
+t = receive do
+
+S = &(cid:8)?li
+(cid:0)T 1
+S µ = after(&(cid:8)?li
+ ⊢w
+∆ ·(cid:0)Γ1
+
+∀i ∈ I ·
+
+Using eqs. (B.18e) and (B.18f) as the premise for rule [tLet], we obtain:
+∆′ · ∅ ⊢w S ′′ ▷ t′
+
+∆′ · (x : T′) ⊢w S ′′′ ▷ t2 : T ◁ S ′
+
+1 : T′ ◁ S ′′′
+
+∆′ · ∅ ⊢w S ′′ ▷ x = t′
+
+1; t2 : T ◁ S ′
+
+[tLet]
+
+where ∆′ · ∅ ⊢w S ′′ ▷ t′ : T ◁ S ′ is the expected result.
+2. [rLet2] From the rule, we know that t = (x = v; t2), t′ = t2 [v/x] and α = τ, therefore
+after(S , α) = S = S ′′′. Since t1 = v, by eq. (B.18b) and [tExpression], then ∅ ⊢exp v :
+T′ holds. If we apply this latter information and eq. (B.18c) to the Substitution Lemma,
+we obtain ∆ · ∅ ⊢w[v/x] S ′′′ ▷ t2 [v/x] : T ◁ S ′. This is the expected result, since by the
+Variable Substitution Definition, w [v/x] = w; and by the after definition, ∆′ = ∆.
+
+[tBranch] From the rule, we know that for some n ∈ N then
+
+i , . . . , T n
+i
+
+i∈I
+
+(cid:9)
+
+(cid:1).S i
+(cid:9)
+
+(cid:16)(cid:110)
+(cid:0)(cid:101)Ti
+(cid:1).S i
+
+:li, p1
+
+i , . . . , pn
+i
+i∈I, α)
+
+(cid:111) → ti
+
+(cid:17)
+
+end
+
+i∈I
+
+(B.19a)
+(B.19b)
+
+(B.19c)
+
+Since α has to be an incoming message, we focus solely on te first case of the Session
+Fidelity Theorem. From the premise, we also know that some properties regarding each
+individual branch from the receive construct:
+▷ Γ
+i : T j
+i
+i , . . . , Γn
+i
+
+(cid:1) ⊢w S i ▷ ti : T ◁ S ′
+
+for all j ∈ 1..n
+
+(B.19d)
+(B.19e)
+
+pat p j
+
+j
+i
+
+46
+
+
+From the structure of t (eq. (B.19b)), term reduction (t α−→ t′) can only be derived using
+[rBranch], where execution progresses to a single branch (i.e., tµ), rather than all branches.
+The right branch is chosen by matching its label, li∈I, to the label received in the incoming
+message, lµ. Thus, for some k ∈ N, there exists some µ ∈ I where lµ = li, and
+
+(cid:110)
+
+(cid:111)
+
+match((p1
+
+µ, . . . , pn
+
+α = ?
+µ), (v1, . . . , vn)) = [v′
+t′ = tµ [v′
+
+:lµ, v1, . . . , vn
+1, . . . , v′
+
+k/x1, . . . , xk]
+
+1, . . . , v′
+
+k/x1, . . . , xk]
+
+(B.19f)
+(B.19g)
+
+From eq. (B.19f), α refers to the message received from the dual process, which is assumed
+(from the premise of the theorem) to be valid by the after function (eq. (B.19c)). We can
+compare the contents of this message to the original session type S (eq. (B.19a)), to obtain
+information regarding the types of the individual values inside α. We know that α contains
+a label lµ and n values. Thus for j ∈ 1..n, each value v j, has a corresponding type T j
+µ from
+the session type S , where S contains ?lµ
+as
+
+(cid:0)T 1
+
+(cid:1).S µ. Formally, this can be written
+results in (cid:102)Γµ =
+
+(B.19h)
+
+µ , . . . , T n
+µ
+µ for all j ∈ 1..n
+
+(B.19g) and (B.19h) into Corollary 14,
+
+∅ ⊢exp v j : T j
+
+Applying eqs. (B.19d),
+µ, . . . , Γn
+Γ1
+
+µ
+
+= x1 : T1, . . . , xk : Tk and
+∅ ⊢exp v′
+
+Applying eq. (B.19i) and ∆·(cid:102)Γµ ⊢w S µ ▷ tµ : T ◁ S ′ (from eq. (B.19e) for i = µ) repeatedly
+
+(B.19i)
+
+m : Tm for m ∈ 1..k
+
+to the Substitution Lemma, we get
+
+1, . . . , v′
+
+∆ · ∅ ⊢w S µ ▷ tµ [v′
+
+k/x1, . . . , xk] : T ◁ S ′
+Since after(∆, α, S ) = ∆, then eq. (B.19j) is the expected result.
+[tChoice] From the rule, we know that for some µ ∈ I, T = {atom, T 1
+(cid:0)(cid:101)Ti
+(cid:1).S i
+(cid:110)
+(cid:111)(cid:17)
+(cid:16)
+t = send
+:lµ, e1, . . . , en
+µ for all j ∈ 1..n
+∅ ⊢exp e j : T j
+
+S = ⊕(cid:8)!li
+
+(cid:9)
+
+i∈I
+
+ι,
+
+µ , . . . , T n
+
+µ} and
+
+(B.19j)
+
+(B.20a)
+(B.20b)
+
+(B.20c)
+
+From the structure of t (eq. (B.20b)), term reduction (t α−→ t′) can be derived by several
+rules, so we have to consider two sub-cases:
+(cid:110)
+1. Derived by the rule [rChoice1], we know that α = τ and
+:l, v1, . . . , vk−1, e′
+
+t′ = send
+
+(cid:111)(cid:17)
+
+(cid:16)
+
+k, . . . , en
+
+ι,
+
+ek → e′
+
+k
+
+(B.20d)
+
+Applying eq. (B.20c) (for j = k) and eq. (B.20d) to the Preservation (Expressions)
+Lemma, we get ∅ ⊢exp e′
+k : Tk. Applying this and eq. (B.20c) to [tChoice] results in
+∆ · ∅ ⊢w S ▷ t′ : T ◁ S µ. Since after(S , τ) = S and after(∆, α, S ) = ∆, this holds.
+
+47
+
+
+2. [rChoice2] From this rule we know that
+
+(cid:110)
+
+t′ = {:lµ, v1, . . . , vn}
+:lµ, v1, . . . , vn
+α = ι!
+
+(cid:111)
+
+(B.20e)
+
+where α (eq. (B.20e)) is the message being sent to the dual process with pid ι – so, we
+(cid:0)
+only consider the second case of the Session Fidelity Theorem.
+µ for j ∈ 1..n. Notice, that the
+Recall eq. (B.20c), where we have ∅ ⊢exp e j
+types T j
+µ were obtained from the session type S (eq. (B.20a)), where S contains !lµ
+T 1
+µ , . . . , T n
+µ
+
+(cid:1).S µ. Now, by the premise of [rChoice2], since e j = v j, then
+
+: T j
+
+∅ ⊢exp v j : T j
+
+µ for all j ∈ 1..n
+
+(B.20f)
+By the Value Typing Lemma, we also know that ∅ ⊢exp :lµ : atom. Using this latter
+information and eq. (B.20f) in [tTuple] and [tExpression], we get the required result:
+
+[tTuple]
+
+[tExpression]
+
+∀ j ∈ 1..n
+
+∅ ⊢exp :lµ : atom
+
+∅ ⊢exp {:lµ, v1, . . . , vn} : {atom, T 1
+
+∅ ⊢exp v j : T j
+µ}
+µ , . . . , T n
+∆ · ∅ ⊢y S µ ▷ {:lµ, v1, . . . , vn} : T ◁ S µ
+
+µ
+
+(B.20g)
+
+Result from eq. (B.20g) holds as required, since after(S , α) = S µ and after(∆, α, S ) =
+∆.
+
+[tKnownCall] From the rule, we know that
+
+∅ ⊢exp ei : Ti
+
+t = f (w, e2, . . . , en)
+
+(B.21a)
+(B.21b)
+From the structure of t (eq. (B.21a)), term transitions (t α−→ t′) can be derived using two
+rules, so we consider two sub-cases:
+1. [rCall1] From this rule, we know that t = f (v1, . . . , vk−1, ek, . . . , en), α = τ, w = v1
+
+for all i ∈ 2..n
+
+and
+
+Applying eq. (B.21b) (for i = k) and eq. (B.21c) to the Preservation (Expressions)
+Lemma, we get
+
+(cid:16)
+
+(cid:16)
+
+t′ = f
+
+v1, . . . , vk−1, e′
+
+k, . . . , en
+
+ek → e′
+
+k
+
+By eqs. (B.21b) and (B.21d) and [tKnownCall], we get
+
+∆ · ∅ ⊢w S ▷ f
+
+eq. (B.21e) holds since v1 = w.
+
+∅ ⊢exp e′
+
+k : Tk
+
+v1, . . . , vk−1, e′
+
+k, . . . , en
+
+48
+
+(cid:17)
+
+(cid:17)
+
+(B.21c)
+
+(B.21d)
+
+: T ◁ S ′
+
+(B.21e)
+
+
+2. [rCall2] From the rule, we know that α = f/n, w = ι and
+
+(B.21f)
+
+(B.21g)
+
+Σ ( f/n) = Ω where
+
+t = f (ι, v2, . . . , vn)
+
+t′ = ¯t [ι/y] [v2, . . . , vn/x2, . . . , xn]
+
+ Ω.return type = T
+
+Ω.param types = T2, . . . , Tn
+∆ ( f/n) = S
+
+(B.21h)
+Since all known functions (i.e., f/n ∈ dom(∆)) by eq. (B.21h)) are already typechecked
+once before, then from the function information environment (i.e., Σ) and eq. (B.21g),
+we can assume that
+
+(B.21i)
+where Γ′ contains only the mapping from the parameter names to their types, i.e., Γ′ =
+. . . , xn : Tn) – our aim is to change Γ′ to ∅. This assumption in
+(y : pid, x2 : T2,
+eq. (B.21i) is possible since a well-formed Σ dictates that the only free variables in a
+function body are the parameter types, or formally, for all f/n ∈ dom(Σ), we have
+
+′ ⊢y S ▷ ¯t : T ◁ end
+
+∆ · Γ
+
+fv(cid:0)Σ( f/n).body
+
+(cid:1) \(cid:0)Σ( f/n).params ∪ {Σ( f/n).dual}(cid:1) = ∅
+
+By eq. (B.21f) and Value Typing Lemma we know that ∅ ⊢exp ι : pid. Applying this
+information and eq. (B.21i) to the Substitution Lemma results in
+
+∆ · (x2 : T2, . . . , xn : Tn) ⊢y[ι/y] S ▷ ¯t [ι/y] : T ◁ end
+
+(B.21j)
+
+where by the Variable Substitution Definition, y [ι/y] = ι = w.
+Applying the Substitution Lemma multiple times to eqs. (B.21b) and (B.21j), results in
+
+∆ · ∅ ⊢w S ▷ ¯t [ι/y] [v2, . . . , vn/x2, . . . , xn] : T ◁ end
+
+(B.21k)
+as required, since after(S , f/n) = S and S ′ = end. Also, after(∆, f/n, S ) = (∆, f/n : S ),
+but from eq. (B.21h), f/n is already mapped to S in the session typing environment,
+therefore (∆, f/n : S ) = ∆, as needed.
+
+[tUnknownCall] From the rule, we know
+
+t = f (w, e2, , . . . , en)
+
+∅ ⊢exp ei : Ti
+
+for all i ∈ 2..n
+
+(B.22a)
+(B.22b)
+
+From the premise we also know that
+
+(∆, f/n : S ) ·(cid:0)y : pid,(cid:101)x :(cid:101)T(cid:1) ⊢y S ▷ ¯t : T ◁ S ′ where(cid:101)x,(cid:101)T , ¯t, T and y are
+
+obtained from the function information environment(i.e.,Σ)
+
+(B.22c)
+From the structure of t (eq. (B.22a)), term transitions (t α−→ t′) can be derived using two
+rules, so we consider two sub-cases:
+
+49
+
+
+1. [rCall1] From this rule we know that α = τ, and
+v1, . . . , vk−1, e′
+
+t′ = f
+
+k, . . . , en
+
+(cid:17)
+
+(B.22d)
+
+(cid:16)
+
+(cid:16)
+
+ek → e′
+
+k
+
+∅ ⊢exp e′
+
+j : T j
+
+Applying eq. (B.22b) (for i = j) and eq. (B.22d) to the Preservation (Expressions)
+Lemma, we get
+
+(B.22e)
+
+Using eq. (B.22b) and eq. (B.22e) in the rule [tUnknownCall], results in
+
+∆ · ∅ ⊢w S ▷ f
+
+v1, . . . , vk−1, e′
+
+k, . . . , en
+
+: T ◁ S ′
+
+(cid:17)
+
+This holds since after(S , τ) = S and after(∆, τ, S ) = ∆.
+
+2. [rCall2] From the rule, we know that α = f/n and
+
+t = f (ι, v2, . . . , vn)
+w = ι
+t′ = ¯t [ι/y] [v2, . . . , vn/x2, . . . , xn]
+
+(B.22f)
+(B.22g)
+
+By eq. (B.22f) and the Value Typing Lemma we know that ∅ ⊢exp ι : pid. Applying this
+information and eq. (B.22c) to the Substitution Lemma results in
+
+(∆, f/n : S ) ·(cid:0)(cid:101)x :(cid:101)T(cid:1) ⊢y[ι/y] S ▷ ¯t [ι/y] : T ◁ S ′
+
+(B.22h)
+
+where by the Variable Substitution Definition and eq. (B.22g), y [ι/y] = ι = w.
+Applying the Substitution Lemma repeatedly to eqs. (B.22b) and (B.22h), results in
+
+(∆, f/n : S ) · ∅ ⊢w S ▷ ¯t [ι/y] [v2, . . . , vn/x2, . . . , xn] : T ◁ S ′
+where after(S , f/n) = S and after(∆, f/n, S ) = (∆, f/n : S ), as required.
+
+[tCase] From the rule, we know that for some type U,
+
+∅ ⊢exp e : U
+
+t = case e do (pi → ti)i∈I (xall → tall) end
+
+∆ · (xall : U) ⊢w S ▷ tall : T ◁ S ′
+
+(B.23a)
+(B.23b)
+(B.23c)
+(B.23d)
+(B.23e)
+By eq. (B.23a), term reduction, t α−→ t′, can be derived using two rules, so we consider two
+sub-cases:
+1. [rCase1] From the rule we know that t′ = case e′
+
+⊢w
+pat pi : U ▷ Γ
+∆ · Γ
+i ⊢w S ▷ ti : T ◁ S ′
+′
+
+do (pi → ti)i∈I (xall → tall) end.
+
+for all i ∈ I
+
+for all i ∈ I
+
+′
+i
+
+From the premise we know that
+
+e → e′
+
+(B.23f)
+
+By eqs. (B.23c) and (B.23f) and the Preservation (Expressions) Lemma, we get
+
+∅ ⊢exp e′ : U
+50
+
+(B.23g)
+
+
+Using eqs. (B.23b), (B.23d), (B.23e), (B.23g), and [tCase], we get
+
+∆ · ∅ ⊢w S ▷ case e′
+
+do (pi → ti)i∈I (xall → tall) end : T ◁ S ′
+which holds as expected given that after(S , τ) = S and after(∆, τ, S ) = ∆.
+
+2. [rCase2] From the rule, we know that t = case v do (pi → ti)i∈I (xall → tall) end and
+e = v. For convenience, we include the catch-all pattern in t with the remaining patterns,
+so t = case v do (pi → ti)i∈I′ end. So, for some j ∈ I′,
+
+match(p j, v) = σ where σ = [v1, . . . , vn/x1, . . . , xn]
+
+t′ = t jσ
+
+By eqs. (B.23c), (B.23d) and (B.23h) and Lemma 13, we know that Γ′
+T1, . . . , xn : Tn and
+
+j
+
+(B.23j)
+Then, by repeatedly applying the Substitution Lemma to eq. (B.23j), (B.23e for i = j),
+we get
+
+∅ ⊢exp vk : Tk for all k ∈ 1..n
+
+∆ · ∅ ⊢w S ▷ t jσ : T ◁ S ′
+This holds since after(S , τ) = S and after(∆, τ, S ) = ∆.
+
+(B.23h)
+(B.23i)
+
+= x1
+
+:
+
+[tExpression] From the rule, we know that
+
+(B.24a)
+(B.24b)
+From the structure of t (eq. (B.24a)), term transition (t α−→ t′) can only be derived using
+[rExpression], resulting in an internal transition (i.e., α = τ)
+
+∅ ⊢exp e : T
+
+t = e
+
+e → e′
+
+By Lemma 15 and eqs. (B.24b) and (B.24c), we know that
+
+∅ ⊢exp e′ : T
+Thus, case holds by [tExpression] and eq. (B.24d).
+
+B.3. Proofs for Theorem 4
+
+(B.24c)
+
+(B.24d)
+
+In this section, we provide the proofs of Proposition 3 which lead to the proofs for progress
+
+of expressions (Lemma 16) and terms (Theorem 4).
+Proposition 3. Any well-typed term (∆ · Γ ⊢w
+type is able to process any valid incoming message, i.e.,
+
+(cid:16)(cid:110)
+S = &(cid:8)?li
+lk, v1, . . . , vn(cid:111)
+
+:li, p1
+
+(cid:111) → ti
+
+Σ S ▷ t : T ◁ S ′) following the branching session
+(cid:17)
+(cid:1).S i
+
+ =⇒ match(p j
+
+k, v j)i∈1..n is defined
+
+end
+
+i∈I
+
+i , . . . , pn
+i
+
+(cid:0)T 1
+
+(cid:9)
+i∈I
+) = S k for some k ∈ I
+
+i , . . . , T n
+i
+
+t = receive do
+
+(cid:110)
+
+after(S , ?
+
+51
+
+
+Proof. A well-typed term following the branching session type (&(cid:8) . . .(cid:9)), has to be precisely a
+
+receive construct, as shown by term t. Such term can only be typed using the [tBranch] rule,
+from which we infer that
+
+simplepat(p j
+
+i , T j
+
+i )i∈I, j∈1..n
+
+i ) or a tuple of variables (x j
+
+i has the form of a variable (x j
+
+The simplepat statement indicates that all of the patterns used in the branches are simple ones,
+i.e., p j
+i ). From the third statement,
+we know that a message is valid if it matches with one of the labels available in t (i.e., lk for
+some k ∈ I) and each payload value (v1,
+. . . , vn) matches with the payload types dictated by
+i and v j (for all j ∈ 1..n) to the match function, to
+the session type S . Therefore we can apply x j
+obtain a series of variable substitutions, as required.
+Lemma 16 (Progress (Expressions)). If ∅ ⊢exp e : T, then either e is a value, or else there exists
+some e′ such that e → e′
+Proof. By induction on the typing derivation ∅ ⊢exp e : T. We consider the main cases.
+[tTuple] From the rule, we know that e = {e1, . . . , ek, . . . , en} and
+
+∅ ⊢exp ei : Ti
+
+for all i ∈ 1..n
+
+(B.25)
+
+i. We consider both sub-cases:
+
+By the inductive hypothesis and eq. (B.25), expression ei can either be a value or reduce
+to e′
+1. If for any i ∈ 1..n, ei → e′
+2. Otherwise, if for all i ∈ 1..n, ei = vi, then case holds since the tuple {v1,
+
+i, then case holds by [reTuple], resulting in the reduction
+. . . , vn} is a
+
+e → {v1, . . . , vi−1, e′
+
+i , . . . , en}.
+
+value.
+
+[tArithmetic] From the rule we know that e = e1 ⋄ e2 and
+∅ ⊢exp e1 : number
+∅ ⊢exp e2 : number
+
+(B.26a)
+(B.26b)
+
+By the inductive hypothesis and eq. (B.26a), e1 can either be a value or reduce to e′
+1. We
+consider both sub-cases:
+1 ⋄ e2.
+1. If e1 → e′
+2. Otherwise, if e1 = v1, we have to consider the behaviour of e2, which by the inductive
+2, then case holds by [reOperation2], resulting in the reduction e →
+
+hypothesis and eq. (B.26b) results in another two sub-cases:
+2a. If e2 → e′
+
+1, then case holds by [reOperation1], resulting in the reduction e → e′
+
+v1 ⋄ e′
+2.
+
+2b. Otherwise, if e2 is a value, then case holds by [reOperation3].
+
+Regarding the remaining cases: Cases [tBoolean], [tComparison], [tList] and [tNot] are anal-
+ogous to the previous case. Finally, cases [tBasic], [tEList] hold immediately since e in
+these instances is a value.
+
+52
+
+
+Σ S ▷ t : T ◁ S ′, then either t is a value, or else there exists some
+
+Theorem 4 (Progress). If ∆·∅ ⊢w
+term t′ and action α such that t α−→
+Proof. By induction on the typing derivation ∆ · ∅ ⊢w
+[tLet] From the rule, we know that t = (x = t1; t2), and
+
+t′ and after(S , α) is defined
+
+Σ
+
+Σ S ▷ t : T ◁ S ′.
+
+∆ · ∅ ⊢w S ▷ t1 : T′ ◁ S ′′′
+
+(B.27)
+
+By the inductive hypothesis and eq. (B.27), we know that after(S , α) is defined and that
+the term t1 can be a value, or else transition to a new term t′
+1. We consider both sub-cases:
+1, then case holds by [rLet1], resulting in t α−→ t′
+
+1. If t1
+2. Otherwise, if t1 = v1, then case holds by [rLet2], resulting in the internal transition
+
+α−→ t′
+
+1; t2.
+
+t τ−→ t2 [v2/x].
+
+In both cases, after(S , α) remains defined from the inductive hypothesis.
+
+[tBranch] From the rule, we know that
+
+t = receive do ({:li,(cid:101)pi} → ti)i∈Iend
+
+S = &(cid:8)?li
+
+(cid:0)(cid:101)Ti
+
+(cid:9)
+
+(cid:1).S i
+
+i∈I
+
+(B.28)
+(B.29)
+
+A receive term (eq. (B.28)) transitions to a new subterm (ti) when a message (α =
+?{:l j, v1,
+. . . , vn}) is received. An incoming message is guaranteed to match with one
+of the available patterns, since (i) we are dealing with a trusted observer which sends
+valid actions, and (ii) the branches are restricted to simple patterns (using simplepat)
+so a well structured message will match with one of the branches. An incoming mes-
+sage is matched to a branch using its label :l j (for j ∈ I). So by [rBranch], we know
+σ = match((cid:101)p j, v1,
+?{:l j,v1, ..., vn}
+−−−−−−−−−−→ t jσ, where σ is computed using the Pattern Matching Definition (i.e.,
+that t
+after(S , ?{:l j,(cid:101)v}) is define, as required.
+. . . , vn)). By the incoming message action and S from eq. (B.29),
+
+[tChoice] From the rule, we know that for some µ ∈ I, then
+(cid:9)
+
+(cid:111)(cid:17)
+(cid:110)
+(cid:16)
+:lµ, e1, . . . , en
+t = send
+S = ⊕(cid:8)!li
+µ for all j ∈ 1..n
+∅ ⊢exp e j : T j
+
+(cid:1).S i
+
+(cid:0)(cid:101)Ti
+
+ι,
+
+i∈I
+
+(B.30)
+(B.31)
+
+By Lemma 16 and eq. (B.30), any expression ei can be either a value, or else reduce to a
+new expression, so we consider both sub-cases:
+1. If, for any i ∈ 1..n, expression ei can be reduced (i.e., ei → e′
+(cid:111)(cid:17)
+
+[rChoice1], resulting in the internal transition:
+
+i), then case holds by
+
+(cid:110)
+:lµ, v1, . . . , vi−1, e′
+
+t τ−→ send
+
+(cid:16)
+
+i , . . . , en
+
+ι,
+
+Since this is an internal transition, after(S , τ) is defined for any S .
+
+53
+
+
+2. Otherwise, if for all i ∈ 1..n, ei = vi, then case holds by [rChoice2], resulting in the tran-
+sition t ι!{:l,v1, ..., vn}
+−−−−−−−−−−→ {:l, v1, . . . , vn}. In this case, a message containing {:l, v1, . . . , vn}
+after(S , !{:l,(cid:101)v}) is defined, as required.
+is sent to process with pid ι. From eq. (B.31), we know that S is an internal choice, thus
+
+[tKnownCall] From the rule, we know that
+
+t = f (ι, e2, . . . , en)
+
+∅ ⊢exp ei : Ti
+
+for all i ∈ 2..n
+
+(B.32)
+
+[rCall1], resulting in the internal transition: t τ−→ f
+
+By Lemma 16 and eq. (B.32), any expression ei can be either a value, or else reduce to a
+new expression, so we consider both sub-cases:
+1. If, for any i ∈ 2..n, expression ei can be reduced (i.e., ei → e′
+
+i), then case holds by
+2. Otherwise, if for all i ∈ 2..n, ei = vi, then case holds by [rCall2], resulting in the transi-
+f/n−−→ t′ [ι/y] [v2, . . . , vn/x2, . . . , xn]. The callee’s function body (i.e., t′) and the substitution
+tion t
+details (e.g. y, x2) are obtained directly from the function information environment Σ
+using the transition action f/n, e.g. Σ ( f/n) .body = t′.
+
+ι, v2, . . . , vi−1, e′
+
+i , . . . , en
+
+.
+
+(cid:16)
+
+(cid:17)
+
+For both cases, after(S , α) is defined since after accepts and session type S for internal
+actions ( f/n and τ).
+
+[tUnknownCall] Analogous to previous case.
+[tCase] From the rule, we know that
+
+t = case e do (pi → ti)i∈Iend
+
+∅ ⊢exp e : U
+
+(B.33)
+
+By Lemma 16 and eq. (B.33), expression e can be either a value, or reduce to a new
+expression. Consider both sub-cases:
+1. If expression e can be reduced (i.e., e → e′), then case holds by [rCase1], resulting in
+
+the internal transition: t τ−→ case e′
+
+do (pi → ti)i∈Iend.
+
+2. Otherwise, if e = v, then case holds by [rCase2], resulting in the internal transition
+τ−→ t jσ, where t j is the branch which pattern matches with v, and σ contains the
+t
+substitutions (i.e., σ = match(p j, v)).
+
+[tExpression] From the rule, we know that
+
+t = e
+
+∅ ⊢exp e : T
+
+(B.34a)
+(B.34b)
+
+Similar to the previous case, by Lemma 16 and eq. (B.34b), expression e can be either a
+value, or reduce to a new expression. In case of the former, where e can be reduced (i.e.,
+e → e′), then case holds immediately by [rExpression] (i.e., t τ−→ e′), where after(S , τ)
+is defined. In the other case, when e is a value, then t is also a value, since t = e (by
+eq. (B.34a)).
+
+54
+
+

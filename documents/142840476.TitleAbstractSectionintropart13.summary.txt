@@ -1,0 +1,3 @@
+
+
+This section investigates whether extensions to the Octagon domain and the domain of difference bounds proposed in the literature are 2-decomposable and 2-projective. Two examples are provided to demonstrate the process of determining whether a domain is 2-projective. In the first example, the domain of difference bounds matrices enhanced with disequalities is 2-decomposable but not 2-projective. In the second example, the domain of octagons enhanced with additional constraints of the form ±|x| ± |y| ≤ c and ±|x| ± y ≤ c is 2-decomposable and 2-projective.

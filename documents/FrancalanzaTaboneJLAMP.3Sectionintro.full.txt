@@ -1,0 +1,102 @@
+3. Section intro
+We introduce a core Elixir subset and define the typing rules for the ElixirST type system.
+
+3.1. The Actor Model
+Elixir uses the actor concurrency model [2, 3]. It describes computation as a group of con-
+current processes, called actors, which do not share any memory and interact exclusively via
+asynchronous messages. Every actor is identified via a unique process identifier (pid) which is
+used as the address when sending messages to a specific actor. Messages are communicated
+asynchronously, and stored in the mailbox of the addressee actor. An actor is the only entity that
+can fetch messages from its mailbox, using pattern matching. This allows us to provide a static
+behavioural abstraction for public functions used for the service handler design pattern. Apart
+from sending and reading messages, an actor can also spawn other actors and obtain their fresh
+pid as a result; this pid can be communicated as a value to other actors via messaging, which
+allows for a dynamically linked structure amongst active actors.
+
+6
+
+
+3.2. Session Types
+The ElixirST type system assumes the standard expression types, including basic types, such
+as boolean, number, atom and pid, and inductively defined types, such as tuples, {T1, . . . , Tn},
+and lists, [ T] ; these already exist in the Elixir language and they are dynamically checked. The
+type system extends these with (binary) session types, which are used to statically check the
+message-passing interactions.
+
+Expression types
+
+Session types
+
+T (cid:70) boolean | number | atom | pid | {T1, . . . , Tn} | [ T]
+
+S (cid:70) &(cid:8)?li
+(cid:0)(cid:101)Ti
+(cid:1).S i
+(cid:9)
+(cid:1).S i
+(cid:0)(cid:101)Ti
+| ⊕(cid:8)!li
+(cid:9)
+
+i∈I
+i∈I
+
+| rec X . S
+| X
+| end
+
+Branch
+Choice
+Recursion
+Variable
+Termination
+
+(cid:0)(cid:101)Ti
+
+(cid:1).S i
+
+(cid:9)
+
+The branching construct, &(cid:8)?li
+is labelled by any one of the labels li, with the respective list of values of type (cid:101)Ti (where (cid:101)T
+i∈I, requires the code to be able to receive a message that
+stands for T 1, . . . , T k for some k ≥ 0), and then adhere to the continuation session type S i. The
+choice construct is its dual and describes the range and format of outputs the code is allowed
+to perform at that point of execution.
+In both cases, the labels need to be pairwise distinct.
+Recursive types are treated equi-recursively [10], and used interchangeably with their unfolded
+counterparts. For brevity, the symbols & and ⊕ are occasionally omitted for singleton options,
+
+(cid:9) is written as !l(number).S 1; similarly end may be omitted as well, e.g.,
+e.g., ⊕(cid:8)!l(number).S 1
+(cid:0)(cid:101)Ti
+&(cid:8)?li
+= ⊕(cid:8)!li
+(cid:1).S i
+(cid:9)
+⊕(cid:8)!li
+(cid:0)(cid:101)Ti
+(cid:1).S i
+(cid:9)
+= &(cid:8)?li
+
+?l() stands for ?l().end. The dual of a session type S is denoted as S (shown in Definition 3.1).
+
+Definition 3.1 (Duality).
+
+rec X . S = rec X . S
+
+(cid:1).S i
+(cid:1).S i
+
+(cid:0)(cid:101)Ti
+(cid:0)(cid:101)Ti
+
+end = end
+
+X = X
+
+(cid:9)
+(cid:9)
+
+■

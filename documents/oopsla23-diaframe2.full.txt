@@ -1,0 +1,2652 @@
+91
+
+Proof Automation for Linearizability in Separation Logic
+
+IKE MULDER, Radboud University Nijmegen, The Netherlands
+ROBBERT KREBBERS, Radboud University Nijmegen, The Netherlands
+
+Recent advances in concurrent separation logic enabled the formal veriﬁcation of increasingly sophisticated
+ﬁne-grained (i.e., lock-free) concurrent programs. For such programs, the golden standard of correctness is
+linearizability, which expresses that concurrent executions always behave as some valid sequence of sequential
+executions. Compositional approaches to linearizability (such as contextual reﬁnement and logical atomicity)
+make it possible to prove linearizability of whole programs or compound data structures (e.g., a ticket lock)
+using proofs of linearizability of their individual components (e.g., a counter). While powerful, these approaches
+are also laborious—state-of-the-art tools such as Iris, FCSL, and Voila all require a form of interactive proof.
+This paper develops proof automation for contextual reﬁnement and logical atomicity in Iris. The key
+ingredient of our proof automation is a collection of proof rules whose application is directed by both the
+program and the logical state. This gives rise to eﬀective proof search strategies that can prove linearizability of
+simple examples fully automatically. For more complex examples, we ensure the proof automation cooperates
+well with interactive proof tactics by minimizing the use of backtracking.
+
+We implement our proof automation in Coq by extending and generalizing Diaframe, a proof automation
+extension for Iris. While the old version (Diaframe 1.0) was limited to ordinary Hoare triples, the new version
+(Diaframe 2.0) is extensible in its support for program veriﬁcation styles: our proof search strategies for
+contextual reﬁnement and logical atomicity are implemented as modules for Diaframe 2.0. We evaluate our
+proof automation on a set of existing benchmarks and novel proofs, showing that it provides signiﬁcant
+reduction of proof work for both approaches to linearizability.
+
+CCS Concepts: • Theory of computation → Separation logic; Automated reasoning; Program veriﬁ-
+cation.
+
+Additional Key Words and Phrases: Separation logic, linearizability, ﬁne-grained concurrency, reﬁnement,
+logical atomicity, proof automation, Iris, Coq
+
+ACM Reference Format:
+Ike Mulder and Robbert Krebbers. 2023. Proof Automation for Linearizability in Separation Logic. Proc. ACM
+Program. Lang. 7, OOPSLA1, Article 91 (April 2023), 30 pages. https://doi.org/10.1145/3586043
+
+1 INTRODUCTION
+
+Concurrent algorithms and data structures play an increasingly important role in modern comput-
+ers. For eﬃciency, such algorithms and data structures often rely on ﬁne-grained concurrency—they
+use low-level operations such as Compare And Swap (CAS) instead of high-level synchronization
+primitives such as locks. The “golden standard” of correctness for such data structures is lineariz-
+ability [Herlihy and Wing 1990]. An operation on a concurrent data structure is linearizable if its
+eﬀect appears to take place instantaneously, and if the eﬀects of concurrently running operations
+always constitute a valid sequential history. This can be formalized by requiring that somewhere
+during every operation on the concurrent data structure, there exists a single atomic step which
+
+Authors’ addresses: Ike Mulder, Radboud University Nijmegen, The Netherlands, me@ikemulder.nl; Robbert Krebbers,
+Radboud University Nijmegen, The Netherlands, mail@robbertkrebbers.nl.
+
+This work is licensed under a Creative Commons Attribution 4.0 International License.
+
+© 2023 Copyright held by the owner/author(s).
+2475-1421/2023/4-ART91
+https://doi.org/10.1145/3586043
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:2
+
+Ike Mulder and Robbert Krebbers
+
+logically performs the operation on the data structure. This point is called the linearization point,
+and the eﬀects of concurrent operations must then match the eﬀects of the corresponding sequential
+operations, when ordered by linearization point.
+
+Linearizability has originally been formulated as a property on program traces by Herlihy and
+Wing [1990]. This formulation is a good ﬁt for automated proofs, as witnessed by fully automated
+methods based on shape analysis [Henzinger et al. 2013; Vafeiadis 2010; Zhu et al. 2015] and model
+checking [Burckhardt et al. 2010]—see Dongol and Derrick [2015] for a detailed survey. However,
+Dongol and Derrick [2015] classify these methods as not compositional: they are unable to abstractly
+capture the behavior of the environment. Accordingly, there has been an avalanche of research on
+formulations and proof methods for linearizability that enable compositional veriﬁcation: proving
+linearizability of compound data structures (e.g., a ticket lock) using proofs of linearizability of their
+individual components (e.g., a counter). Unfortunately, proof automation for these compositional
+approaches to linearizability is still lacking.
+
+Compositional approaches to linearizability. Notable examples of compositional approaches
+to linearizability are contextual reﬁnement [Filipović et al. 2010; Liang and Feng 2013; Turon et al.
+2013], logical atomicity [Birkedal et al. 2021; da Rocha Pinto et al. 2014; Jung et al. 2015], and
+resource morphisms [Nanevski et al. 2019]. We focus on the ﬁrst two: they are both available in the
+Iris framework for separation logic in Coq [Jung et al. 2016, 2018b, 2015; Krebbers et al. 2017a,b],
+and recent work by Mulder et al. [2022] provides a starting point for proof automation in Iris.
+
+Linearizability follows from contextual reﬁnement  ⪯ctx  ′, where  is the ﬁne-grained concur-
+rent program, and  ′ is a coarse-grained (i.e., lock-based) version of . A program  contextually
+reﬁnes  ′, if for all well-typed contexts , if  [] terminates with value , then there exists an
+execution so that  [ ′] also terminates with value . The quantiﬁcation over all contexts  makes
+reﬁnements compositional, but also diﬃcult to prove. Turon et al. [2013] pioneered an approach
+based on separation logic that made it feasible to prove reﬁnements of sophisticated concurrent
+algorithms on paper. Krebbers et al. [2017b] incorporated this work into Iris to enable interactive
+proofs using Coq. The state of the art for reﬁnement proofs in Iris is the ReLoC framework [Frumin
+et al. 2018, 2021b], which has been applied to sophisticated examples such as the Michael-Scott
+queue [Vindum and Birkedal 2021] and a queue from Meta’s Folly library [Vindum et al. 2022].
+
+Linearizability also follows from a logically atomic triple ⟨⟩  ⟨⟩. Intuitively, such a triple
+gives a speciﬁcation for the linearization point of the program . Even though  itself may not be
+physically atomic,  will atomically update the resources in  to the resources in , somewhere
+during its execution. Logically atomic triples can be composed inside the logic, i.e., the triple for one
+data structure (say, a counter) can be used to verify to another (say, a ticket lock). Logical atomicity
+has been pioneered in the TaDA logic by da Rocha Pinto et al. [2014], and was embedded in Iris
+and extended with support for higher-order programs and programs with “helping” (delegation of
+the linearization point to another thread) by Jung et al. [2015]. Logical atomicity in Iris has been
+used to verify challenging examples such as the Herlihy-Wing queue and RDCSS [Jung et al. 2020],
+and by engineers at Meta to verify a high-performance queue [Carbonneaux et al. 2022]. GoJournal
+[Chajed et al. 2021] uses logical atomicity in Iris to verify a concurrent, crash-safe journaling system
+of signiﬁcant size (∼1.300 lines of Go code, ∼25.000 lines of Coq proofs). Compositionality is crucial
+in GoJournal’s veriﬁcation: the implementation consists of four layers, and the veriﬁcation of each
+layer uses the logically atomic speciﬁcation of the previous layer.
+
+State of the art on proving linearizability compositionally. The state of the art for compo-
+sitional approaches to linearizability is to construct proofs interactively. Reﬁnement and logical
+atomicity proofs in Iris are constructed interactively using the Iris Proof Mode in Coq [Krebbers
+et al. 2018, 2017b]. Similarly, linearizability proofs using the resource morphism approach [Nanevski
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:3
+
+et al. 2019] are constructed interactively using the FCSL framework in Coq [Sergey et al. 2015].
+Both Iris and FCSL use a tactic-based style. That is, one writes down the program and speciﬁcation
+(and all auxiliary deﬁnitions) and then carries out the proof using a sequence of tactics, where each
+tactic decomposes the proof obligation into simpler proof obligations.
+
+An alternative proof style is used in the Voila tool [Wolf et al. 2021]—a proof outline checker for
+logical atomicity in TaDA [da Rocha Pinto et al. 2014] (a logic that preceded and inﬂuenced Iris).
+Contrary to the tactic-based style, Voila provides a proof style where the program is annotated
+with assertions and pragmas to guide the proof search. Being a proof outline checker, Voila’s goal
+is not full automation—it requires the user to provide (with pragmas) key steps of the proof. This
+signiﬁcantly reduces the proof burden compared to interactive proofs in tactic-based tools such as
+Iris and FCSL, but still requires annotations for all lines of code that touch shared state.
+
+This discussion indicates that proving linearizability is currently a laborious endeavor. This is
+
+also emphasized by Carbonneaux et al. [2022] (who veriﬁed a queue for Meta using Iris):
+We were also surprised that the most important lemmas took only a couple
+lines to prove while using the invariants and writing the code proofs required
+hundreds of rather straightforward lines. While Iris’ proof mode made using CSL
+[Concurrent Separation Logic] easy, this observation seems to indicate that there
+remains untapped potential to increase the reasoning density.
+
+This paper presents a step forward to obtain this untapped potential. We present Diaframe 2.0—
+a proof automation extension for Iris, which we have successfully used to automate (parts of)
+contextual reﬁnement and logical atomicity proofs. Before describing the key ideas and architecture
+of Diaframe 2.0, let us ﬁrst outline our design goals.
+
+Design goal #1: Fully automated proofs for ‘simple’ programs. Our goal is to prove lineariz-
+ability of ‘simple’ programs fully automatically. That is, once the program and speciﬁcation are
+written down, the tool should ﬁnd a proof without user assistance. This brings the tooling for
+compositional approaches closer to the tooling for non-compositional (trace-based) approaches.
+
+Design goal #2: Assistance using interactive proofs for ‘complex’ programs. Although we
+aim for full proof automation of ‘simple’ programs, this should not come at the cost of expressivity.
+We also want to verify arbitrarily ‘complex’ programs and give them strong speciﬁcations. Providing
+full automation that works in every situation is impossible—due to Iris’s expressive logic, any proof
+automation is inherently incomplete (in fact, propositional separation logic is already undecidable
+[Brotherston and Kanovich 2014]). For more complex examples, the proof automation should be
+predictable and behave in an acceptable manner when it encounters a goal it cannot solve. This
+means the proof automation should be able to make partial progress (instead of only being able to
+fully solve a goal or fail), so that the user can assist if needed.
+
+Design goal #3: Declarative and modular deﬁnitions of proof automation. Logics for re-
+ﬁnement and logical atomicity are very diﬀerent—they use diﬀerent judgments with bespoke proof
+rules. To avoid having to reinvent the wheel for both logics, we would like to write our proof
+automation in a way that is declarative (i.e., that abstracts over low-level aspects) and modular (i.e.,
+that can be composed out of diﬀerent ‘modules’). Despite the diﬀerences between both logics, both
+are based on separation logic. This means that the proof automation for both logics needs to deal
+with the fact that resources are substructural (can be used at most once), and should share features
+provided by Iris such as modalities, impredicative invariants and custom ghost state. It is thus
+desirable to have a shared ‘core’ module. We want to have an integration between (the automation
+for) both logics so that logically atomic triples (which provide internal compositionality) can be
+used to prove reﬁnements (which provide external compositionality). This should be achievable by
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:4
+
+Ike Mulder and Robbert Krebbers
+
+combining the two modules. During the development, we wish to be able to quickly experiment
+with diﬀerent rules and priorities. This should be possible by changing the relevant module locally
+instead of the proof automation globally. In the future, we want to support new features of Iris
+(such as prophecy variables [Jung et al. 2020] and later credits [Spies et al. 2022]) or new speciﬁca-
+tion styles in Iris (such as termination-preserving reﬁnement [Gäher et al. 2022] and the security
+condition non-interference [Frumin et al. 2021a; Gregersen et al. 2021]). Ideally, this should also be
+possible by adding additional modules instead of having to change the proof automation globally.
+
+Design goal #4: Foundational proofs in a proof assistant. To ensure that our proof automa-
+tion is as trustworthy as possible, we want it to be foundational [Appel 2001]. This means that
+proofs are conducted in a proof assistant against the operational semantics of the programming
+language. To achieve this, the proof rules of the logic need to be proved sound (which has already
+been done for Iris) and our automation needs to be proved sound against the Iris proof rules (which
+is one of the contributions of this paper).
+
+Key ideas for achieving the design goals. Our desired proof automation should not only be
+able to fully automatically construct simple proofs of linearizability (Design goal # 1), it should
+allow user assistance with interactive proofs (Design goal #2), and be deﬁned declaratively (Design
+goal #3). We list the key design choices that we hold responsible for achieving this combination of
+constraints. Our ﬁnal design goal is to produce foundational proofs (Design goal #4), but we believe
+our key ideas could be useful even in a non-foundational setting (i.e., outside of a proof assistant).
+• Minimize backtracking. To ensure the proof automation cooperates well with interactive
+proofs, we avoid the use of backtracking in our proof automation whenever possible. In
+many cases, it is not apparent that backtracking can be avoided—but it can be avoided more
+frequently than one might expect. By avoiding backtracking, it becomes much easier to
+alternate between proof automation and interactive proof tactics: the proof automation can
+simply be ‘run’ until it gets stuck, at which point the user can use a tactic (or other means) to
+direct the proof.
+
+• Use program and logical state to select proof rules. While we want to minimize backtracking,
+multiple proof rules are often applicable during the veriﬁcation of a program. To select the
+correct proof rule, the proof automation also inspects the logical state of the proof. This
+gives Diaframe 2.0 an edge on other proof automation tools, where such information is not
+available or fully leveraged. For example, this allows Diaframe 2.0 to automatically perform
+some key steps for dealing with shared state in logical atomicity proofs, while they must be
+provided explicitly in proof outlines for Voila.
+
+• Represent proof rules as instances of a general format, and leverage near-applicability. To
+implement our proof automation in a declarative and modular way, we identify general
+formats to capture proof rules. These formats describe the ‘current’ and ‘new’ veriﬁcation
+goal, and optionally, a piece of required logical state. To extend the proof search strategy with
+additional proof rules, one simply shows that they can be written as instances of the general
+formats. Modules for our proof automation are then just collections of rules, executed by the
+proof automation strategy. We also add ﬂexibility for when the logical state or current goal
+nearly matches a rule—for example, when the required logical state can be found beneath a
+connective of the logic. In such cases, the rule is still applied automatically, but the automation
+will ﬁrst deal with the connective. This keeps the modules of our proof automation declarative
+and concise, while becoming applicable in more situations.
+
+Implementation of Diaframe 2.0. The implementation of Diaframe 2.0 is guided by the design
+goals and choices described above. An overview of Diaframe 2.0’s architecture is shown in Fig. 1.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:5
+
+Veriﬁcation goal
+
+|= 1 ≾ 2 : 
+
+⟨⟩  ⟨⟩
+
+⊲ , (cid:31) , . . .
+
+reﬁnement module (§2)
+
+logical atomicity module (§3)
+
+modality module (§2)
+
+implemented with abduction
+and transformer hints (§ 4)
+
+Diaframe 1.0
+
+ghost state and
+
+invariant
+
+reasoning module
+
+Qed
+
+Fig. 1. Overview of the architecture of Diaframe 2.0.
+
+The key ingredients are the proof strategies underpinning the reﬁnement and logical atomicity
+modules. To realize these strategies, we start with the original proof rules of ReLoC and logically
+atomic triples in Iris, and design derived rules whose application is directed by the program and
+logical state. These derived rules are proved sound in Coq (Design goal #4), and make up our proof
+search strategy. To ensure good integration with interactive proofs (Design goal # 2) and as per
+our design choices, our strategies make minimal use of backtracking. Backtracking is sometimes
+needed to ﬁnd the linearization point, but our strategies are otherwise deterministic. Backtracking
+can be disabled altogether, allowing the user to intervene at key steps in the proof.
+
+Proof automation for linearizability in Iris critically relies on dealing with the cornerstones of
+Iris’s concurrent separation logic: invariants and ghost resources. For these, we build upon our
+earlier work Diaframe 1.0 [Mulder et al. 2022]. Diaframe 1.0 provides proof automation for the
+veriﬁcation of ﬁne-grained concurrent programs, but is restricted to Hoare triples for functional
+correctness—and thus does not support linearizability. However, we reuse Diaframe 1.0’s key
+innovation: its ability to automatically reason with invariants and ghost resources. In accordance
+with Design goal #3, this is a separate proof automation module used by both the reﬁnement and
+logical atomicity proof search strategies.
+
+To express the proof search strategies for contextual reﬁnement and logical atomicity in a
+declarative manner (Design goal #3), we identify two general formats for rules in these strategies.
+Abduction hints are used to replace a program speciﬁcation goal with a successive goal. One can
+specify whether this must be done unconditionally, only when a certain hypothesis is spotted, or just
+as a last resort. A simple collection of abduction hints can describe the original Diaframe 1.0 strategy
+for Hoare triples (so Diaframe 2.0 is backwards compatible w.r.t. Diaframe 1.0). Transformer hints
+apply to goals where we need to reason about the entire context. Simple instances of transformer
+hints are the introduction rules for Iris’s various modalities, such as the later (⊲) and persistence
+((cid:31)) modality. The combination of abduction and transformer hints can express a crucial proof rule
+in the veriﬁcation of logically atomic triples. Additionally, they allow us to apply (Löb) induction
+automatically (which was impossible in Diaframe 1.0).
+
+Following ideas from Gonthier et al. [2011]; Krebbers et al. [2017b]; Spitters and Weegen [2011],
+we represent these hints using type classes in Coq [Sozeau and Oury 2008]. The modules for our
+strategies for contextual reﬁnement and logical atomicity are given as collections of type class
+instances. Diaframe 2.0’s proof automation is implemented as an Ltac tactic [Delahaye 2000], that
+uses type class search to select an applicable hint (i.e., a rule in the strategy) for a given goal.
+Type class search is also used to close oﬀ our rules under the connectives of separation logic, thus
+achieving our third key idea of near-applicability. Coq requires us to prove soundness of each rule
+represented as a type class instance, thus achieving foundational proofs (Design goal #4). Aside
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:6
+
+Ike Mulder and Robbert Krebbers
+
+from enabling declarative deﬁnitions of proof search strategies (Design goal #3), the use of type
+classes is more robust compared to implementing the strategies directly as an Ltac tactic. Type class
+instances are strongly typed, so many errors show up during the implementation of the strategy as
+hints, instead of during the execution of the proof strategy.
+
+Contributions and outline. Our contributions are as follows:
+
+• In §2 we describe our proof automation strategy for reﬁnements in ReLoC.
+• In §3 we describe our proof automation strategy for logically atomic triples in Iris.
+• In §4 we describe the extensible proof automation strategy that underpins Diaframe 2.0. This
+strategy is parametric in the program speciﬁcation style through the use of three kinds of
+hints—for abduction (new), transformer (new), and bi-abduction (from Diaframe 1.0). The
+proof automation strategies for our ﬁrst two contributions are encoded in Diaframe 2.0.
+
+• In §5 we evaluate our proof automation on existing and new benchmarks. We compare to
+existing proofs in Voila [Wolf et al. 2021], showing an average proof size reduction by a factor
+4, while adding foundational guarantees (§5.1). We compare to existing interactive proofs of
+RDCSS and the elimination stack in Iris, showing an average proof size reduction by a factor
+4 (§5.2). Our new result is a proof of logical atomicity for the Michael-Scott queue [Michael
+and Scott 1996] (§5.3). For reﬁnement, we compare to existing interactive proofs in ReLoC,
+showing an average proof size reduction by a factor 7 (§5.4).
+
+• All of our results have been implemented and veriﬁed using the Coq proof assistant. The
+
+Coq sources can be found in Mulder and Krebbers [2023].
+
+We conclude the paper with related work (§6) and future work (§7).
+
+2 PROOF AUTOMATION FOR CONTEXTUAL REFINEMENT
+
+This section introduces the main ideas for automating contextual reﬁnement proofs in the Iris-based
+logic ReLoC [Frumin et al. 2018, 2021b]. We start with an example veriﬁcation (§2.1), providing
+intuition for ReLoC. After providing some formal background for ReLoC’s proof rules (§2.2), we
+describe our proof automation strategy (§2.3).
+
+2.1 Contextual Refinement of an Incrementer
+
+Contextual reﬁnement speciﬁes the behavior of one program in terms of another, usually simpler,
+program. For linearizability, we take a coarse-grained version as the simpler program, i.e., a ver-
+sion that uses a lock to guard access to shared resources. Filipović et al. [2010] shows that such
+reﬁnements imply the classical deﬁnition of linearizability based on traces. Consider the example in
+Fig. 2, a slightly modiﬁed version of the example presented in the ﬁrst ReLoC paper [Frumin et al.
+2018]. We consider two implementations of an “incrementer”: fg incrementer and cg incrementer.
+Whenever either such an incrementer is called with the unit value, it returns a closure. Whenever
+this returned closure is called with the unit value, it returns an integer indicating the number of
+times the closure has been called in total, across all threads.
+
+Where the ﬁne-grained version fg incrementer uses a CAS-loop (Compare And Swap) to deal
+with concurrent calls to the closure, the coarse-grained version cg incrementer uses a lock. In-
+tuitively, both versions “have the same behavior”—although they use diﬀerent methods, both
+programs guarantee a consistent tally of calls to the closure. We wish to prove a contextual
+reﬁnement fg incrementer ⪯ctx cg incrementer : () → () → Z that expresses that any behav-
+ior of fg incrementer is a behavior of cg incrementer. More precisely, a contextual reﬁnement
+1 ⪯ctx 2 :  expresses that for all contexts  that respect the type  of 1 and 2, if  [1] terminates
+with value , then there exists an execution sequence such that  [2] also terminates with value .
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:7
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+20
+
+21
+
+22
+
+23
+
+24
+
+25
+
+26
+
+27
+
+28
+
+Definition fg incrementer : val :=
+
+: <>,
+
+let: "l" := ref #1 in
+(rec: "f" <> :=
+
+let: "n" := ! "l" in
+if: CAS "l" "n" ("n" + #1) then
+
+"n"
+
+else
+
+"f" #()).
+
+10
+
+11
+
+12
+
+13
+
+14
+
+15
+
+16
+
+17
+
+18
+
+19
+
+Definition cg incrementer : val :=
+
+: <>,
+
+let: "l" := ref #1 in
+let: "lk" := newlock #() in
+(: <>,
+
+acquire "lk";;
+let: "n" := ! "l" in
+"l" ← "n" + #1 ;;
+release "lk";;
+"n").
+
+Lemma fg cg incrementer refinement :
+
+⊢ REL fg incrementer << cg incrementer : () → () → lrel int.
+
+Proof.
+
+iStepsS.
+iAssert (|={⊤}=> inv (nroot.@"incr")
+
+(∃ (n : nat), x ↦→ #n ∗ x0 ↦→ #n ∗ is locked r x1 false))%I
+with "[-]" as ">#Hinv"; first iStepsS.
+
+iSmash.
+
+Qed.
+
+Fig. 2. Verification of a refinement for a fine-grained concurrent incrementer in Diaframe 2.0.
+
+It is well known that it is diﬃcult to prove such contextual reﬁnements, since they quantify over
+all contexts . A common way to make these proofs tractable, is by introducing a notion of logical
+reﬁnement, which implies contextual reﬁnement, but is easier to prove [Pitts 2005]. There exist
+many approaches to deﬁne a notion of logical reﬁnement, but in this paper we focus on approaches
+based on separation logic as pioneered in the work by Dreyer et al. [2010] and Turon et al. [2013].
+Approaches based on separation logic enable the use of resource and ownership reasoning and
+are thereby well-suited for programs that use mutable state and concurrency. A state-of-the-art
+separation logic for reﬁnements based on this idea is ReLoC [Frumin et al. 2018, 2021b]. ReLoC is
+embedded in Iris and comes with a judgment (|= 1 ≾ 2 : ) for logical reﬁnements.
+
+ReLoC’s soundness theorem states that to prove the contextual reﬁnement 1 ⪯ctx 2 : , it
+suﬃces to prove a (closed) Iris entailment (⊢ |= 1 ≾ 2 : ). Here, |= 1 ≾ 2 :  is a proposition
+in separation logic, which allows us to write reﬁnements that are conditional on mutable state.
+↦→  ∗ ℓ ↦→s  ⊢ |= ! ℓ ≾ ! ℓ : Z, i.e., a load of ℓ contextually
+For example, we can prove that ℓ
+reﬁnes a load of ℓ , if both locations are valid pointers and point to the same value . The maps-to
+connectives ℓ ↦→  and ℓ ↦→  represent the right to read and write to a location ℓ. Since we are
+reasoning about two programs (and thus, two heaps), ReLoC uses the subscripted ↦→s (with ‘s’ for
+speciﬁcation) to indicate the heap of the right-hand side execution.
+
+Proofs of ReLoC’s reﬁnement judgment |= 1 ≾ 2 :  use symbolic execution to reduce
+expressions 1 and 2. The execution of 1 can be thought of as demonic: all possible behaviors of
+1 need to be considered. The execution of 2 is angelic—we just need to ﬁnd one behavior that
+matches with 1. In a concurrent setting, this means 1 needs to account for (possibly uncooperative)
+other threads, while 2 can assume cooperative threads and scheduling.
+
+Veriﬁcation of the example. Let us now return to the veriﬁcation of the example in Fig. 2. Our
+
+top-level goal (line 21) is the following logical reﬁnement of closures:
+
+⊢ |= fg incrementer ≾ cg incrementer : () → () → Z.
+
+(1)
+
+The proof consists of 4 phases:
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:8
+
+Ike Mulder and Robbert Krebbers
+
+(1) Symbolically execute both outer closures. This will create shared mutable state used by the
+
+inner closures.
+
+(2) Determine and establish a proper invariant for the shared mutable state.
+(3) Perform induction to account for the recursive call in fg incrementer.
+(4) Symbolically execute the inner closures, using the established invariant. This should allow
+
+us to conclude the reﬁnement proof.
+
+These phases are representative for proofs of logical reﬁnements. For this example, Diaframe 2.0 can
+automatically deal with Proof Phase 1, Proof Phase 3 and Proof Phase 4. Automatically determining
+proper invariants is very diﬃcult, so we leave Proof Phase 2 up to the user (line 24–26).
+
+N
+
+.) Iris’s invariant assertion 
+
+N
+
+As shown in Fig. 2, the Diaframe 2.0 proof takes 5 lines. The user’s main proof burden is writing
+, i.e., Proof Phase 2. (In Coq, we write
+
+down the invariant ∃. ℓ ↦→  ∗ ℓ ↦→  ∗ isLock(, false)
+inv N R for 
+states that there is a (shared) invariant with
+name N , governing resources satisfying Iris assertion . Since  can be shared, accessing the
+resources in  must come at a price. They can only be accessed temporarily, during the execution
+of a single atomic expression (e.g., a load, store, or CAS) on the left-hand of the reﬁnement. After
+this expression, the invariant must be closed, i.e., one must show that assertion  still holds. Since
+execution of the right-hand side is angelic, we can execute the right-hand side multiple steps while
+an invariant is opened.
+
+N
+
+Our proof proceeds as follows. We open the invariant to symbolically execute the load on the
+left-hand side. This does not change the stored value, so we can immediately close the invariant.
+We now reach the CAS on the left. We open the invariant again, and distinguish two cases. If the
+CAS succeeds, we symbolically execute the entire right-hand side, which signiﬁes the linearization
+point. The invariant guarantees that the right-hand side expression returns  as desired. If the CAS
+fails, we close the invariant and use the induction hypothesis to ﬁnish the proof.
+
+2.2 Background: Formal Rules for Contextual Refinement
+
+To put the proof on a formal footing, we introduce some of Iris’s and ReLoC’s (existing) proof rules.
+An overview can be found in Fig. 3. We go through the phases of the proof, introducing relevant
+concepts (such as the (cid:31) modality, invariant reasoning, and Löb induction) when necessary.
+
+Proof Phase 1: Symbolic execution of outer closures and the (cid:31) modality. Recalling our
+initial proof obligation ⊢ |= fg incrementer ≾ cg incrementer : () → () → Z, we can start our
+proof by using refines-closure. This rule is applicable for any proof context Δ, where Δ stands
+for a list of assertions 1, . . . , . We denote Δ ⊢  for 1 ∗ . . . ∗  ⊢ .
+
+Let us consider the premise of refines-closure: we need to prove ⊢ (cid:31) (|= 1 () ≾ 2 () : ). This
+mentions Iris’s persistence modality (cid:31)—the new proof obligation can be read as “it is persistently
+true that 1 () logically reﬁnes 2 () at type ”. A proof of (cid:31)  implies that  is duplicable, and can
+thus be used more than once—this is not a given in substructural logics. To see why this modality
+is necessary, note that clients may use the closure any number of times (and concurrently). Since
+the two closures have not introduced any state (and the proof context Δ is thus empty), we can
+apply iris-(cid:31)-intro, introducing the (cid:31) modality, and continue symbolic execution.
+
+We can then use alloc-l, alloc-r and newlock-r to symbolically execute instructions on both
+
+sides. Our proof obligation now looks as follows:
+
+ℓ ↦→ 1, ℓ ↦→s 1, isLock(, false) ⊢ |= (rec . . .) ≾ ( . . .) : () → Z
+
+(2)
+
+We obtain two maps-to connectives ℓ ↦→ 1 and ℓ ↦→s 1 in our proof context. Remember that these
+are exclusive resources that can only be owned by one thread, and which signify the right to read
+and write to a location ℓ. Similarly, isLock(, false) is an exclusive resource that says the lock  is
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:9
+
+unlocked. In our proof obligation Equation (2), the two references and lock are captured and used
+by the closures. Moreover, the left-hand closure will perform a CAS on ℓ , meaning that concurrent
+calls to this closure will all try to write to the same location. However, only one thread can hold
+the ℓ ↦→  resource, so we need a way to give shared access to this resource in the logic.
+
+Proof Phase 2: Establish an invariant. In Iris, we can verify concurrent accesses using an
+invariant  . At any point during the veriﬁcation, a resource  can be turned into  using
+inv-alloc. This is called invariant allocation. The assertion  is persistent, so unlike exclusive
+resources such as ℓ ↦→ 1 and ℓ ↦→s 1, the invariant assertion can be kept in the proof context when
+applying iris-(cid:31)-intro. In Proof Phase 4, we will see how to access the invariant resource .
+
+We return to our proof obligation Equation (2). To continue, we will ﬁrst allocate an invariant
+using inv-alloc. We take  ≜ ∃. ℓ
+↦→  ∗ ℓ ↦→s  ∗ isLock(, false), which expresses that the
+values stored at ℓ and ℓ are in sync. After refines-closure and iris-(cid:31)-intro, we are left with:
+
+∃. ℓ ↦→  ∗ ℓ ↦→s  ∗ isLock(, false)
+
+N
+
+⊢ |= (rec . . .) () ≾ ( . . .) () : Z.
+
+(3)
+
+The left-hand side is now a recursive function applied to the unit value (), which will repeat until
+the CAS on line 6 succeeds. To ﬁnish the proof, we need to account for the recursive call.
+
+Proof Phase 3: Löb induction. To verify recursive functions, step-indexed separation logics
+such as Iris and ReLoC use a principle called Löb induction. In essence, whenever we are proving
+a goal , we are allowed to assume the induction hypothesis ⊲ —the same goal, but guarded by
+the later modality (⊲) [Appel et al. 2007; Nakano 2000]. We are allowed to strip later modalities of
+hypotheses only after we perform a step of symbolic execution on the left-hand side. This ensures
+we do actual work before we apply the induction hypothesis. After doing some of this work, we
+reach the recursion point and need to prove  again. Since the work stripped oﬀ the later modality
+of our induction hypothesis, we are in shape to apply the induction hypothesis and ﬁnish the proof.
+A selection of Iris’s rules for the ⊲ and (cid:31) modality and Löb induction are shown in Fig. 3b.
+Rule Löb states that, if we are proving that Δ ⊢ , we can assume that the induction hypothesis
+(cid:31)(Δ −∗ ) holds, but only later. We can get rid of this later (⊲) whenever our goal gets preﬁxed by
+a later, as witnessed by ⊲-intro. Iris’s (cid:31) modality ensures that the induction hypothesis Δ −∗ 
+can be used more than once. This is reﬂected in the logic by the rules (cid:31)-elim and (cid:31)-dup.
+
+We can now continue proving our goal Equation (3). After Löb and unfold-rec-l, our goal is:
+
+  ∃. ℓ ↦→  ∗ ℓ ↦→s  ∗ isLock(, false)
+
+(cid:31) (|= (rec . . .) () ≾ ( . . .) () : Z)
+
+N
+
+,
+
+! ⊢ |= (let  := !ℓ . . .) ≾ . . . : Z
+
+(4)
+
+Proof Phase 4: Symbolic execution of inner closures. To ﬁnish the proof, we need to justify
+the safety of the load and CAS operations of the left-hand expression. Additionally, we need to show
+that a successful CAS from  to  + 1 (the linearization point) corresponds to an execution path for
+the right-hand expression that terminates in . The invariant we have established guarantees that.
+Some additional rules for symbolic execution with invariants in ReLoC can be found in Fig. 3c.
+
+As mentioned before, we can only access the resources in  for the duration of atomic expressions.
+Let us consider the load-l rule, to see how this is enforced. The premise of the rule mentions the
+E2  is: assuming all invariants with names
+fancy update modality
+in E1 hold, then  holds, and additionally all invariants with names in E2 hold. The masks E
+thus allow Iris to keep track of the opened invariants, and avoids opening invariants twice (i.e.,
+invariant reentrancy, which is unsound). Note that load-l also shows that reﬁnement judgments
+|=E 1 ≾ 2 :  have a mask parameter. We let E = ⊤ when the mask is omitted.
+
+E2 . The semantics of
+
+|⇛E1
+
+|⇛E1
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:10
+
+Ike Mulder and Robbert Krebbers
+
+refines-closure
+Δ ⊢ (cid:31)(|= 1 () ≾ 2 () : )
+
+Δ ⊢ |= 1 ≾ 2 : () → 
+
+iris-(cid:31)-intro
+All hypotheses in Δ are persistent
+
+Δ ⊢ 
+
+Δ ⊢ (cid:31) 
+
+alloc-l
+∀ℓ . Δ, ℓ ↦→  ⊢ |=  [ℓ] ≾  : 
+
+alloc-r
+∀ℓ . Δ, ℓ ↦→s  ⊢ |=E  ≾  [ℓ] : 
+
+Δ ⊢ |=  [ref ] ≾  : 
+
+Δ ⊢ |=E  ≾  [ref ] : 
+
+newlock-r
+∀ . Δ, isLock(, false) ⊢ |=E  ≾  [] : 
+
+inv-alloc
+
+Δ ⊢ ⊲  ∗ ( 
+
+N
+
+−∗|= 1 ≾ 2 : )
+
+Δ ⊢ |=E  ≾  [newlock ()] : 
+
+Δ ⊢ |= 1 ≾ 2 : 
+
+(a) Proof rules relevant for Proof Phase 1 and Proof Phase 2.
+
+Löb
+Δ, ⊲ (cid:31)(Δ −∗ ) ⊢ 
+
+Δ ⊢ 
+
+(cid:31)-elim
+(cid:31)  ⊢ 
+
+(cid:31)-dup
+(cid:31)  ⊢ (cid:31)  ∗ (cid:31) 
+
+unfold-rec-l
+Δ ⊢ ⊲(|=  [(rec   := )/ ] [/] ≾  ′ : )
+
+Δ ⊢|= (rec   := )  ≾  ′ : 
+
+⊲-intro
+Δ′ obtained from Δ by stripping at most one ⊲ of every hypothesis
+
+Δ′ ⊢ 
+
+Δ ⊢ ⊲ 
+
+(b) Proof rules relevant for Proof Phase 3.
+
+inv-access
+
+⊢ |⇛E
+
+N
+
+
+
+fupd-intro
+
+ ⊢ |⇛E
+
+E 
+
+fupd-elim
+|⇛E1
+ ⊢
+
+E2 
+
+Δ,  ⊢
+
+|⇛E2
+
+E3 
+
+Δ,  ⊢
+E3 
+
+|⇛E1
+
+refines-fupd
+Δ ⊢
+
+|⇛E ⊤ |= 1 ≾ 2 : 
+
+Δ ⊢ |=E 1 ≾ 2 : 
+
+N ⊆ E
+
+E\N(cid:16)⊲  ∗(cid:16)⊲  −∗
+
+|⇛E\N E True(cid:17)(cid:17)
+
+load-l
+Δ ⊢
+
+|⇛⊤
+
+E ∃ . ℓ ↦→  ∗ ⊲(ℓ ↦→  −∗ |=E  [] ≾  : )
+
+Δ ⊢ |=  [!ℓ] ≾  : 
+
+cas-l
+
+Δ ⊢
+
+E ∃ . ℓ ↦→  ∗ ⊲ ⌜ = 1⌝ ∗ ℓ ↦→ 2 −∗ |=E  [true] ≾  :  ∧
+⌜ ≠ 1⌝ ∗ ℓ ↦→  −∗ |=E  [false] ≾  :  !
+
+|⇛⊤
+
+Δ ⊢ |=  [CAS ℓ 1 2] ≾  : 
+
+load-r
+Δ, ℓ ↦→s  ⊢ |=E  ≾  [] : 
+Δ, ℓ ↦→s  ⊢ |=E  ≾  [!ℓ] : 
+
+store-r
+
+Δ, ℓ ↦→s  ⊢ |=E  ≾  [()] : 
+
+refines-z
+
+Δ, ℓ ↦→s  ⊢ |=E  ≾  [ℓ ← ] : 
+
+Δ ⊢ |=  ≾  : Z
+
+(c) Proof rules relevant for Proof Phase 4.
+
+Fig. 3. A selection of the existing rules of Iris and ReLoC.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:11
+
+The inv-access rule shows the interplay between invariants and fancy updates. For an invariant
+N
+with name N , if N is contained in E, then removing N from E gives us access to the resource
+
+. The original mask E can only be restored by handing back . (Note that one only obtains  under
+a later modality (⊲). This is necessary since invariants in Iris are impredicative [Jung et al. 2018b;
+Svendsen and Birkedal 2014], i.e., they may contain any resource, including invariants themselves.
+The later modality allows Iris to soundly deal with such cases, but for simple resources like ℓ ↦→ 
+(which are called timeless in Iris), the later modalities can be discarded.)
+
+Returning to load-l: with E = ⊤ \ N , we can combine inv-access, fupd-elim and fupd-intro
+to prove ∃ . ℓ ↦→  with the resources from our invariant. We then receive ℓ ↦→  back, since the
+load operation does not change the state. Our new proof obligation is:
+
+N
+
+, ℓ ↦→ , ℓ ↦→s , isLock(, false),
+
+
+( ⊲  −∗
+(cid:31)(|= (rec . . .) () ≾ ( . . .) () : Z)
+
+|⇛⊤\N ⊤ True),
+
+⊢ |=⊤\N (let  :=  . . .) ≾ . . . : Z
+
+Since we opened an invariant, the reﬁnement judgment after the turnstile has N removed from
+its mask. All symbolic execution rules for the left-hand side require the mask to be ⊤, while the
+symbolic execution rules for the right-hand side work for every mask E. This reﬂects the demonic
+and angelic nature of left-hand side and right-hand side execution: we can keep invariants open for
+multiple steps on the right, but only during a single atomic step on the left.
+
+We refrain from symbolically executing the right-hand side until the CAS succeeds. After the
+|⇛⊤\N ⊤ True). We then
+load, we restore the invariant using fupd-elim, and our hypothesis ( ⊲  −∗
+use cas-l. Like at the load, our invariant will provide us with some ′ for which ℓ ↦→ ′, and the
+CAS will succeed precisely when  = ′. Note that it is crucial to also consider the case  ≠ ′: this
+happens when another thread incremented ℓ between the load and the CAS of the current thread.
+The conjunction (∧) in cas-l means that the proof splits into two separate proof obligations. In
+the successful case, we receive the updated ℓ ↦→ ( + 1), together with the resource ⌜ = ′⌝. This
+embeds the pure fact  = ′ into Iris’s separation logic. Likewise, in the failing case we receive the
+unchanged ℓ ↦→ ′, together with the pure information ⌜ ≠ ′⌝.
+
+For case  = ′, the CAS succeeds, and the left-hand side expression will be returning . After
+
+some pure reduction, our proof obligation becomes:
+
+©(cid:173)(cid:173)«
+
+ª®®¬
+
+ª®®¬
+
+⊢ |=⊤\N  ≾ (acquire(); let  = !ℓ . . .) : Z
+
+N
+
+, ℓ ↦→ ( + 1), ℓ ↦→s , isLock(, false),
+
+
+( ⊲  −∗
+(cid:31)(|= (rec . . .) () ≾ ( . . .) () : Z)
+
+|⇛⊤\N ⊤ True)
+
+©(cid:173)(cid:173)«
+
+At this point, we cannot restore the invariant: ℓ and ℓ point to diﬀerent values. Only after symbol-
+ically executing the right-hand side will we be able to restore the invariant, which indicates that
+the linearization point must be now. With rules like load-r and store-r, we can acquire the lock,
+execute the load and store operations, and ﬁnally release the lock. We conclude the proof of this
+case by closing the invariant, and using refines-z.
+
+For case  ≠ ′, the CAS fails, and we receive back ℓ ↦→ ′ unchanged. We restore the invariant.
+After some pure reduction our goal becomes the Löb induction hypothesis, concluding our proof:
+
+N
+
+
+
+, (cid:31) (|= (rec . . .) () ≾ ( . . .) () : Z) ⊢ |= (rec . . .) () ≾ ( . . .) () : Z
+
+2.3 Proof Automation Strategy
+
+The above proof phases introduce diﬀerent challenges for proof automation, in rising complexity:
+
+• Proof Phase 1: Symbolic execution without preconditions, introducing the (cid:31) modality.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:12
+
+exec-l
+∀® . {} 1 { }
+
+Ike Mulder and Robbert Krebbers
+
+atomic 1
+
+1 ∉Val
+
+Δ ⊢ |⇛⊤
+
+E ∃® .  ∗ ⊲(∀ .  −∗ |=E  [] ≾ 2 : )
+
+Δ ⊢ |=  [1] ≾ 2 : 
+
+exec-r
+∀® . {} 2 { }s
+
+Δ ⊢ |⇛E
+
+E ∃ .  ∗ (∀ .  −∗ |=E 1 ≾  [] : )
+
+Δ ⊢ |=E 1 ≾  [2] : 
+
+val-z
+Δ ⊢ |⇛E ⊤ ⌜1 = 2⌝
+Δ ⊢ |=E 1 ≾ 2 : Z
+
+val-fun
+Δ ⊢ |⇛E ⊤
+
+(cid:31) (|= 1 () ≾ 2 () : )
+
+Δ ⊢ |=E 1 ≾ 2 : () → 
+
+reloc-apply
+Δ, (cid:31)(Δ′ −∗|= 1 ≾ 2 : ) ⊢ |⇛E
+
+E Δ′ ∗ |⇛E ⊤ (∀12.  1 2 −∗|= 1 [1] ≾ 2 [2] : )
+
+Δ, (cid:31)(Δ′ −∗|= 1 ≾ 2 : ) ⊢ |=E 1 [1] ≾ 2 [2] : 
+
+Fig. 4. Derived proof rules for ReLoC suitable for proof automation.
+
+• Proof Phase 2: Not introducing the (cid:31) modality to allow the user to allocate the invariant.
+• Proof Phase 3: Automatically performing Löb induction when it is necessary.
+• Proof Phase 4: Symbolic execution where the preconditions are inside an invariant, followed
+
+by automatic application of induction hypothesis.
+
+In this section, we give a description of our proof strategy that can handle these challenges. The
+strategy operates on goals Δ ⊢ , where the grammar of  is given by:
+
+ ::= |=E 1 ≾ 2 :  | ⊲  | (cid:31)  |
+
+|⇛E1
+
+E2 ∃® .  ∗  .
+
+( are ‘easy’ goals like ℓ ↦→ , described in §4.5). If  is of one of the ﬁrst three shapes, the strategy
+either provides a rule to apply, or stops. If  has the last shape, we reuse the existing automation of
+Diaframe 1.0 [Mulder et al. 2022] to handle invariants, which operates on precisely these goals.
+
+Our proof strategy is the result of restating the original rules of ReLoC (Fig. 3) so that they can
+be applied systematically. Our new rules can be found in Fig. 4. We have veriﬁed in Coq that these
+rules can be derived from the existing rules of ReLoC and Iris. Rule exec-l generalizes symbolic
+execution rules like load-l over the expression 1, where ∀® . {} 1 { } is a Hoare triple for 1. In
+Coq, ∀® . {} 1 { } is represented by a type class, so that given an expression 1, the precondition
+ and postcondition  can be found automatically. Rule exec-r is similar, but uses Hoare triples
+∀® . {} 2 { }s for the right-hand side. Finally, val-z and val-fun keep the fancy update around
+and have been generalized to all masks E so that the strategy can postpone closing invariants.
+
+We can now give our proof search strategy for reﬁnement judgments. Suppose the goal is
+Δ ⊢ |=E 1 ≾ 2 : . We proceed by case distinction on both 1 and 2, and try the following rules in
+order (omitting some cases, e.g., those related to pure reductions and higher-order functions):
+
+(1) If 1 and 2 are values, apply rules similar to val-z and val-fun, depending on the type .
+(2) If 1 is a value and 2 is not, apply exec-r.
+(3) If 1 is not a value and E = ⊤, try the following:
+
+(a) Find  with 1 =  [] for which exec-l is applicable, otherwise
+(b) Try to ﬁnd an induction hypothesis to apply with reloc-apply, otherwise
+(c) If 1 := (rec   := ) , apply Löb induction with Löb, followed by unfold-rec-l.
+
+(4) If 1 is not a value and E ≠ ⊤, but 2 ís a value, apply refines-fupd.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:13
+
+(5) If 1 is not a value and E ≠ ⊤ and 2 is not a value, there are two valid ways to proceed: either
+restore the invariant with refines-fupd, or perform symbolic execution on the right with
+exec-r. Depending on the user’s preference, the proof automation will backtrack on these
+choices, or stop and let the user choose how to proceed.
+
+Additionally, for other goals Δ ⊢ :
+
+(6)  = (cid:31)  ′: Apply iris-(cid:31)-intro, but only if all hypotheses in Δ are persistent. Stop otherwise.
+(7)  = ⊲  ′: Apply rule ⊲-intro to introduce the later and strip laters from the context.
+(8)  =
+
+E2 ∃® .  ∗  ′: Use proof automation from Diaframe 1.0 to make progress.
+
+|⇛E1
+
+Veriﬁcation of the example in Fig. 2. The strategy above is available using the iStepsS tactic
+in Coq. In the veriﬁcation of the example in Fig. 2, the iStepsS tactic stops at line 24 after applying
+val-fun for the second time. Item 6 ((cid:31) introduction) would be applicable, except that the proof
+context Δ is not persistent. Iris allows one to weaken the context before introducing the (cid:31) modality,
+but our automation refrains from doing so—it often leads to improvable goals down the line. Our
+automation thus stops and allows the user to allocate an invariant before proceeding. To allocate
+the invariant, we use the iAssert tactic from the Iris Proof Mode.
+
+Why these rules? Let us motivate our proof strategy and indicate how it reﬂects the design
+goals described in § 1. After the invariant is established, the reﬁnement of the two closures is
+established completely automatically, as is Design goal #1. Automatically inferring invariants is
+outside Diaframe 2.0’s scope. The strategy as a whole makes explicit the pattern followed in most
+interactive proofs, although the details diﬀer. To be precise, the pattern is: symbolically execute
+the left-hand side, until you reach an expression that may be subject to interference from the
+environment (i.e., for which an invariant must be opened). The right-hand side expression may
+need to be symbolically executed some number of times at these points.
+
+Design goal #2 is to enable assistance with interactive tactics for diﬃcult reﬁnements. To do so,
+it is crucial that the proof automation does not perform backtracking, unless requested. None of the
+steps of our strategy perform backtracking, except for Item 5. This step needs to choose between
+restoring the invariant, and symbolically executing the right-hand expression. For linearizability,
+this corresponds to deferring or identifying the linearization point, which is known to be hard.
+The iSmash tactic will backtrack on this choice, and is used in Fig. 2 to ﬁnish the proof. The
+sequence iStepsS; iApply refines-fupd; iStepsS also constitutes a valid proof: iStepsS will
+not backtrack, and instead stop the proof automation. In that case, Iris’s iApply refines-fupd can
+be used to instruct the proof automation to restore the invariant (defer linearization), after which
+the proof can be ﬁnished with a second call to iStepsS.
+
+Finally, Design goal # 3 is declarative and modular proof automation. In the implementation,
+Items 7 and 8 are part of the core proof automation module. Item 6 comes in a separate module for
+handling (cid:31)  ′ goals, that may be of independent use for other goals. Items 1 to 5 are all part of
+the reﬁnement module. We achieve foundational proofs (Design goal #4) by establishing that all
+rules used in our proof strategy can be derived from the primitive rules of ReLoC and Iris (i.e., they
+are not axiomatic). These derivations have been mechanized in Coq. Combined with the existing
+soundness proof of ReLoC and Iris, this makes sure that our automation constructs closed Coq
+proofs w.r.t. the operational semantics of the programming language involved.
+
+3 PROOF AUTOMATION FOR LOGICAL ATOMICITY
+
+This section considers logically atomic triples to establish linearizability. We start by giving intuition
+about the need and meaning of such triples (§3.1). After discussing the formal proof rules in Iris
+(§3.2), we show our strategy for proof automation of these triples (§3.3).
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:14
+
+Ike Mulder and Robbert Krebbers
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+Definition inc : val :=
+
+rec: "f" "l" :=
+
+let: "n" := ! "l" in
+if: CAS "l" "n" ("n" + #1) then
+
+"n"
+
+else
+
+"f" "l".
+
+Global Instance inc spec (l : loc) :
+
+SPEC (z : Z), << l ↦→ #z >> inc #l << RET #z; l ↦→ #(z + 1) >>.
+
+10
+
+Proof. iSmash. Qed.
+
+Fig. 5. Verification of a logically atomic triple for a fine-grained concurrent incrementer in Diaframe 2.0.
+
+3.1 Logical Atomicity in Iris
+
+Consider the inc function deﬁned in lines 1-7 of Fig. 5. The pattern of recursively trying to CAS
+occurs in various concurrent programs: we have seen it in fg incrementer in §2, and it also occurs
+in the implementation of e.g., a ticket lock. To enable modular veriﬁcation, we would like to give
+inc a useful speciﬁcation that can be used in the veriﬁcation of other concurrent algorithms.
+
+Let us try to specify inc using a regular Hoare triple { }  {Φ}, where  is an Iris assertion and
+Φ is an Iris predicate on values. The Hoare triple expresses that for each thread that owns resources
+satisfying the precondition , executing  is safe, and if the execution terminates with value ,
+the thread will end up owning resources satisfying the postcondition Φ . A naive speciﬁcation
+is {ℓ ↦→ } inc ℓ { . ⌜ = ⌝ ∗ ℓ ↦→ ( + 1)}. This states that to execute inc ℓ, we need exclusive
+write-access to location ℓ, as indicated by the precondition ℓ ↦→ . Once inc ℓ terminates, it returns
+value , and the ℓ ↦→ ( + 1) in the postcondition tells us that the value stored by ℓ has been
+incremented. Although provable, this speciﬁcation is not useful in a concurrent setting. It requires
+a thread to give up ℓ ↦→  during inc ℓ, while it usually does not have exclusive access to ℓ ↦→ .
+
+We have seen that for reﬁnements, calls to CAS can be veriﬁed in a concurrent setting. This is
+because CAS is a physically atomic instruction, which gives us access to invariant reasoning. To
+see how this works, we state Iris’s invariant rule for Hoare triples, and the speciﬁcation for load:
+
+hoare-inv-access
+{⊲  ∗  }  { . ⊲  ∗  } E\N
+
+atomic 
+
+N ⊆ E
+
+hoare-load
+
+{ℓ ↦→  } !ℓ { .⌜ =  ⌝ ∗ ℓ ↦→  } E
+
+n 
+
+N
+
+∗ o  { .  } E
+
+hoare-load gives a straightforward speciﬁcation for loading a value: the expression returns the
+stored value , and one keeps access to ℓ ↦→ . Like reﬁnement judgments, every Hoare triple is
+annotated with a mask E. When opening invariants with hoare-inv-access, the invariant names
+are removed from the masks, which prevents invariant reentrancy.
+
+We can open invariants around the load instruction with hoare-inv-access only because it is a
+physically atomic instruction, i.e., we have ‘atomic (!ℓ)’. Since we do not have ‘atomic (inc ℓ)’, this
+rule is not applicable. But although inc is not physically atomic, the eﬀects of inc appear to take place
+atomically for clients. That is, at a certain point during the execution of inc, namely, when the CAS
+succeeds, ℓ ↦→  is atomically consumed to produce ℓ ↦→ ( + 1). This gives us a characterization of
+linearizability: an operation is linearizable if it appears to take place atomically/instantly somewhere
+during its execution, and the precise moment when this happens place is called the linearization
+point. Inspired by the TaDA logic [da Rocha Pinto et al. 2014], Iris features a special kind of Hoare
+triple to specify this, called a logically atomic triple [Jung 2019; Jung et al. 2020, 2015]. We specify
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:15
+
+the behavior of inc using the following logically atomic triple:
+
+inc-logatom
+⟨. ℓ ↦→ ⟩ inc ℓ ⟨ . ⌜ = ⌝ ∗ ℓ ↦→ ( + 1)⟩ ∅
+
+We replaced { with ⟨, what did we gain? In words, the meaning of a logically atomic triple ⟨⟩  ⟨Φ⟩
+is: at the linearization point in the execution of , the resources in  are atomically consumed to
+produce the resources in Φ , where  is the ﬁnal return value of expression . Birkedal et al. [2021]
+established formally that such triples indeed imply linearizability. Logically atomic triples have the
+additional beneﬁt that they can be used inside the logic, with the following reasoning rules:
+
+la-inv
+
+N
+
+
+
+⟨® .  ∗ ⊲ ⟩  ⟨ .  ∗ ⊲ ⟩ E\N
+⟨® . ⟩  ⟨ . ⟩ E
+
+la-hoare
+(cid:31) ⟨® . ⟩  ⟨ . ⟩ E
+∀® . { }  { .  }⊤
+
+la-inv shows that it is indeed possible to open invariants around logically atomic triples. The
+la-hoare rule shows that logically atomic triples are stronger than ordinary Hoare triples.
+
+The curious use of binder  in inc-logatom deserves a comment. Logically atomic triples allow
+a certain amount of interference from other threads, such as concurrent calls to inc. In such cases,
+it is enough that at each moment there is some  for which ℓ ↦→ . This  needs not be known when
+the function is called, and may well be diﬀerent at diﬀerent moments. To reﬂect this in the logic,
+the pre- and postconditions of logically atomic triples can be bound by (a number of) quantiﬁers ®.
+
+3.2 Background: Proof Rules for Logically Atomic Triples
+
+To see how we use logically atomic triples, we will ﬁrst discuss Hoare triples in Iris in more detail.
+Hoare triples in Iris are not a primitive notion, but deﬁned in terms of weakest preconditions:
+
+{ }  {Φ} ≜ (cid:31)(cid:0) −∗ wp  {Φ}(cid:1)
+
+The weakest precondition wp  {Φ} asserts that execution of  is safe (cannot get stuck), and if 
+terminates with value , we get Φ . The Hoare triple { }  {Φ} thus states that we can persistently
+(so, multiple times) relinquish  to execute , after which we obtain Φ  for the return value .
+
+Like Hoare triples, logically atomic triples are deﬁned in terms of weakest preconditions:1
+
+la-def
+⟨® . ⟩  ⟨ . ⟩ E ≜ ∀Φ. ⟨® .  |  .  ⇛ Φ ⟩⊤\E −∗ wp  {Φ}
+
+This expresses that for any postcondition Φ, to prove wp  {Φ} it is enough to show an atomic
+update of the form ⟨® .  |  .  ⇛ Φ ⟩⊤\E. Atomic updates represent the possibility to witness
+variables ® for which  holds, at any instant. If one uses this possibility, one either needs to hand
+back ownership of this exact  to recover the atomic update, or hand back  to obtain Φ  (commit
+the linearization point). By quantifying over Φ, Iris makes sure that the only way to prove a logically
+atomic triple is by using the atomic update ⟨® .  |  .  ⇛ Φ ⟩⊤\E.
+
+Proving logically atomic triples. Proving a logically atomic triple ⟨® . ⟩  ⟨ . ⟩ E is a matter
+of ‘just’ proving a weakest precondition, i.e., a goal Δ ⊢ wp  {Φ}. However, we need the atomic
+update to get temporary access to  and eventually get Φ. Atomic updates can be accessed as:
+
+au-access-iris
+
+⟨® .  |  .  ⇛ ⟩ E ⊢ |⇛E
+
+∅ ∃® .  ∗(cid:16)(cid:0) −∗ |⇛∅
+
+E (cid:1)(cid:17)
+E ⟨® .  |  .  ⇛ ⟩ E(cid:1) ∧(cid:0)∀ .  −∗ |⇛∅
+
+1The deﬁnition of logically atomic triples does not feature the (cid:31) modality to allow for private preconditions, i.e., preconditions
+that one must relinquish completely at the start of the execution of . To make a logically atomic triple persistent, one has
+to add the persistence modality explicitly. This is for example visible in rule la-hoare.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:16
+
+Ike Mulder and Robbert Krebbers
+
+Löb
+Δ, ⊲ (cid:31)(Δ −∗ ) ⊢ 
+
+unfold-rec
+Δ ⊢ ⊲ wp  [(rec   := )/ ] [/] {Φ}
+
+Δ ⊢ 
+
+Δ ⊢ wp (rec   := )  {Φ}
+
+rec-apply
+Δ, (cid:31)(Δ′ −∗ wp  {Ψ}) ⊢ |⇛⊤ ⊤ Δ′ ∗ (∀ . Ψ −∗ wp  [ ] {Φ})
+
+Δ, (cid:31)(Δ′ −∗ wp  {Ψ}) ⊢ wp  [] {Φ}
+
+Fig. 6. Selection of Iris’s proof rules for Löb induction on weakest preconditions.
+
+|⇛E
+
+This rule states that (similar to Iris’s rule for invariants inv-access) an atomic update provides
+∅ ). After we obtain , there are two ways
+access to  by changing the masks of a fancy update (
+to restore the mask, corresponding to the two sides of the (regular) conjunction. In the left conjunct,
+we need to return precisely . This corresponds to ‘peeking’ at the state, without changing it (in
+our example, this happens when the CAS fails). After peeking, we receive back the atomic update,
+deferring the linearization point. For the right conjunct, we need to provide , which corresponds
+to committing to the linearization point (in our example, this happens when the CAS succeeds).
+We then get access to , the postcondition in la-def. One might be surprised to see a regular
+conjunction (∧) in separation logic, where the separating conjunction (∗) is more common. Regular
+conjunction corresponds to a form of internal choice: if one owns a regular conjunction  ∧ , one
+can either use it as  (here, defer linearization) or as  (here, commit linearization), but not as both.
+A proof of the logically atomic triple for inc in Fig. 5 needs to account for the recursive call
+when the CAS fails. We will use Löb induction once more—Fig. 6 contains the relevant rules. By
+combining Löb, unfold-rec and ⊲-intro, we perform induction and start symbolic execution of
+the function. rec-apply shows how to apply the induction hypothesis at recursive calls.
+
+Using logically atomic triples. With a proof of a logically atomic triple at hand, clients can
+use a combination of la-hoare, la-inv and related rules to open invariants around the expression.
+In actual proofs, this is done diﬀerently, since working beneath binder ® is cumbersome in Coq.
+Client veriﬁcations in Iris usually rely on the following rule:
+
+sym-ex-logatom
+⊢ ⟨® . ⟩  ⟨ . ⟩ E
+
+Δ ⊢(cid:10) ® .  |  .  ⇛ wp  [] {Φ}(cid:11)⊤\E
+
+Δ ⊢ wp  [] {Φ}
+
+Instead of proving a logically atomic triple directly, one is now asked to prove an atomic update.
+Atomic updates can be introduced as follows:
+
+au-intro
+Δ ⊢ |⇛E
+
+?E′
+
+∃® .  ∗(cid:0)( −∗
+
+|⇛?E′
+
+E Δ) ∧ (∀ .  −∗
+
+|⇛?E′
+
+Δ ⊢ ⟨® .  |  .  ⇛ ⟩ E
+
+E )(cid:1)
+
+This rule asks us to show that opening some invariants in E gives us . Additionally, we need to
+prove that obtaining  is non-destructive: the original context Δ can be restored. This ensures that
+when the implementation peeks at , it does not aﬀect the client. The other side of the conjunction
+shows that the atomic postcondition  can be used to restore the invariants, and prove .
+
+3.3 Proof Automation Strategy
+
+Our proof automation for logical atomicity should be able to make progress on the following goals:
+
+• Weakest preconditions: Δ ⊢ wp  {Φ}, by deﬁnition of logically atomic triples la-def.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:17
+
+• Atomic updates: Δ ⊢ ⟨® .  |  .  ⇛ ⟩ E, when applying a known triple sym-ex-logatom.
+• Goals of the form Δ ⊢
+
+E2 ∃® .  ∗ , after introducing atomic updates au-intro or to
+establish the precondition of heap operations such as load and CAS. The context Δ might
+contain atomic updates that should be eliminated via au-access-iris.
+
+|⇛E1
+
+• Goals preﬁxed by a later modality: Δ ⊢ ⊲ , when using unfold-rec after Löb induction.
+
+Our proof search strategy for these goal extends the existing proof search strategy from Diaframe
+1.0 by internalizing Löb induction, and by adding support for logically atomic triples.
+
+Suppose our goal is Δ ⊢ wp  {Φ}. We proceed by case analysis on , trying the following rules
+in order (omitting some cases, e.g., those related to pure reductions and higher-order functions):
+
+(1) If  is a value , then directly continue with proving Δ ⊢ |⇛⊤ ⊤ Φ .
+(2) If  =  [ ′], then either:
+
+(a) We have a regular speciﬁcation ∀® . {}  ′ { } for  ′. Use Diaframe 1.0’s existing approach
+
+to make progress, which applies a rule similar to exec-l.
+
+(b) We have a speciﬁcation ⟨® . ⟩  ′ ⟨ .  ⟩ E. Apply sym-ex-logatom, continue with new goal
+
+Δ ⊢(cid:10) ® .  |  .  ⇛ wp  [] {Φ}(cid:11)⊤\E.
+
+(c) Otherwise, try to ﬁnd an induction hypothesis to use with rec-apply.
+
+(3) If  = (rec   := ) , i.e., a possibly recursive function applied to a value . Two cases:
+
+(a) There is no actual recursion, i.e.,  does not occur in . Apply unfold-rec and continue
+
+with new goal Δ ⊢ ⊲ wp  [/] {Φ}.
+
+(b) For recursive functions. Apply Löb, then apply unfold-rec. Continue with new goal
+Δ, ⊲ (cid:31)(Δ −∗ wp  {Φ}) ⊢ ⊲ wp  [/ ] [ ′/] {Φ}.2 Note that Δ will contain an atomic
+update, which we will have to relinquish on recursive calls.
+
+For Δ ⊢  with  not a weakest precondition, we distinguish the following cases:
+
+(4)  = ⊲  ′. Apply rule ⊲-intro to introduce the later and strip laters from the context.
+(5)  = ⟨® .  |  .  ⇛  ′⟩ E. Two cases:
+
+(a) If  ∈ Δ, directly use it to ﬁnish the proof. This situation occurs after applying the induction
+
+(b) Otherwise, we introduce the atomic update with au-intro. Our new goal becomes Δ ⊢
+
+hypothesis with rec-apply.
+
+?E′
+
+|⇛E
+
+∃® .  ∗(cid:16)(cid:0) −∗
+
+|⇛?E′
+
+E Δ(cid:1) ∧(cid:0)∀ .  −∗
+
+|⇛?E′
+
+E (cid:1)(cid:17) .
+
+(6)  =
+
+|⇛E1
+
+E2 ∃® .  ∗ . Use proof automation from Diaframe 1.0 to make progress. If enabled
+
+and when relevant, Diaframe 1.0 will backtrack to determine the linearization point.
+
+This strategy can prove the logically atomic triple in Fig. 5 without user assistance. It uses the
+iSmash instead of the iStepsS tactic, which enables backtracking for automatically determining
+the linearization point in Item 6. Proving atomic updates is covered by Item 5; we now provide
+some details on how we use atomic updates in Item 6.
+
+Using atomic updates. The veriﬁcation of a logically atomic triple crucially depends on elimi-
+nating atomic updates ⟨® .  |  .  ⇛ ⟩ E with au-access-iris. The elimination of atomic updates
+needs to happen in Item 6 when the Diaframe 1.0 automation needs to obtain ownership of .
+
+This can be done by allowing Diaframe 1.0 to ‘look inside’ atomic updates, allowing it to
+determine ways of obtaining ownership of resources inside . Note that au-access-iris is similar
+to the invariant accessing rule inv-access, which Diaframe 1.0 can also apply automatically. The
+main diﬀerence is that we have two independent ways to restore the mask (indicated by the ∧): we
+either defer or commit the linearization point. We need to ensure this choice is not made too early,
+
+2In the Coq implementation we additionally generalize the Löb induction hypothesis over the arguments supplied to .
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:18
+
+Ike Mulder and Robbert Krebbers
+
+and achieve this by replacing the conjunction with a disjunction on the left-hand side of a wand:3
+
+au-access-diaframe
+
+⟨® .  |  .  ⇛ ⟩ E ⊢ |⇛E
+
+∅ ∃® .  ∗ ∀ .
+(( ∗ ⌜ = None⌝) ∨ (∃ .  ∗ ⌜ = Some  ⌝)) −∗
+|⇛∅
+
+E match  with None ⇒ ⟨® .  |  .  ⇛ ⟩ E | Some  ⇒  end
+
+This disjunction needs to be proven to restore the mask, and the side of the disjunction will indicate
+whether the linearization point should be deferred or committed. The rule au-access-diaframe is
+derived from the rules for atomic updates of Iris. This result is mechanized in Coq.
+
+Let us describe how this is used in the example from Fig. 5. To symbolically execute the load
+and CAS, ownership of ℓ ↦→  is needed. Since the atomic update ⟨. ℓ ↦→  |  . ℓ ↦→ ( + 1) ⇛ ⟩ E
+is in our context, Diaframe 1.0 will use au-access-diaframe to obtain temporary ownership of
+ℓ ↦→ . After symbolic execution, we receive back a possibly changed ℓ ↦→  ′, and the remaining
+‘closing resource’ of shape (∀ . ∨ −∗ |⇛∅
+E ). Diaframe notices it can use this closing resource
+to restore the mask, so the goal becomes (note that  is bound in ):
+
+Δ ⊢ |⇛∅
+
+∅ ∃  .(cid:0)( ∗ ⌜ = None⌝) ∨ (∃ .  ∗ ⌜ = Some  ⌝)(cid:1) ∗  .
+
+The iSmash tactic uses backtracking to pick the correct side of this disjunction—i.e., to decide if the
+linearization point should be deferred or committed. We can also use the non-backtracking tactic
+iStepsS and pick the correct disjunct interactively with the Iris tactics iLeft/iRight.
+
+Functions. There are two cases for functions. Item 3b handles the situation in which the function
+is recursive and generates a Löb induction hypothesis. Item 3a is a specialized version that handles
+the case where there is no actual recursion. Omitting this specialized version would work, but
+would cause Item 3b to generate useless induction hypotheses that in turn increase the search space
+in Item 2c, and thus slow down the automation. Omitting Item 3a would also make the goal less
+readable if the user wants to help out with an interactive proof.
+
+Why these rules? The above rules constitute a strategy that can prove logical atomicity of
+‘simple’ examples (Design goal #1). We have demonstrated this on the example in Fig. 5, and show a
+number of other simple examples in §5. To ensure good integration with interactive proofs (Design
+goal #2), we once again minimize the use of backtracking. Backtracking is only needed in Item 6 to
+identify the linearization point, just like for reﬁnements. The proof automation is modular (Design
+goal #3): Items 4 and 6 are part of the core automation module, Items 1 to 3 are part of the weakest
+precondition module, while Item 5 comes in a separate module for proving atomic updates. Similar
+to our automation for reﬁnements, we achieve foundational proofs (Design goal #4) by mechanizing
+that all rules used in our proof strategy can be derived from Iris’s primitive rules.
+
+4 IMPLEMENTATION AS EXTENSIBLE PROOF STRATEGY
+
+In § 2 and 3 we have seen descriptions of our proof search strategies for contextual reﬁnement and
+logical atomicity, respectively. This section discusses their implementation; speciﬁcally, how they
+ﬁt in the extensible proof automation strategy that underpins Diaframe 2.0.
+
+Proof search strategies operate on Iris entailments Δ ⊢ , where (in our cases)  is a reﬁnement
+judgment, later or persistence modality (§2), a weakest precondition, or an atomic update (§3). As
+we will see in §4.5, rules of these strategies cannot be represented by the automation of Diaframe 1.0.
+However, our insight is that each rule in such a strategy falls into one of the following categories:
+
+(1) Rules of the form Δ ⊢  ′ =⇒ (Δ ⊢ ), and  ′ ⊢  is provable.
+(2) Rules of the form Δ \  ⊢  ′ =⇒ (Δ ⊢ ) for some  ∈ Δ, and  ∗  ′ ⊢  is provable.
+
+3This transformation is sound since both sides of the ∧ feature a fancy update |⇛∅
+
+E with the same mask.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:19
+
+(3) Rules of the form (Δ′ ⊢  ′) =⇒ (Δ ⊢ ), where Δ′ and  ′ can be calculated from Δ and 
+
+by just inspecting their head symbols (i.e., modalities).
+
+(4) Rules of the form (Δ ⊢  ′) =⇒ (Δ ⊢ ), where  ′ mentions the entire context Δ.
+
+We repeat a select number of cases of the proof search strategy in § 2 and 3 to make this apparent:
+
+(1) If  = wp  {Φ} and  is a value , continue with Δ ⊢ |⇛⊤ ⊤ Φ .
+(2) If  = ⟨® .  |  .  ⇛ Φ⟩ E, check if  ∈ Δ. If so, we can continue with Δ \  ⊢ True
+(3) If  = (cid:31)  ′, and all hypotheses in Δ are persistent, continue with Δ ⊢  ′. Note that the
+
+entailment  ′ ⊢ (cid:31)  ′ does not hold. This rule is only valid because of the condition on Δ.
+
+(4) If  = ⟨® .  |  .  ⇛ Φ⟩ E, and the above Rule 2 is not applicable, apply au-intro. The new
+
+goal has shape Δ ⊢
+the right-hand-side of the turnstile, so this rule falls outside the ﬁrst two categories.
+
+E Δ) ∧ (∀ .  −∗
+
+|⇛?E′
+
+?E′
+
+|⇛E
+
+|⇛?E′
+
+E )(cid:1). The Δ occurs on
+
+∃® .  ∗(cid:0)( −∗
+
+We describe a generic proof strategy based on this insight, that can be extended to support new
+goals (§4.5). We have implemented this proof strategy in Ltac [Delahaye 2000]. Support for new
+goals and proof rules can be added by providing appropriate hints (registered as type class instances
+in Coq [Sozeau and Oury 2008]), corresponding to Category 1 to 4. Rules of Category 1 and 2 ﬁt
+into our abduction hints (§ 4.1 and 4.2), while rules of Category 3 and 4 ﬁt into our transformer hints
+(§4.3). A combination of abduction hints and transformer hints (§4.4) can be used to implement
+composite procedures such as Löb induction.
+
+4.1 Abduction Hints
+
+This section deﬁnes abduction hints to capture rules in Category 1 and 2:
+
+ ∗ [ ′] (cid:25)  ≜  ∗  ′ ⊢ 
+
+Here, we give some hypothesis  ∈ Δ and current goal  as input to type class search, and receive
+the new goal  ′ as an output, indicated by the square brackets. Given some  and , we want to
+ﬁnd a ‘good’ new goal  ′—which might not exist. If a good  ′ cannot be found, we start the search
+again for a diﬀerent  ∈ Δ. We leave ‘good’ undeﬁned, but consider False and  −∗  bad choices
+since they will make the proof automation get stuck, or loop.
+
+The format of abduction hints directly represents hints of Category 2, but what about Category 1?
+Category 1 is encoded by performing a technical trick by Mulder et al. [2022], relying on the fact
+that  ′ ⊢  implies True ∗ ′ ⊢ . Since Δ ⊢ True vacuously holds, we can pretend to have True ∈ Δ
+for the purpose of ﬁtting Category 1 into Category 2. To account for the case where a priority of
+rules is desired (some Category 1 rules should be tried either before or after Category 2 rules), we
+deﬁne two syntactical markers 0 ≜ True and 1 ≜ True. Our proof search strategy will always ﬁnd
+0 ∈ Δ before any actual hypothesis in Δ, while 1 ∈ Δ will always be found last. This technique is
+similar to techniques by Gonthier et al. [2011], where multiple equivalent deﬁnitions are used to
+obtain proof automation rules with diﬀerent priorities.
+
+The proof search strategy proceeds as follows. If our goal is Δ ⊢ , use type classes to ﬁnd  ∈ Δ
+and  ′ such that  ∗ [ ′] (cid:25) . Continue with goal Δ′ ⊢  ′, where Δ′ is obtained from context Δ
+by removing  , unless  is persistent or equal to 0 or 1.
+
+As an example, these abduction hints implement two cases of the strategy for logical atomicity:
+
+abduct-wp-val
+
+0 ∗(cid:2) |⇛⊤ ⊤ Φ (cid:3) (cid:25) wp  {Φ}
+
+abduct-sym-ex-logatom
+
+⊢ ⟨® . ⟩  ⟨ . Ψ⟩ E
+
+0 ∗h(cid:10) ® .  |  .  ⇛ wp  [] {Φ}(cid:11)⊤\Ei (cid:25) wp  [] {Φ}
+
+Both rules will be directly applied (indicated by 0) if the goal matches the conclusion and the
+side-conditions can be solved. After applying a rule, the goal will be replaced by the part between
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:20
+
+Ike Mulder and Robbert Krebbers
+
+square brackets [ and ]. To make Diaframe 2.0 use these hints, one provides type class instances of
+above form—which requires a proof of the claimed entailment. Hints thus serve two purposes: they
+both implement the proof search strategy and prove it sound.
+
+4.2 Near-Applicability
+
+Diaframe 2.0 can apply abduction hints when the logical state or current goal nearly matches a rule.
+Let us demonstrate this on the rule rec-apply from §3.3 to apply Löb induction hypotheses. This
+rule is monolithic since it takes care of two tasks: apply a weakest precondition below an evaluation
+context  in the goal, and ﬁnd a weakest precondition below a magic wand in the context Δ. In the
+implementation in Diaframe 2.0, this rule is decomposed in separate hints for each task:
+
+abduct-wp-bind
+
+wp  {Φ} ∗(cid:2)∀ . Φ  −∗ wp  [] {Ψ}(cid:3) (cid:25) wp  [] {Ψ}
+
+abduct-wand
+
+ ∗ [ ′] (cid:25) 
+
+( −∗  ) ∗ [ ∗  ′] (cid:25) 
+
+The key hypothesis wp  {Φ} of abduct-wp-bind does not precisely match the induction hypothesis
+(cid:31)(Δ −∗ wp  {Φ}) that was generated by Löb. To address this, abduction hints are closed under the
+connectives of separation logic by recursive rules such as abduct-wand (similar recursive rules
+exist for other connectives of separation logic, e.g., universal quantiﬁcation). The recursive rules
+ensure that every abduction hint  ∗ [ ′] (cid:25)  is not just relevant when  ∈ Δ, but also when for
+example ( −∗ ) ∈ Δ or (1 −∗ 2 −∗ ( ∗ )) ∈ Δ.
+
+These two rules also come in handy for situations besides rec-apply. For example, abduct-wand
+and similar recursive rules are used for Löb induction in reﬁnement proofs. The abduction hint
+abduct-wp-bind is useful when verifying examples with higher-order functions. There, one might
+have a speciﬁcation for a closure in the proof context, and abduct-wp-bind makes it possible to
+use this speciﬁcation in any evaluation context.
+
+4.3 Transformer Hints for Modalities
+
+This section deﬁnes transformer hints, which capture rules in Category 3. We show how these
+hints support the introduction of the (cid:31) and ⊲ modalities. Transformer hints come in two ﬂavors—
+hypothesis and context transformer hints:4
+
+, T →∼hyp [T ′] ≜ T ′ ⊢ ( −∗ T )
+
+Δ, T →∼ctx [] ≜ (Δ ⊢ ) =⇒ (Δ ⊢ T )
+
+Like before, terms between brackets are outputs of type class search, the other terms are inputs. We
+use the class T to indicate goals on which transformer hints should be used—this class is disjoint
+from ordinary goals  on which abduction hints should be used. Examples of transformer hints are
+the introduction rules for the later (⊲) and persistence ((cid:31)) modalities:
+
+⊲ , ⊲ 
+
+→∼hyp [⊲( −∗ )]
+
+no  ∈ Δ preﬁxed by ⊲
+
+all  ∈ Δ are persistent
+
+Δ, ⊲ 
+
+→∼ctx []
+
+Δ, (cid:31) 
+
+→∼ctx []
+
+If we are proving a goal of shape Δ ⊢ T , the proof search strategy takes the following steps:
+
+→
+∼ hyp [ T′ ] is logically equivalent to an abduction hint  ∗ [ T′ ] (cid:25) T.
+4One might note that a hypothesis transformer hint  , T
+While logically equivalent, these hints are diﬀerent operationally. Hypothesis transformer hints only act on the head-
+symbol/modality of hypothesis  , while abduction hints will look beneath connectives of  using rules like abduct-wand,
+as explained in §4.2.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:21
+
+(1) Find  ∈ Δ and T ′ such that , T →∼hyp [T ′]. Continue with goal Δ′ ⊢ T ′, where Δ′ is the
+context Δ in which  is removed. Unlike abduction hints,  is also removed if it is persistent,
+and 0 and 1 are not detected by these hints.
+
+(2) Otherwise, ﬁnd  such that Δ, T →∼ctx []. Continue with goal Δ ⊢ .
+
+One can check that the transformer hints for the later modality ﬁrst ‘revert’ and strip the later oﬀ
+of all hypotheses with a later, and only then introduce the later modality.
+
+4.4 Transformer Hints for Other Rules
+
+In §4.3, we saw that transformer hints are ﬂexible enough to support the introduction of modalities.
+In this section, we show that transformer hints can be combined with abduction hints to support
+rules in Category 4, like au-intro and Löb. Recall our instance of the proof strategy for the
+introduction rule for atomic updates from §3.3:
+
+• If  = ⟨® .  |  .  ⇛ Φ⟩ E, and  does not occur in our environment Δ. Apply au-intro, the
+
+new goal has shape Δ ⊢ |⇛E
+
+?E′
+
+∃® .  ∗(cid:16)(cid:0) −∗
+
+|⇛?E′
+
+E Δ(cid:1) ∧(cid:0)∀ .  −∗
+
+|⇛?E′
+
+E (cid:1)(cid:17).
+
+Note that Δ occurs on the right-hand-side of the turnstile, so this rule falls outside the ﬁrst two
+categories. Checking that ⟨® .  |  .  ⇛ Φ⟩ E ∉ Δ is crucial—proof search will otherwise loop on
+the goal ⟨® .  |  .  ⇛ Φ⟩ E ⊢ ⟨® .  |  .  ⇛ Φ⟩ E. On such a goal, we want to use the abduction
+hint  ∗ [True] (cid:25) , instead of applying au-intro. We therefore add an intermediate form
+AUpre ( ®, , , , Φ, E) ≜ ⟨® .  |  .  ⇛ Φ⟩ E and a combination of transformer and abduction hints:
+
+au-intro-pre
+
+1 ∗(cid:2)AUpre ( ®, , , , Φ, E)(cid:3) (cid:25) ⟨® .  |  .  ⇛ Φ⟩ E
+
+∃® .  ∗ (( −∗
+
+|⇛?E′
+
+E  ∗ Δ) ∧ (∀ .  −∗
+
+|⇛?E′
+
+au-intro-go
+
+Δ, AUpre ( ®, , , , Φ, E) →∼ctx h |⇛E
+
+?E′
+
+E Φ ))i
+
+Since au-intro-pre is a last-resort hint (indicated by 1), we ensure that the assumption hint
+ ∗ [True] (cid:25)  is preferred. After applying au-intro-pre, the proof search strategy tries to
+establish AUpre. This will directly ﬁnd au-intro-go, and enact au-intro.
+
+The collection of these hints gives precisely the required behavior. By introducing a new con-
+struct AUpre and giving above hints, we are quite literally ‘programming the proof search’ to act
+according to our wishes. A similar approach works for performing Löb induction, where we use
+two intermediate goals löbpre () ≜  and löbpost () ≜ , and the following hints:
+
+(rec   := ) performs recursion, i.e.,  ∈ FV()
+
+1 ∗(cid:2)löbpre(cid:0)wp ((rec   := ) ) {Φ}(cid:1)(cid:3) (cid:25) wp ((rec   := ) ) {Φ}
+0 ∗(cid:2)⊲ wp  [(rec   := )/ ] [/] {Φ}(cid:3) (cid:25) löbpost(cid:0)wp ((rec   := ) ) {Φ}(cid:1)
+
+Δ, löbpre () →∼ctx (cid:2)( ⊲ (cid:31)(Δ −∗ )) −∗ löbpost ()(cid:3)
+
+By delegating Löb induction to the löbpre and löbpost constructs, we can easily reuse the procedure
+for reﬁnement judgments. We simply need to add variants of the ﬁrst and third hint for the
+reﬁnement judgment. The second hint we can reuse because it is generic in the goal . This
+modularity is useful for the full-blown version of automatic Löb induction in the supplementary
+material. The full-blown version generalizes over variables and thus has a more sophisticated
+version of the second hint.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:22
+
+Ike Mulder and Robbert Krebbers
+
+4.5 Overview of the Proof Search Strategy
+
+We now give a more formal description of the proof search strategy that underpins Diaframe 2.0. It
+acts on goals of the form Δ ⊢ , where  is deﬁned roughly according to the following grammar:
+
+atoms  ::= . . .
+
+transformers T ::= . . .
+
+left-goals  ::= ⌜ ⌝ |  |  ∗  | ∃ . 
+
+unstructureds  ::= ⌜ ⌝ |  |  ∗  | ∃ .  | ∀ .  |  −∗  |
+E2 ∃® .  ∗  | T
+
+goals  ::= ∀ .  |  −∗  |  |
+
+|⇛E1
+
+|⇛E1
+
+E2 
+
+To prove Δ ⊢ , the strategy proceeds by case analysis on :
+
+(1)  = ∀ .  ′. Introduce variable  and continue.
+(2)  =  −∗  ′. Introduce  into the context and similar to Diaframe 1.0, ‘clean’ it. That is,
+
+eliminate existentials, disjunctions and separating conjunctions.
+
+(3)  = . Look for an abduction hint from some  ∈ Δ to . That is, ﬁnd a side-condition  ′
+
+such that  ∗ [ ′] (cid:25) . Continue with Δ \  ⊢  ′.
+
+(4)  =
+
+|⇛E1
+
+E2 ∃® .  ∗  ′. Use the existing procedure of Diaframe 1.0 [Mulder et al. 2022] to
+
+solve these goals. Roughly, that is, ﬁrst, use associativity of ∗ to obtain either:
+
+(a)  = ⌜ ⌝. Prove ∃® . , then continue with proving  ′.
+(b)  = . Now, ﬁnd a bi-abduction hint from some  ∈ Δ to . That is, ﬁnd a side-condition
+E2 ∃® .  ∗  . Our new goal will be of shape
+
+|⇛E3
+
+′ and residue  such that ∀®.  ∗  ⊢
+Δ \  ⊢
+
+|⇛E1
+
+E3 ∃®. ′ ∗ (∀® .  −∗  ′), which also ﬁts our grammar.
+
+(5)  = T . Try the following, in order:
+
+(a) Find  ∈ Δ and T ′ such that , T →∼hyp [T ′]. Continue with goal Δ \  ⊢ T ′.
+(b) Otherwise, ﬁnd  ′ such that Δ, T →∼ctx [ ′]. Continue with goal Δ ⊢  ′.
+
+Diaframe 1.0 vs Diaframe 2.0. There are two main reasons why Diaframe 1.0’s bi-abduction
+hints cannot express the proof search strategies from § 2.3 and 3.3. Firstly, context transformer
+hints (Item 5b) have a shape that is simply incompatible with Item 4b. Secondly, the side-conditions
+of abduction hints are in , while those of bi-abduction hints are in . Goals  are strictly more
+ﬂexible than left-goals , giving abduction hints the additional power to express proof strategies
+for program speciﬁcation styles. One could attempt to extend the grammar of , but then we risk
+ending up in a goal of shape (∀ . 1) ∗ (∀. 2) after Item 4b, causing the proof search to get stuck.
+
+5 EVALUATION
+
+We evaluate our proof automation on four sets of benchmarks. To evaluate Design goal # 1, we
+compare to Voila [Wolf et al. 2021]—a proof outline checker for logical atomicity (§5.1). We discuss
+the diﬀerences in the underpinned logics, and the performance and proof burden of the proof
+automation of both tools. To evaluate Design goal #2, we redo some of the trickier examples in the
+Iris literature: an elimination stack, and Harris et al. [2002]’s RDCSS (restricted double-compare
+single-swap) (§ 5.2). Besides reverifying existing examples, we use our results to verify logical
+atomicity of the Michael-Scott queue [Michael and Scott 1996] (§5.3). This queue is known to be
+linearizable, but we are not aware of a mechanized proof of logical atomicity. For reﬁnements in
+concurrent separation logic there exist—to the best of our knowledge—no existing semi-automated
+tools. We thus compare to existing interactive proofs done in ReLoC (§5.4).
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:23
+
+Table 1. Data on examples with logical atomicity, in comparison with Voila. Rows correspond to files in the
+supplementary artifact [Mulder and Krebbers 2023]. Columns contain information on lines of implementation,
+total amount of lines, average verification time in minutes:seconds, and lines of proof burden, also for Voila.
+
+name
+bag stack
+bounded counter
+cas counter
+fork join
+fork join client
+inc dec counter
+spin lock
+ticket lock
+ticket lock client
+total
+
+impl
+30
+20
+20
+14
+13
+22
+13
+17
+7
+156
+
+total
+142
+61
+46
+43
+46
+52
+56
+74
+29
+549
+
+53
+6
+0
+0
+0
+0
+0
+4
+0
+63
+
+time proof Voila total Voila proof
+1:13
+0:32
+0:24
+0:21
+0:20
+0:31
+0:16
+1:12
+0:39
+5:28
+
+220
+86
+98
+64
+134
+111
+71
+112
+91
+987
+
+74
+19
+24
+17
+35
+26
+17
+27
+17
+246
+
+5.1 Comparison to Logical Atomicity Proofs in Voila
+
+We verify the 9 examples from Voila’s evaluation suite in Diaframe 2.0. Details can be found in
+Table 1. There are some diﬀerences between Voila and Diaframe 2.0 that are important to point
+out. Voila is based on the TaDa logic [da Rocha Pinto 2016; da Rocha Pinto et al. 2014], whose
+notion of logical atomicity inspired that of Iris, but is slightly diﬀerent. To give a speciﬁcation for
+a logically atomic triple in TaDa, one needs to deﬁne an abstraction around the resources, in the
+form of a region (akin to an invariant in Iris). This is not always required in Iris, which makes our
+speciﬁcations of e.g., cas counter and inc dec counter a lot shorter.
+
+Another diﬀerence is that Diaframe 2.0 is foundational (built in a proof assistant), while Voila is
+non-foundational. The main diﬀerence between foundational and non-foundational veriﬁcation
+lies in the size of the Trusted Computing Base (TCB). Non-foundational tools typically have a large
+TCB, which may include external solvers, the bespoke program logic that underpins the tool, and
+the implementation of the proof automation. Foundational tools typically have a small TCB: just
+the deﬁnition of the operational semantics and the kernel of the proof assistant. The program logic
+and the proof automation need not be trusted.
+
+Finally, Voila is a proof outline checker, requiring the user to specify key steps in the proof of a
+logically atomic triple. In particular, one needs to specify when regions or atomic speciﬁcations
+need to be used, and when the linearization point happens. This oﬀers an improvement over fully
+interactive proofs, but does not achieve the degree of automation Diaframe 2.0 provides—for all but
+2 examples, we can ﬁnd the linearization point automatically. Wolf et al. [2021] explicitly do not
+attempt to build an automated veriﬁer for logical atomicity, about which they remark:
+
+Automated veriﬁers, on the other hand, signiﬁcantly reduce the proof eﬀort,
+but compromise on expressiveness and require substantial development eﬀort,
+especially, to devise custom proof search algorithms. It is in principle possible
+to increase the automation of proof checkers by developing proof tactics, or to
+increase the expressiveness of automated veriﬁers by developing stronger custom
+proof search algorithms. However, such developments are too costly for the
+vast majority of program logics, which serve mostly a scientiﬁc or educational
+purpose.
+
+We summarize aggregated data from Table 1. On average, Diaframe 2.0 has ca. 0.4 lines of proof
+burden per line of implementation (63 lines of proof burden on 156 lines of implementation), while
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:24
+
+Ike Mulder and Robbert Krebbers
+
+Table 2. Data on examples with logical atomicity, in comparison with Iris Proof Mode (IPM) proofs.
+
+name
+rdcss
+elimination stack
+msc queue
+
+impl
+50
+50
+51
+
+total
+422
+239
+427
+
+time proof
+63
+6:42
+58
+4:56
+8:30
+168
+
+IPM total
+
+IPM proof
+
+689
+375
+
+294
+180
+
+Voila has, in our count, 1.7 lines of proof burden per line of implementation.5 The total proof
+burden over these 9 examples is reduced by a factor of about 4, from 246 lines in Voila to 63 lines in
+Diaframe 2.0. For 6 out of the 9 examples, the logically atomic triples can be veriﬁed by Diaframe
+2.0 without any help from the user. This shows we achieve Design goal #1—full automation for
+‘simple’ proofs of logical atomicity. The other three examples require some help for arithmetic
+modulo  (bounded counter), case distinctions which need to be performed at a speciﬁc place in
+the proof (ticket lock and bag stack), or custom hints with non-automatable proofs (bag stack).
+
+5.2 Comparison to Complex Interactive Logical Atomicity Proofs in Iris
+
+To ensure Diaframe 2.0 is usable in interactive proofs of ‘complex’ programs (Design goal #2), we
+partially automate two existing interactive proofs in Iris. The results are shown in Table 2. Since
+these examples are challenging—both feature “helping”, where the linearization point is delegated to
+another thread—full proof automation is not achieved. The proof burden was reduced by a factor of
+4. We found that some intermediate lemmas were no longer necessary, as their eﬀects were applied
+automatically. Most of the ‘easier’ parts of the veriﬁcations of these programs (such as recursive
+calls on a failing CAS) could be completely discharged by Diaframe 2.0. This allowed us to focus
+on the interesting part of the veriﬁcation. In these examples, we have seen 4 patterns where the
+proof automation may need assistance: (a) linearization points for operations that do not logically
+alter the state, (b) case distinctions whose necessity requires ‘foresight’/human intuition, (c) pure
+side-conditions that are too hard for Diaframe, (d) mutation rules of recursive data structures.
+Items (c) and (d) can sometimes be overcome through appropriate hints in Diaframe 1.0. We leave
+good proof automation for Items (a) and (b) for future work. Vafeiadis [2010] also points out that
+Item (a) is very diﬃcult in the context of CAVE.
+
+5.3 Experiences Verifying Logical Atomicity of the Michael-Sco(cid:29) (cid:30)eue
+
+To evaluate the applicability of our proof automation on new proofs, we verify logical atomicity
+of the Michael-Scott queue. To our knowledge, this is a novel result. Contextual reﬁnement is
+established by Vindum and Birkedal [2021], but logical atomicity is stronger and implies contextual
+reﬁnement (we have worked this out in more detail in our artifact [Mulder and Krebbers 2023]).
+Our proof reuses some of their techniques (the persistent maps-to predicate), but represents the
+queue data structure invariant diﬀerently—in a way that is both natural, and allows suitable hints
+for mutating the queue. After establishing hints and pure automation for this data structure, most
+of the separation-logic reasoning can be dealt with automatically. The remaining proof burden
+consists of dealing with prophecy variables [Jung et al. 2020], for which our automation has partial
+support, and establishing pure facts outside of the reach of our automation—for this example,
+reasoning about lists without duplicates.
+
+5Wolf et al. [2021] report 0.8 line of proof annotation per line of code in Voila, which Diaframe 2.0 still improves on by a
+factor 2. We consider lines with explicit calls to open/close regions, and explicit uses of atomic speciﬁcations as proof work
+in Voila. It is unclear what counting metric is used by Wolf et al. [2021].
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:25
+
+Table 3. Statistics on proof automation for ReLoC. Each row contains the name of the verified example, lines
+of implementation, total amount of lines, verification time in minutes:seconds, and lines of proof burden—also
+for the original, interactively constructed version of the example.
+
+name
+
+impl
+
+total
+
+time proof
+
+bit
+cell
+coinﬂip
+counter
+lateearlychoice
+namegen
+Treiber stack ≾ stack with lock
+symbol
+ticket lock ≾ spin lock
+various
+total
+
+10
+27
+48
+19
+26
+9
+46
+28
+17
+54
+284
+
+0:04
+33
+0:31
+64
+1:56
+118
+0:25
+65
+0:22
+88
+0:11
+70
+1:02
+136
+1:38
+112
+0:59
+85
+158
+3:34
+929 10:42
+
+3
+4
+25
+5
+16
+26
+36
+27
+7
+30
+179
+
+interactive
+
+interactive
+
+total
+
+44
+128
+319
+225
+129
+112
+185
+376
+266
+582
+2366
+
+proof
+
+14
+68
+230
+63
+62
+68
+124
+234
+120
+372
+1355
+
+Challenging veriﬁcations like this will usually not be successful the ﬁrst time, and some amount
+of time must be spent ﬁguring out the reason for failure. Three typical problems occur during failed
+veriﬁcations: (a) faulty speciﬁcations or invariants (b) missing or faulty hints for ghost resources or
+recursive data structures (c) the default proof search strategy is not suﬃcient. The general approach
+for debugging these problems is to let Diaframe 2.0 perform a ﬁxed number of automation steps,
+instead of letting it run until it gets stuck. This allows the user to determine when the strategy
+takes a wrong turn, and act accordingly: change invariants, add hints, or manually perform a part
+of the proof. Diaframe 2.0 provides some tools for debugging a failing type class search for hints.
+
+5.4 Comparison to Interactive Refinement Proofs in ReLoC
+
+We evaluate our automation on 10 out of the 13 concrete examples from the ReLoC repository. The
+3 remaining examples feature “helping”, which is currently unsupported by our reﬁnement proof
+automation. Statistics on the examples can be found in Table 3. The proof of ticket lock ≾ spin lock
+diﬀers slightly from the original proof: instead of relying on ReLoC’s logically atomic relational
+speciﬁcations, we use Iris’s regular logically atomic speciﬁcations (§3) for the same eﬀect.6
+
+We summarize some aggregated data from Table 3. On average, the proof size is reduced by
+a factor of 7 (179 vs 1355 lines of proof burden), coming down to 0.6 line of proof burden per
+line of implementation. For the largest reﬁnement example, which proves that the Treiber stack
+contextually reﬁnes a course grained stack, we still reduce the proof size by over a factor of 3.
+Assistance from the user is required in the same cases as those discussed in §5.2. Additionally, it
+may be necessary to manually establish an invariant like in §2, or to manually perform right-hand
+side execution. A tactic iStepR is available for this last case.
+
+6 RELATED WORK
+
+Viper. Viper [Müller et al. 2016] is a non-foundational tool for automated veriﬁcation using
+separation logic. Viper provides a common veriﬁcation language, which is used as a backend of
+veriﬁcation tools for a number of diﬀerent program speciﬁcation styles. Aside from functional
+
+6We believe it is folklore that logically atomic triples can be used in reﬁnement proofs, but have not seen it worked out. In
+the implementation, this requires adding a slightly altered version of atomic updates, and accompanying hints.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:26
+
+Ike Mulder and Robbert Krebbers
+
+correctness, Viper is used for logical atomicity in the TaDA logic [Wolf et al. 2021] (called Voila)
+and the security condition non-interference [Eilers et al. 2021]. An extensive comparison between
+Voila and our automation for logical atomicity can be found in § 5.1. In summary, we show an
+average proof size reduction by a factor 4, and we support more complicated examples (RDCCS,
+elimination stack, and the Michael-Scott queue).
+
+With regard to extensibility, Viper has the same goal as Diaframe 2.0—to provide a common
+veriﬁcation backend that can handle multiple speciﬁcation styles. There are some notable diﬀerences
+that make the two approaches diﬃcult to compare in detail. First, Viper targets non-foundational
+veriﬁcation instead of foundational veriﬁcation in a proof assistant (see §5.1 for a discussion on
+the diﬀerences). Second, the embedding into Viper’s veriﬁcation language is a syntactic program
+transformation that is performed before veriﬁcation, while Diaframe 2.0 operates directly on
+program speciﬁcations during the veriﬁcation. Third, Viper uses separation logic based on implicit
+dynamic frames [Parkinson and Summers 2011], which is diﬀerent from Iris’s separation logic.
+
+Automated linearizability checkers. CAVE [Henzinger et al. 2013; Vafeiadis 2010], Poling
+[Zhu et al. 2015] and Line-up [Burckhardt et al. 2010] are automated non-foundational tools for
+establishing linearizability. CAVE uses shape analysis to ﬁnd linearization points, and Line-up uses
+model checking to refute linearizability. Poling extends CAVE with support for external linearization
+points. These tools use the trace-based formulation of linearizability [Herlihy and Wing 1990],
+which is less compositional than contextual reﬁnement and logical atomicity. Poling does not
+support future-dependent linearization points, which are present in algorithms such as RDCSS
+and the Michael-Scott queue, and Line-up does not support non-deterministic concurrent data
+structures. The advantage of restricting supported target programs is that these tools do not need
+much user assistance.
+
+Veriﬁed concurrent search data structures. Krishna et al. [2020, 2021] develop methods to
+prove logical atomicity of a particular class of concurrent algorithms: concurrent search structures.
+Their key idea is to subdivide the veriﬁcation of a data structure into two parts: the veriﬁcation
+of a template algorithm and verifying that a data structure is an instance of the template. The
+veriﬁcation of the template algorithm is done interactively in Iris using the Iris Proof Mode. The
+template-instance veriﬁcation is done automatically using the tool GRASShopper [Piskac et al.
+2014]. This work is thus only partly foundational. To obtain a full foundational proof, it would be
+interesting to investigate if our work could be used to automate the veriﬁcation of the instances
+currently done using GRASShopper.
+
+Automated veriﬁers for concurrent reﬁnements. Civl [Hawblitzel et al. 2015; Kragl and
+Qadeer 2021] is an automated tool for establishing reﬁnement of concurrent programs. Their
+approach is based on establishing multiple layers of reﬁnement, where each layer simpliﬁes and
+reﬁnes the previous layer. By employing the Boogie veriﬁer [Barnett et al. 2005], Civl can auto-
+matically prove these layered reﬁnements—although inductive invariants and non-interference
+conditions need to be speciﬁed by the user. This approach has also been shown to scale to larger
+examples: in particular, Civl has been used to verify a concurrent garbage collector of signiﬁcant
+size. Civl focuses on reﬁnements in general, and not on linearizability in particular. Linearizability
+has been established for e.g., the Treiber stack [Treiber 1986], but not for more complex examples
+such as the Michael-Scott queue.
+
+Other logics for linearizability. Our work builds upon Iris, which consolidates prior work on
+logical atomicity and reﬁnements in separation logic [da Rocha Pinto et al. 2014; Dreyer et al. 2010;
+Jacobs and Piessens 2011; Svendsen et al. 2013; Turon et al. 2013]. Aside from Iris, there are a number
+of other expressive logics for linearizability that employ diﬀerent approaches to compositionality.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:27
+
+While none of this work addresses the challenge of automating linearizability proofs, we brieﬂy
+discuss some of this work. FCSL [Nanevski et al. 2019; Sergey et al. 2015] is a Coq-based separation
+logic, where linearizability can be established by keeping track of timestamped histories. Liang
+and Feng [2013] have designed a program logic based on rely-guarantee for proving linearizability.
+They can handle challenging examples (such as RDCSS), but their proofs are not mechanized in a
+proof assistant. Kim et al. [2017] verify linearizability and liveness of a C implementation of an
+MCS lock using the certiﬁed concurrent abstraction layer framework in Coq [Gu et al. 2015].
+
+7 FUTURE WORK
+
+We would like to improve the usability of Diaframe 2.0. As can be seen in Fig. 2, variable names
+are automatically generated by Coq. This can make it diﬃcult to relate generated Coq goals to
+the program subject to veriﬁcation. A further improvement would be to avoid interaction with
+Coq altogether by using annotations in source code, akin to auto-active veriﬁcation tools [Leino
+and Moskal 2010]. ReﬁnedC [Sammler et al. 2021] demonstrates that a proof strategy in Iris can be
+used as a backend for a foundational auto-active tool for functional correctness. For reﬁnement
+and logical atomicity it is currently unclear what suitable annotations would look like.
+
+We focused on automating the separation logic part of reﬁnement and logical atomicity proofs.
+To automate the pure conditions that arise in the veriﬁcation, we use standard solvers from Coq
+such as lia and set solver. It would be interesting to investigate if recent approaches to improve
+pure automation Coq could be incorporated [Besson 2021; Czajka 2020; Ekici et al. 2017].
+
+We focused on proof strategies for reﬁnement and logical atomicity, but we conjecture that
+the generic Diaframe 2.0 strategy is more widely applicable. We would like to instantiate it with
+other logics and languages. We have some initial experiments for Similuris [Gäher et al. 2022] and
+-rust [Jung et al. 2018a]. Languages like Georges et al. [2022]’s capability machines, and logics like
+VST (which Mansky [2022] has recently ported to the Iris Proof Mode, and also supports logical
+atomicity) are also interesting targets. Finally, it would be interesting to investigate automation for
+recent work by Dang et al. [2022] on logical atomicity under weak memory.
+
+As mentioned in the evaluation (§5), our proof automation cannot always automatically determine
+the required case distinctions for a proof. Additionally, we rely on backtracking to determine
+linearization points. A recent extension of Diaframe [Mulder et al. 2023] provides better support
+for disjunctions and avoids backtracking, which could address these problems.
+
+ACKNOWLEDGMENTS
+
+We thank Jules Jacobs for useful discussions, and the anonymous reviewers for their helpful feedback.
+This research was supported by the Dutch Research Council (NWO), project 016.Veni.192.259, and
+by generous awards from Google Android Security’s ASPIRE program.
+
+REFERENCES
+
+Andrew W. Appel. 2001. Foundational Proof-Carrying Code. In LICS. 247–256. https://doi.org/10.1109/LICS.2001.932501
+Andrew W. Appel, Paul-André Melliès, Christopher D. Richards, and Jérôme Vouillon. 2007. A Very Modal Model of a
+
+Modern, Major, General Type System (POPL). 109–122. https://doi.org/10.1145/1190216.1190235
+
+Mike Barnett, Bor-Yuh Evan Chang, Robert DeLine, Bart Jacobs, and K. Rustan M. Leino. 2005. Boogie: A Modular Reusable
+
+Veriﬁer for Object-Oriented Programs. In FMCO (LNCS). 364–387. https://doi.org/10.1007/11804192_17
+
+Frédéric Besson. 2021. Itauto: An Extensible Intuitionistic SAT Solver. In ITP (LIPIcs, Vol. 193). 9:1–9:18. https://doi.org/10.
+
+4230/LIPIcs.ITP.2021.9
+
+Lars Birkedal, Thomas Dinsdale-Young, Armaël Guéneau, Guilhem Jaber, Kasper Svendsen, and Nikos Tzevelekos. 2021.
+Theorems for Free from Separation Logic Speciﬁcations. PACMPL 5, ICFP (2021), 81:1–81:29. https://doi.org/10.1145/
+3473586
+
+James Brotherston and Max Kanovich. 2014. Undecidability of Propositional Separation Logic and Its Neighbours. J. ACM
+
+61, 2 (2014), 14:1–14:43. https://doi.org/10.1145/2542667
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:28
+
+Ike Mulder and Robbert Krebbers
+
+Sebastian Burckhardt, Chris Dern, Madanlal Musuvathi, and Roy Tan. 2010. Line-up: A Complete and Automatic Lineariz-
+
+ability Checker (PLDI). 330–340. https://doi.org/10.1145/1806596.1806634
+
+Quentin Carbonneaux, Noam Zilberstein, Christoph Klee, Peter W. O’Hearn, and Francesco Zappa Nardelli. 2022. Applying
+
+Formal Veriﬁcation to Microkernel IPC at Meta. In CPP. 116–129. https://doi.org/10.1145/3497775.3503681
+
+Tej Chajed, Joseph Tassarotti, Mark Theng, Ralf Jung, M. Frans Kaashoek, and Nickolai Zeldovich. 2021. GoJournal: A
+Veriﬁed, Concurrent, Crash-Safe Journaling System. In OSDI. 423–439. https://www.usenix.org/conference/osdi21/
+presentation/chajed
+
+Łukasz Czajka. 2020. Practical Proof Search for Coq by Type Inhabitation. In IJCAR (LNCS). 28–57. https://doi.org/10.1007/
+
+978-3-030-51054-1_3
+
+Pedro da Rocha Pinto. 2016. Reasoning with Time and Data Abstractions. Ph. D. Dissertation. Imperial College London.
+
+https://doi.org/10.25560/47923
+
+Pedro da Rocha Pinto, Thomas Dinsdale-Young, and Philippa Gardner. 2014. TaDA: A Logic for Time and Data Abstraction.
+
+In ECOOP (LNCS). 207–231. https://doi.org/10.1007/978-3-662-44202-9_9
+
+Hoang-Hai Dang, Jaehwang Jung, Jaemin Choi, Duc-Than Nguyen, William Mansky, Jeehoon Kang, and Derek Dreyer.
+2022. Compass: Strong and Compositional Library Speciﬁcations in Relaxed Memory Separation Logic (PLDI). 792–808.
+https://doi.org/10.1145/3519939.3523451
+
+David Delahaye. 2000. A Tactic Language for the System Coq. In LPAR (LNCS). 85–95. https://doi.org/10.1007/3-540-44404-
+
+1_7
+
+Brijesh Dongol and John Derrick. 2015. Verifying Linearisability: A Comparative Survey. ACM Comput. Surv. 48, 2 (2015),
+
+19:1–19:43. https://doi.org/10.1145/2796550
+
+Derek Dreyer, Georg Neis, Andreas Rossberg, and Lars Birkedal. 2010. A Relational Modal Logic for Higher-Order Stateful
+
+ADTs (POPL). 185–198. https://doi.org/10.1145/1706299.1706323
+
+Marco Eilers, Severin Meier, and Peter Müller. 2021. Product Programs in the Wild: Retroﬁtting Program Veriﬁers to Check
+
+Information Flow Security. In CAV (LNCS). 718–741. https://doi.org/10.1007/978-3-030-81685-8_34
+
+Burak Ekici, Alain Mebsout, Cesare Tinelli, Chantal Keller, Guy Katz, Andrew Reynolds, and Clark Barrett. 2017. SMTCoq:
+A Plug-In for Integrating SMT Solvers into Coq. In CAV (LNCS). 126–133. https://doi.org/10.1007/978-3-319-63390-9_7
+Ivana Filipović, Peter O’Hearn, Noam Rinetzky, and Hongseok Yang. 2010. Abstraction for Concurrent Objects. TCS 411, 51
+
+(2010), 4379–4398. https://doi.org/10.1016/j.tcs.2010.09.021
+
+Dan Frumin, Robbert Krebbers, and Lars Birkedal. 2018. ReLoC: A Mechanised Relational Logic for Fine-Grained Concurrency
+
+(LICS). 442–451. https://doi.org/10.1145/3209108.3209174
+
+Dan Frumin, Robbert Krebbers, and Lars Birkedal. 2021a. Compositional Non-Interference for Fine-Grained Concurrent
+
+Programs. In IEEE Symposium on Security and Privacy (SP). 1416–1433. https://doi.org/10.1109/SP40001.2021.00003
+
+Dan Frumin, Robbert Krebbers, and Lars Birkedal. 2021b. ReLoC Reloaded: A Mechanized Relational Logic for Fine-Grained
+
+Concurrency and Logical Atomicity. LMCS Volume 17, Issue 3 (2021). https://doi.org/10.46298/lmcs-17(3:9)2021
+
+Lennard Gäher, Michael Sammler, Simon Spies, Ralf Jung, Hoang-Hai Dang, Robbert Krebbers, Jeehoon Kang, and Derek
+Dreyer. 2022. Simuliris: A Separation Logic Framework for Verifying Concurrent Program Optimizations. PACMPL 6,
+POPL (2022), 28:1–28:31. https://doi.org/10.1145/3498689
+
+Aïna Linn Georges, Alix Trieu, and Lars Birkedal. 2022. Le Temps Des Cerises: Eﬃcient Temporal Stack Safety on Capability
+
+Machines Using Directed Capabilities. 6, OOPSLA (2022), 74:1–74:30. https://doi.org/10.1145/3527318
+
+Georges Gonthier, Beta Ziliani, Aleksandar Nanevski, and Derek Dreyer. 2011. How to Make Ad Hoc Proof Automation
+
+Less Ad Hoc (ICFP). 163–175. https://doi.org/10.1145/2034773.2034798
+
+Simon Oddershede Gregersen, Johan Bay, Amin Timany, and Lars Birkedal. 2021. Mechanized Logical Relations for
+
+Termination-Insensitive Noninterference. PACMPL 5, POPL (2021), 10:1–10:29. https://doi.org/10.1145/3434291
+
+Ronghui Gu, Jérémie Koenig, Tahina Ramananandro, Zhong Shao, Xiongnan (Newman) Wu, Shu-Chun Weng, Haozhong
+Zhang, and Yu Guo. 2015. Deep Speciﬁcations and Certiﬁed Abstraction Layers (POPL). 595–608. https://doi.org/10.
+1145/2676726.2676975
+
+Timothy L. Harris, Keir Fraser, and Ian A. Pratt. 2002. A Practical Multi-word Compare-and-Swap Operation. In DISC
+
+(LNCS). 265–279. https://doi.org/10.1007/3-540-36108-1_18
+
+Chris Hawblitzel, Erez Petrank, Shaz Qadeer, and Serdar Tasiran. 2015. Automated and Modular Reﬁnement Reasoning for
+
+Concurrent Programs. In CAV (LNCS). 449–465. https://doi.org/10.1007/978-3-319-21668-3_26
+
+Thomas A. Henzinger, Ali Sezgin, and Viktor Vafeiadis. 2013. Aspect-Oriented Linearizability Proofs. In CONCUR (LNCS).
+
+242–256. https://doi.org/10.1007/978-3-642-40184-8_18
+
+Maurice P. Herlihy and Jeannette M. Wing. 1990. Linearizability: A Correctness Condition for Concurrent Objects. TOPLAS
+
+12, 3 (1990), 463–492. https://doi.org/10.1145/78969.78972
+
+Bart Jacobs and Frank Piessens. 2011. Expressive Modular Fine-Grained Concurrency Speciﬁcation (POPL). 271–282.
+
+https://doi.org/10.1145/1926385.1926417
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:29
+
+Ralf Jung. 2019. Logical Atomicity in Iris: The Good, the Bad, and the Ugly. https://people.mpi-sws.org/~jung/iris/logatom-
+
+talk-2019.pdf Slides of talk given at Iris Workshop 2019.
+
+Ralf Jung, Jacques-Henri Jourdan, Robbert Krebbers, and Derek Dreyer. 2018a. RustBelt: Securing the Foundations of the
+
+Rust Programming Language. PACMPL 2, POPL (2018), 66:1–66:34. https://doi.org/10.1145/3158154
+
+Ralf Jung, Robbert Krebbers, Lars Birkedal, and Derek Dreyer. 2016. Higher-Order Ghost State (ICFP). 256–269. https:
+
+//doi.org/10.1145/2951913.2951943
+
+Ralf Jung, Robbert Krebbers, Jacques-Henri Jourdan, Aleš Bizjak, Lars Birkedal, and Derek Dreyer. 2018b. Iris from the
+Ground up: A Modular Foundation for Higher-Order Concurrent Separation Logic. JFP 28 (2018). https://doi.org/10.
+1017/S0956796818000151
+
+Ralf Jung, Rodolphe Lepigre, Gaurav Parthasarathy, Marianna Rapoport, Amin Timany, Derek Dreyer, and Bart Jacobs.
+https:
+
+2020. The Future Is Ours: Prophecy Variables in Separation Logic. PACMPL 4, POPL (2020), 45:1–45:32.
+//doi.org/10.1145/3371113
+
+Ralf Jung, David Swasey, Filip Sieczkowski, Kasper Svendsen, Aaron Turon, Lars Birkedal, and Derek Dreyer. 2015. Iris:
+Monoids and Invariants as an Orthogonal Basis for Concurrent Reasoning (POPL). 637–650. https://doi.org/10.1145/
+2676726.2676980
+
+Jieung Kim, Vilhelm Sjöberg, Ronghui Gu, and Zhong Shao. 2017. Safety and Liveness of MCS Lock—Layer by Layer. In
+
+APLAS (LNCS). 273–297. https://doi.org/10.1007/978-3-319-71237-6_14
+
+Bernhard Kragl and Shaz Qadeer. 2021. The Civl Veriﬁer. In FMCAD. 143–152. https://doi.org/10.34727/2021/isbn.978-3-
+
+85448-046-4_23
+
+Robbert Krebbers, Jacques-Henri Jourdan, Ralf Jung, Joseph Tassarotti, Jan-Oliver Kaiser, Amin Timany, Arthur Charguéraud,
+and Derek Dreyer. 2018. MoSeL: A General, Extensible Modal Framework for Interactive Proofs in Separation Logic.
+PACMPL 2, ICFP (2018), 77:1–77:30. https://doi.org/10.1145/3236772
+
+Robbert Krebbers, Ralf Jung, Aleš Bizjak, Jacques-Henri Jourdan, Derek Dreyer, and Lars Birkedal. 2017a. The Essence of
+Higher-Order Concurrent Separation Logic. In ESOP (LNCS). 696–723. https://doi.org/10.1007/978-3-662-54434-1_26
+Robbert Krebbers, Amin Timany, and Lars Birkedal. 2017b. Interactive Proofs in Higher-Order Concurrent Separation Logic
+
+(POPL). 205–217. https://doi.org/10.1145/3009837.3009855
+
+Siddharth Krishna, Nisarg Patel, Dennis Shasha, and Thomas Wies. 2020. Verifying Concurrent Search Structure Templates
+
+(PLDI). 181–196. https://doi.org/10.1145/3385412.3386029
+
+Siddharth Krishna, Nisarg Patel, Dennis Shasha, and Thomas Wies. 2021. Automated Veriﬁcation of Concurrent Search
+
+Structures. Springer. https://doi.org/10.1007/978-3-031-01806-0
+
+K Rustan M Leino and Michał Moskal. 2010. Usable Auto-Active Veriﬁcation.
+
+(2010). https://fm.csl.sri.com/UV10/
+
+submissions/uv2010_submission_20.pdf
+
+Hongjin Liang and Xinyu Feng. 2013. Modular Veriﬁcation of Linearizability with Non-Fixed Linearization Points (PLDI).
+
+459–470. https://doi.org/10.1145/2491956.2462189
+
+William Mansky. 2022. Bringing Iris into the Veriﬁed Software Toolchain.
+
+https://doi.org/10.48550/arXiv.2207.06574
+
+arXiv:arXiv:2207.06574
+
+Maged M. Michael and Michael L. Scott. 1996. Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue
+
+Algorithms (PODC). 267–275. https://doi.org/10.1145/248052.248106
+
+Ike Mulder, Łukasz Czajka, and Robbert Krebbers. 2023. Beyond Backtracking: Connections in Fine-Grained Concurrent
+
+Separation Logic. https://ikemulder.nl/media/papers/diaframe-vee-draft.pdf Manuscript.
+
+Ike Mulder and Robbert Krebbers. 2023. Artifact of ‘Proof Automation for Linearizability in Separation Logic’. https:
+
+//doi.org/10.5281/zenodo.7712620 Project webpage: https://gitlab.mpi-sws.org/iris/diaframe.
+
+Ike Mulder, Robbert Krebbers, and Herman Geuvers. 2022. Diaframe: Automated Veriﬁcation of Fine-Grained Concurrent
+
+Programs in Iris (PLDI). 809–824. https://doi.org/10.1145/3519939.3523432
+
+Peter Müller, Malte Schwerhoﬀ, and Alexander J. Summers. 2016. Viper: A Veriﬁcation Infrastructure for Permission-Based
+
+Reasoning. In VMCAI (LNCS). 41–62. https://doi.org/10.1007/978-3-662-49122-5_2
+
+Hiroshi Nakano. 2000. A Modality for Recursion. In LICS. 255–255. https://doi.org/10.1109/LICS.2000.855774
+Aleksandar Nanevski, Anindya Banerjee, Germán Andrés Delbianco, and Ignacio Fábregas. 2019. Specifying Concurrent
+Programs in Separation Logic: Morphisms and Simulations. In OOPSLA, Vol. 3. 161:1–161:30. https://doi.org/10.1145/
+3360587
+
+Matthew J. Parkinson and Alexander J. Summers. 2011. The Relationship between Separation Logic and Implicit Dynamic
+
+Frames. In ESOP (LNCS). 439–458. https://doi.org/10.1007/978-3-642-19718-5_23
+
+Ruzica Piskac, Thomas Wies, and Damien Zuﬀerey. 2014. GRASShopper. In TACAS (LNCS). 124–139. https://doi.org/10.
+
+1007/978-3-642-54862-8_9
+
+Andrew M. Pitts. 2005. Typed Operational Reasoning. In Advanced Topics in Types and Programming Languages, Benjamin C.
+
+Pierce (Ed.). MIT Press, Chapter 7, 245–289.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:30
+
+Ike Mulder and Robbert Krebbers
+
+Michael Sammler, Rodolphe Lepigre, Robbert Krebbers, Kayvan Memarian, Derek Dreyer, and Deepak Garg. 2021. ReﬁnedC:
+Automating the Foundational Veriﬁcation of C Code with Reﬁned Ownership Types (PLDI). 158–174. https://doi.org/10.
+1145/3453483.3454036
+
+Ilya Sergey, Aleksandar Nanevski, and Anindya Banerjee. 2015. Mechanized Veriﬁcation of Fine-Grained Concurrent
+
+Programs (PLDI). 77–87. https://doi.org/10.1145/2737924.2737964
+
+Matthieu Sozeau and Nicolas Oury. 2008. First-Class Type Classes. In TPHOLs (LNCS). 278–293. https://doi.org/10.1007/978-
+
+3-540-71067-7_23
+
+Simon Spies, Lennard Gäher, Joseph Tassarotti, Ralf Jung, Robbert Krebbers, Lars Birkedal, and Derek Dreyer. 2022. Later
+
+Credits: Resourceful Reasoning for the Later Modality. ICFP (2022). https://doi.org/10.1145/3547631
+
+Bas Spitters and Eelis Van Der Weegen. 2011. Type Classes for Mathematics in Type Theory. MSCS 21, 4 (2011), 795–825.
+
+https://doi.org/10.1017/S0960129511000119
+
+Kasper Svendsen and Lars Birkedal. 2014.
+
+Impredicative Concurrent Abstract Predicates. In ESOP (LNCS). 149–168.
+
+https://doi.org/10.1007/978-3-642-54833-8_9
+
+Kasper Svendsen, Lars Birkedal, and Matthew Parkinson. 2013. Modular Reasoning about Separation of Concurrent Data
+
+Structures. In ESOP (LNCS). 169–188. https://doi.org/10.1007/978-3-642-37036-6_11
+
+Richard Kent Treiber. 1986. Systems Programming: Coping with Parallelism. International Business Machines Incorporated,
+
+Thomas J. Watson Research Center.
+
+Aaron Turon, Derek Dreyer, and Lars Birkedal. 2013. Unifying Reﬁnement and Hoare-Style Reasoning in a Logic for
+
+Higher-Order Concurrency (ICFP). 377–390. https://doi.org/10.1145/2500365.2500600
+
+Viktor Vafeiadis. 2010. Automatically Proving Linearizability. In CAV. Vol. 6174. 450–464. https://doi.org/10.1007/978-3-
+
+642-14295-6_40
+
+Simon Friis Vindum and Lars Birkedal. 2021. Contextual Reﬁnement of the Michael-Scott Queue (Proof Pearl). In CPP.
+
+76–90. https://doi.org/10.1145/3437992.3439930
+
+Simon Friis Vindum, Dan Frumin, and Lars Birkedal. 2022. Mechanized Veriﬁcation of a Fine-Grained Concurrent Queue
+
+from Meta’s Folly Library. In CPP. 100–115. https://doi.org/10.1145/3497775.3503689
+
+Felix A. Wolf, Malte Schwerhoﬀ, and Peter Müller. 2021. Concise Outlines for a Complex Logic: A Proof Outline Checker
+
+for TaDA. In FM (LNCS). 407–426. https://doi.org/10.1007/978-3-030-90870-6_22
+
+He Zhu, Gustavo Petri, and Suresh Jagannathan. 2015. Poling: SMT Aided Linearizability Proofs. In CAV (LNCS). 3–19.
+
+https://doi.org/10.1007/978-3-319-21668-3_1
+
+Received 2022-10-28; accepted 2023-02-25
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+

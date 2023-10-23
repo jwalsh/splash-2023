@@ -1,0 +1,3 @@
+
+
+This section describes a proof strategy for handling goals of the form Δ ⊢ |=E 1 ≾ 2 : . The strategy operates on goals that have a grammar of , which includes easy goals like ℓ ↦→ . The strategy is the result of restating the original rules of ReLoC and Iris so that they can be applied systematically. The new rules are found in Fig. 4 and have been verified in Coq to be derived from the existing rules. The proof search strategy proceeds by case distinction on both 1 and 2, and tries the rules in order, omitting some cases related to pure reductions and invariants. The strategy uses Hoare triples to generalize symbolic execution rules and keeps the fancy update around.

@@ -1,0 +1,177 @@
+Title-Abstract. Section intro
+(r−1)
+s(r−1)
+{xr,z2}
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+s(r)
+p
+
+(cid:16)(cid:100)(cid:110)
+(cid:16)(cid:100)(cid:110)
+=(cid:100)(cid:110)
+(cid:100)(cid:26)(cid:16)
+(cid:100)(cid:26)(cid:16)
+=(cid:100)(cid:110)
+(cid:100)(cid:26)(cid:16)
+(cid:100)(cid:26)(cid:16)
+=(cid:100)(cid:110)
+(cid:100)(cid:26)(cid:16)
+=(cid:100)(cid:110)
+
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+
+| z1, z2 ∈ ¯Xr ∪ {x, y}
+
+| z1, z2 ∈ ¯Xr ∪ {x, y}
+
+| z1 ∈ ¯Xr ∪ {x, y}
+
+(cid:27)
+
+(cid:111)
+
+p
+
+p
+
+p
+
+(cid:27)
+
+(cid:27)
+
+| z1 ∈ ¯Xr ∪ {x, y}
+
+(cid:117)
+(cid:117) s(r−1)
+{xr}
+
+(cid:12)(cid:12)(cid:12)∅
+
+(cid:27)
+
+(by Eq. (9))
+
+(by claim (1))
+
+and the assertion holds. For the second but last equality, we used that the meet
+in the second but last row is non-empty, since
+
+(cid:12)(cid:12)(cid:12)∅
+
+(cid:12)(cid:12)(cid:12){z1}
+
+(cid:12)(cid:12)(cid:12){z1}
+
+(cid:12)(cid:12)(cid:12){z1,z2}
+
+s(r−1)
+{xr}
+
+(cid:119) s(r−1)
+{xr}
+
+(cid:119) s(r−1)
+{z1,xr}
+
+(cid:119) s(r−1)
+{z1,xr}
+
+(cid:119) s(r−1)
+
+{z1,xr} (cid:117) s(r−1)
+{z1,xr}
+
+(cid:12)(cid:12)(cid:12){z1,z2}
+
+holds for each z1, z2 ∈ ¯Xr ∪ {x, y}. Now let xr ∈ {x, y}. Then ¯Xr ∪ {x, y} =
+¯Xr−1 ∪ {x, y}. W.l.o.g., let x = xr. Then s(r−1)
+{xr,y} = s(r−1)
+{x,y}.
+
+{x,xr} = s(r−1)
+{x}
+
+and s(r−1)
+
+
+Michael Schwarz and Helmut Seidl
+
+10
+Hence by claim (1), s(r){x,y} = s(r−1)
+
+{x,y}. Accordingly,
+
+¯s| ¯Xr∪{x,y} = ¯s| ¯Xr−1∪{x,y}
+
+(cid:111)
+
+=(cid:100)(cid:110)
+=(cid:100)(cid:110)
+=(cid:100)(cid:110)
+
+| p ⊆ ¯Xr−1 ∪ {x, y}, 1≤|p|≤2
+
+{x,z2} | z1, z2 ∈ ¯Xr−1 ∪ {x, y}(cid:111)
+
+{z1,x} (cid:117) s(r−1)
+
+(cid:111)
+
+p
+
+s(r−1)
+s(r−1)
+{z1,z2} (cid:117) s(r−1)
+s(r)
+p
+
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+
+(by induction hypothesis)
+
+(cid:117)(cid:116)
+
+Thus, provided R fulﬁlls Eq. (9), we obtain for k = n:
+
+¯s|{x,y} = s(n){x,y} (cid:117) s(n){x} (cid:117) s(n){y} = s(n){x,y}
+
+Subsequently, we consider Algorithm 1. It consists of one application of the
+Floyd-Warshall algorithm, as is. For that to be suﬃcient, an initialization round
+is performed ensure that each value t{x} not only subsumes s{x},
+but also s{x} and s{y}. The complexity of the proposed algorithm is O(n3) if
+calculations with abstract relations over at most three variables, i.e., from RY for
+every Y ⊆ X with |Y | ≤ 3, can be performed in constant time. For Algorithm 1,
+we ﬁnd:
+gorithm 1 for the collection (cid:104)sp(cid:105)p∈[X ]2. Let ¯s = (cid:100){sp | p ∈ [X ]2} the abstract
+Theorem 1. Assume that (cid:104)tp(cid:105)p∈[X ]2 is the collection of values returned by Al-
+relation represented by (cid:104)sp(cid:105)p∈[X ]2. Then for each p ∈ [X ]2,
+1. ¯s|p (cid:118) tp;
+2. If the 2-decomposable domain R is 2-projective, then ¯s|p = tp holds. In that
+
+case, (cid:104)tp(cid:105)p∈[X ]2 is the greatest solution of the constraint system (8).
+
+Thus, Algorithm 1 provides a cubic time normalization procedure – whenever
+R is 2-decomposable and 2-projective. We remark that the initializing ﬁrst loop
+cannot be abandoned. When R is not 2-projective, but 2-decomposable, the
+algorithm still computes overapproximations of normal representations.
+
+Algorithm 1: The variant of the Floyd-Warshall algorithm to compute
+(an overapproximation of) normalization.
+for x, y ∈ X do
+
+t{x,y} := s{x,y} (cid:117) s{x} (cid:117) s{y}
+
+for z ∈ X do
+
+for x, y ∈ X do
+
+t,y} := t{x,y} (cid:117)(cid:0)t{x,z} (cid:117) t{z,y}(cid:1)(cid:12)(cid:12){x,y}
+
+// initialization
+
+return (cid:104)tp(cid:105)p∈[X ]2
+
+

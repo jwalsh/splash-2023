@@ -1,0 +1,41 @@
+Title-Abstract. Section intro
+ setΩ1.
+Example 3. We wonder whether the expression0cst× bound_check(𝑋,[0,28[)
+can be simplified into the expression0cst. It depends on the potential range of the
+variable𝑋. Let𝑅0 be a set of memory states. If, for every memory state𝜌∈𝑅0,
+we have𝜌(𝑋)∈[0,28[, then⟨𝑅0,∅⟩⊨0cst× bound_check(𝑋,[0,28[)≼∅0cst.
+Otherwise, we can prove that⟨𝑅0,∅⟩⊨0cst×bound_check(𝑋,[0,28[)≼{𝜔𝑜}0cst.
+Example 4. The expression((𝑋 mod[0,28[)+−(𝑌 mod[0,28[)) mod[0,28[
+can be rewritten as𝑋−𝑌 under some specific assumptions. Let𝑅0 be a set
+of memory states. If for every memory state𝜌∈𝑅0, we have𝜌(𝑋),𝜌(𝑌)∈
+[−27,27[ and𝜌(𝑋)−𝜌(𝑌)∈[0,28[, it follows that⟨𝑅0,∅⟩⊨((𝑋 mod[0,28[)+
+−(𝑌 mod[0,28[)) mod[0,28[≼∅𝑋+−𝑌. Indeed, either no cast wraps-around,
+Property 4. For every semantics element⟨𝑅0,Ω0⟩∈𝒟, expressions𝑒1,𝑒2,𝑒3∈
+expr, and sets of error alarmsΩ1,Ω′1 ∈℘(Ω), if⟨𝑅0,Ω0⟩⊨𝑒1 ≼Ω1 𝑒2 and
+⟨𝑅0,Ω0⟩⊨𝑒2≼Ω′1�3, then⟨𝑅0,Ω0⟩⊨𝑒1≼Ω1∪Ω′1𝑒3.
+
+We can check that the rewriting order warns about the potential failure of the
+bound check, despite the fact that the expression that contains this bound check
+has been removed by simplifications.
+
+or exactly two among the three that appear in the expression. In the later case,
+they compensate each other.
+
+The following property states the transitivity of the rewriting relation.
+
+10
+
+J. Boillot, J. Feret.
+
+Transitivity is obtained by evaluating the expression with the same memory
+states and by collecting all the error alarms that may be hidden by the expres-
+sion rewritings.
+
+In statements, expressions can be rewritten. The following theorem states the
+soundness of the replacement of an expression by another one in assignments or
+guards. It would also be true for every statement of the language, yet we omit
+this result since it is not necessary to prove the soundness of our analysis.
+
+Theorem 1. For every semantics element⟨𝑅0,Ω0⟩∈𝒟, expressions𝑒,𝑒′∈
+expr, set of error alarmsΩ1∈℘(Ω), and variable𝑋∈𝒱 such that⟨𝑅0,Ω0⟩⊨
+𝑒≼Ω1𝑒′, we have:

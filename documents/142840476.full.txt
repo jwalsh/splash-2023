@@ -1,0 +1,1813 @@
+Octagons Revisited
+
+Elegant Proofs and Simpliﬁed Algorithms
+
+Michael Schwarz[0000−0002−9828−0308] and Helmut Seidl[0000−0002−2135−1593]
+
+Technische Universität München, Garching, Germany
+
+{m.schwarz, helmut.seidl}@tum.de
+
+Abstract. Weakly relational domains have enjoyed tremendous success
+in the area of program analysis, since they oﬀer a decent compromise
+between precision and eﬃciency. Octagons, in particular, have widely
+been studied to obtain eﬃcient algorithms which, however, come with
+intricate correctness arguments. Here, we provide simpliﬁed cubic time
+algorithms for computing the closure of Octagon abstract relations both
+over the rationals and the integers which avoid introducing auxiliary
+variables. They are based on a more general formulation by means of
+2-projective domains which allows for an elegant short correctness proof.
+The notion of 2-projectivity also lends itself to eﬃcient algorithms for
+incremental normalization. For the Octagon domain, we also provide
+an improved construction for linear programming based best abstract
+transformers for aﬃne assignments.
+
+Keywords: weakly relational domains, octagons, 2-decomposable rela-
+tional domains, Floyd-Warshall algorithm
+
+1
+
+Introduction
+
+While for intricate veriﬁcation tasks, monolithic relational domains such as
+the polyhedra abstract domain [8] are indispensable, they are considered pro-
+hibitively expensive. Therefore, weakly relational domains have been proposed
+which can only express simple relational properties, but scale better to larger
+programs. Examples of such domains to capture numerical properties are the
+Two Variables Per Inequality domain [27], or domains given by a ﬁnite set of
+linear templates [25]. The most prominent example of a template numerical do-
+main is the Octagon domain [20, 21] which allows tracking upper and lower
+bounds not only of program variables but also of sums and diﬀerences of two
+program variables. One such octagon abstract relation could, e.g., be given by
+the conjunction
+
+(−x ≤ −5) ∧ (x ≤ 10) ∧ (x + y ≤ 0) ∧ (x − z ≤ 1)
+
+Octagons thus can be considered as a mild extension of the non-relational domain
+of Intervals for program variables. An eﬃcient comparison of octagon abstract
+relations for inclusion, is enabled by canonical representations where all implied
+
+
+2
+
+Michael Schwarz and Helmut Seidl
+
+bounds are made explicit. Such representations are called closed. In the given
+example, the upper bounds
+
+(y ≤ −5) ∧ (−z ≤ −4)
+
+are implied and therefore are included into the closed representation.
+
+Procedures for computing closures of octagons over rationals or integers have
+been given by Miné [20] where an improved closure algorithm for integers later
+has been provided by Bagnara et al. [1, 2]. Further practical improvements are
+discussed in [4]. All these algorithms have in common that they introduce aux-
+iliary variables for negated program variables −z in order to represent each
+octagon as a diﬀerence bound matrix (DBM), and then apply dedicated tech-
+niques for these [19], namely, the Floyd-Warshall algorithm [6]. The auxiliary
+variables, however, must additionally be taken care of by the algorithm which
+blurs the simplicity of the idea, and also complicates the correctness argument.
+Here, we take another approach. To provide eﬃcient procedures for the Oc-
+tagon domain with simple proofs, we identify two generic properties of relational
+domains which are suﬃcient for an abstract version of the Floyd-Warshall al-
+gorithm to provide normal forms. Normalization takes calculations on abstract
+relations between 1, 2, and 3 variables as black boxes and uses these to infer ab-
+stract 1 or 2-variable relations mediated by other variables. Our normalization
+algorithm can be instantiated for rational octagons as well as integer octagons or
+other instances of the class of weakly relational domains satisfying our criteria.
+The ﬁrst criterion is 2-decomposability as introduced in [26] which requires
+that each abstract relation can be uniquely reconstructed from its projections
+onto sub-clusters of variables of size at most 2. The second criterion is called
+2-projectivity. This property means that each variable x can be eliminated from
+an abstract relation by considering projections onto at most 2-variable clus-
+ters. If both criteria are satisﬁed, our algorithm returns the normal form. The
+key correctness argument can be provided on two pages. Our abstract setting
+also provides an elegant algorithm for incremental normalization, i.e., for re-
+establishing the normal form after improving the relationship between two vari-
+ables. In practice, such improvements may occur as the abstract eﬀect of guards
+in the program which are expressible as abstract relations. For the Octagon do-
+main over rationals or integers, we provide improved abstract transformers for
+aﬃne assignments based on linear programming.
+
+2 Relational Domains
+
+Let us recall basic deﬁnitions for relational domains. We mostly follow the nota-
+tion used in [26] where the notion of 2-decomposability has been introduced. Let
+X be some ﬁnite set of variables. A relational domain R is a lattice with least
+element ⊥ and greatest element (cid:62) which provides the monotonic operations
+
+(cid:74)x ← e(cid:75)(cid:93) : R → R (assignment to variable x with right-hand e)
+r|Y : R → R (restriction to Y ⊆ X )
+(cid:74)?c(cid:75)(cid:93) : R → R (guard for condition c)
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+3
+
+for some languages e of expressions and c of conditions, respectively.
+The given operations are meant to provide the abstract transformers for the
+basic operations of programs. Restricting a relation r to a subset Y of variables
+amounts to forgetting all information about variables in X \ Y . Thus, we require
+that
+
+Restriction therefore is idempotent. For guards with condition c, we require that
+
+(1)
+
+(2)
+
+when Y1 ⊆ Y2
+
+r|X
+r|∅
+r|Y1
+(r|Y1
+
+= r
+= (cid:62)
+)(cid:12)(cid:12)Y2
+(cid:119) r|Y2
+= r|Y1∩Y2
+(cid:74)?c(cid:75)(cid:93)r = r (cid:117)(cid:74)?c(cid:75)(cid:93)(r|V )
+((cid:74)x ← e(cid:75)(cid:93)r)(cid:12)(cid:12)Y = r|Y
+((cid:74)x ← e(cid:75)(cid:93)r)(cid:12)(cid:12)Y = ((cid:74)x ← e(cid:75)(cid:93)(r|Y ∪V ))(cid:12)(cid:12)Y
+
+where V is the set of variables occurring inside c.
+
+For a numerical relational domain, we additionally require for Y ⊆ X that
+(3)
+(4)
+
+(x (cid:54)∈ Y )
+(x ∈ Y )
+
+where V is the set of variables occurring in e. Intuitively, this means that an
+assignment to the variable x does not aﬀect relational information for any set Y of
+variables with x (cid:54)∈ Y . To determine the eﬀect for a set Y of variables containing x,
+it suﬃces to additionally take the variables into account which occur in the right-
+hand side e. This property may, e.g., be violated if the relational domain also
+represents points-to information so that updates to x may also aﬀect relational
+information for sets of variables not containing x.
+Example 1. For numerical variables, a variety of such relational domains have
+been proposed, e.g., (conjunctions of) aﬃne equalities [16, 22, 23] or aﬃne in-
+equalities [8]. For aﬃne equalities or inequalities, projection onto a subset of Y
+of variables corresponds to the geometric projection onto the sub-space deﬁned
+by Y , combined with arbitrary values for variables z (cid:54)∈ Y . The abstract eﬀect
+of a guard c onto a given conjunction r can be realized as r ∧ c = r ∧ (c ∧ r|V )
+if c is a linear equality or inequality, respectively, using variables from V . The
+abstract eﬀect of an assignment x ← e with aﬃne right-hand side e, ﬁnally, can
+be reduced to the addition of new constraints and projection onto sub-spaces.
+Relational domains may also be constructed for non-numerical values, e.g., by
+(cid:117)(cid:116)
+maintaining ﬁnite subsets of value maps.
+
+3 Weakly Relational Domains
+
+One way to tackle the high cost of relational domains is to track relationships
+not between all variables, but only between subclusters of variables. We call such
+domains Weakly Relational Domains.
+For a subset Y ⊆ X , let RY = {r | r ∈ R, r|Y = r} the set of all abstract
+values from R that contain only information on those variables in Y . For any
+
+
+4
+
+Michael Schwarz and Helmut Seidl
+
+collection S ⊆ 2X of clusters of variables, a relation r ∈ R can be approximated
+by a meet of relations from RY , Y ∈ S since for every r ∈ R,
+
+r (cid:118)(cid:100){r|Y | Y ∈ S}
+
+holds. Schwarz et al. [26] introduce the notion of 2-decomposable relational do-
+mains. These are domains where the full value can be recovered from the restric-
+tion to all clusters [X ]2 of variables of size at most 2, and all ﬁnite least upper
+bounds can be recovered by computing within these clusters only, i.e., where
+
+(5)
+
+(6)
+
+(cid:100)(cid:110)
+
+r =
+
+((cid:70)R)|p =(cid:70)(cid:110)
+
+(cid:111)
+
+r|p | p ∈ [X ]2
+
+(cid:111)
+
+r|p | r ∈ R
+
+(p ∈ [X ]2)
+
+(7)
+holds for each abstract relation r ∈ R and each ﬁnite set of abstract relations
+R ⊆ R. The most prominent example of a 2-decomposable domain is the Octagon
+domain [20] – either over rationals or integers, while aﬃne equalities or aﬃne
+(cid:68)
+inequalities are examples of domains that are not 2-decomposable.
+Each value r from a 2-decomposable relational domain R can be represented
+r|p
+. This
+as the meet of its restrictions to 2-clusters, i.e., by the collection
+Consider an arbitrary collection (cid:104)sp(cid:105)p∈[X ]2 with sp ∈ Rp with r = (cid:100){sp | p ∈
+representation is called 2-normal, and an algorithm to compute it, normalization.
+[X ]2}. Then r|p (cid:118) sp always holds, while equality need not hold. In the Octagon
+domain over the rationals or the integers, the 2-normal representation of an
+octagon value corresponds to its strong closure and tight closure, respectively,
+as described in [1, 20]. Here, we do not distinguish between diﬀerent types of
+closure for rational and integer octagons. Instead, we call a non-⊥ octagon O
+over a numerical set of values I ∈ {Q, Z} closed if for each octagon combination
+(cid:96), the upper bound b(cid:96) equals the minimal value b ∈ I such that (cid:96) ≤ b is implied
+by O, or ∞ if no such bound exists.
+
+p∈[X ]2
+
+(cid:69)
+
+While for rational octagons, closure in cubic time was already proposed by
+Miné [20], it is much more recent that a corresponding algorithm was provided
+for integer octagons [1, 2]. Here, we re-consider these results. By referring to
+2-decomposable domains instead of to octagons, we succeed in providing a con-
+ceptually simple normalization algorithm with a simple correctness proof, from
+which cubic closure algorithms for the Octagon domains can be derived.
+
+some set X of variables. Assume that r ∈ R is given by r =(cid:100){sp | p ∈ [X ]2, sp ∈
+
+4 2-Projectivity
+Subsequently, we assume that R is an arbitrary 2-decomposable domain over
+Rp}. Then, we consider the following constraint system in the unknowns rp, p ∈
+[X ]2, over R,
+
+r{x,y} (cid:118) s{x,y} (cid:117)(cid:0)r{x,z} (cid:117) r{z,y}(cid:1)(cid:12)(cid:12){x,y}
+
+(8)
+for x, y, z ∈ X . All right-hand sides of the constraint system (8) are monotonic.
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+5
+Proposition 1. The collection (cid:104)r|p(cid:105)p∈[X ]2 is a solution of constraint system (8).
+Proof. Let x, y, z ∈ X . Then
+
+r|{x,y} = r|{x,y} (cid:117) r|{x,y} (cid:118) s{x,y} (cid:117) r|{x,y} (cid:118) s{x,y} (cid:117)(cid:16)
+
+r|{x,z} (cid:117) r|{z,y}
+
+(cid:17)(cid:12)(cid:12)(cid:12){x,y} (cid:117)(cid:116)
+
+From Proposition 1, we conclude that the greatest solution of (8) – if it exists –
+is an overapproximation of the normal representation of r. In general, the Kleene
+ﬁxpoint iteration for computing greatest solutions of constraint systems (8) may
+not terminate. Let us call a 2-decomposable relational domain R 2-projective
+when from each abstract relation r, each single variable can be eliminated by
+using projections onto clusters from [X ]2 only, i.e., when for every Y ⊆ X ,
+z ∈ X \ Y , yj ∈ Y ∪ {z}, r(cid:48) ∈ RY , and r{z,yj} ∈ R{z,yj},
+
+(cid:0)r{z,y1} (cid:117) . . . (cid:117) r{z,yk} (cid:117) r(cid:48)(cid:1)(cid:12)(cid:12)Y = r(cid:48) (cid:117)(cid:100)k
+
+i,j=1
+
+(cid:0)r{z,yi} (cid:117) r{z,yj}(cid:1)(cid:12)(cid:12)Y ∩{yi,yj}
+
+(9)
+
+Proposition 2. The following 2-decomposable domains are 2-projective:
+
+1. rational octagons;
+2. integer octagons;
+3. 2-variable rational aﬃne inequalities;
+4. 2-variable rational aﬃne equalities.
+
+Proof. Let us consider the claims (1) and (2) for octagons. Intuitively, their cor-
+rectness follows from the correctness of Fourier-Motzkin elimination of a single
+variable z from a system of inequalities. In general, this holds only for ratio-
+nal inequalities as considered for claim (1). However, it also holds for systems
+of integer inequalities – given that all coeﬃcients are integer and all non-zero
+coeﬃcients of z are either 1 or −1.
+x∈X ax · x an octagon combination if at
+most two of the coeﬃcients ax are non-zero and these are then from {−1, 1}. For
+a subset Y of variables, let LY denote the set of all octagon combinations with
+variables from Y . An integer octagon constraint is of the form (cid:96) ≤ b where (cid:96) is
+a linear octagon combination and the bound b is integer or ∞.
+
+Let us call a linear combination (cid:80)
+
+Subsequently, we represent an abstract octagon relation over Y by a closed
+
+conjunction
+
+(cid:86)
+
+(10)
+of octagon constraints with variables from Y if the octagon is satisﬁable, or ⊥
+if it is not. Here, the conjunction (10) is satisﬁable and closed iﬀ
+
+(cid:96)∈LY
+
+(cid:96) ≤ b(cid:96)
+
+0 ≤ b(cid:96) + b−(cid:96)
+b(cid:96) ≤ (b(cid:96)1 + b(cid:96)2 )/c
+
+if (cid:96) ∈ LY
+if (cid:96)1 (cid:54)= (cid:96)2 and c · (cid:96) = (cid:96)1 + (cid:96)2
+
+holds for some c ∈ {1, 2}. Here, factor 2 occurs if one variable x occurs both
+in (cid:96)1 and (cid:96)2 with the same sign, while another variable y occurs with diﬀerent
+signs, i.e.,
+
+c · (cid:96) = (x + y) + (x − y) = 2 · x
+
+
+6
+
+Michael Schwarz and Helmut Seidl
+
+In case of octagons over rationals, the operator “/” denotes division, whereas
+in case of octagons over integers, it denotes integer division, i.e., may include
+rounding downwards. By deﬁnition, the closed representation of an abstract
+octagon relation is also 2-normal.
+
+For computing the closure for an arbitrary conjunction r of octagon con-
+straints with one or two variables only, we may ﬁrst determine the least given
+upper bound b(cid:96) for each occurring octagon linear combination (cid:96). As a result, we
+obtain at most 8 octagon constraints for which satiﬁability (over rationals or in-
+tegers) can be decided in constant time. Provided the conjunction is satisﬁable,
+all implied tighter upper bounds (over rationals or integers) can be inferred.
+Example 2. Consider the integer octagon given by conjunction of the constraints
+
+x + y ≤ −2
+
+x − y ≤ 5
+
+− x + y ≤ 0
+
+By adding up constraints with positive and negative occurrences of the same
+variable, we derive that
+
+y ≤ −1
+
+x ≤ 1
+
+must also hold, while no further bounds can be inferred. If the conjunction of
+octagon constraints additionally has the inequality
+
+−x − y ≤ 0
+
+then, by adding this to the ﬁrst inequality, we derive
+
+0 ≤ −2
+
+– which is false – implying that the octagon equals ⊥.
+(cid:117)(cid:116)
+Assume that each non-⊥ value r{yj ,z}, yj ∈ Y ∪ {z}, is represented as a closed
+conjunction of octagon constraints with variables from {yj, z}. Assume likewise,
+that r(cid:48) (cid:54)= ⊥ is represented by a conjunction of octagon constraints with variables
+from Y only.
+
+For each pair yi, yj of variables from Y ∪ {z}, the abstract value
+
+(cid:0)r{yi,z} ∧ r{yj ,z}(cid:1)(cid:12)(cid:12)Y ∩{yi,yj}
+
+(11)
+
+can be obtained by means of Fourier-Motzkin elimination of z, applied to the
+closed conjunctions of octagon constraints representing r{yi,z}, and r{yj ,z}, re-
+spectively. In order to see this, we note that all occurring non-zero coeﬃcients
+of z in the constraints of r{yi,z} as well as r{yj ,z} are from {−1, 1}. Consider a
+constraint (cid:96) ≤ b of the resulting conjunction. Three cases may occur.
+– (cid:96) may contain occurrences of both variables yi and yj – each with coeﬃcients
+
+in {−1, 1}.
+– (cid:96) may contain a single occurrence of one variable, w.l.o.g., yi, whose coeﬃ-
+cient now is in {−2,−1, 1, 2}. In case the coeﬃcient of yi is in {−2, 2}, (cid:96) is
+still equivalent to an octagon constraint for yi only. If the constraint, e.g., is
+2 · yi ≤ 7, then it is equivalent to yi ≤ 3.5 over rationals, and to yi ≤ 3 over
+the integers.
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+7
+
+– (cid:96) does not contain any occurrences of variables. In this case, it is either
+equivalent to true and can be abandoned, or equivalent to false – implying
+that (11) equals ⊥.
+
+We conclude that the expression (11), when satisﬁable, can be represented by
+a conjunction of octagon constraints using variables yi and yj. Thus, the right-
+hand side of equation (9) for rational as well as integer octagons is equivalent to
+the result of Fourier-Motzkin elimination of z. This implies claim (2).
+Example 3. Assume an integer octagon r = r(cid:48) ∧ r{y1,z} ∧ r{y2,z} where
+
+= y1 + y2 ≤ 7
+
+r(cid:48)
+r{y1,z} = (y1 + z ≤ −1) ∧ (y1 ≤ 3) ∧ (−z ≤ 4)
+r{y2,z} = (y2 − z ≤ 5) ∧ (−y2 ≤ 1)
+
+Fourier-Motzkin elimination of z adds the additional constraint
+
+y1 + y2 ≤ 4
+
+Projection onto the subset Y = {y1, y2} according to (9) therefore results in the
+conjunction of constraints
+
+(y1 + y2 ≤ 7) ∧ (y1 ≤ 3) ∧ (y1 + y2 ≤ 4) ∧ (−y2 ≤ 1)
+
+which can be further simpliﬁed to (y1 ≤ 3) ∧ (y1 + y2 ≤ 4) ∧ (−y2 ≤ 1).
+Example 4. The following 2-decomposable domains are not 2-projective:
+
+(cid:117)(cid:116)
+
+1. Finite sets of 2-variable maps;
+(cid:117)(cid:116)
+2. Implications between interval constraints.
+Proof. For (1), let X = {a, x, y, z} where variables range over values from the
+set {1, 2, 3} and maps from variables to such sets are used as the abstraction.
+Consider now:
+
+r{a,x} = {a (cid:55)→ {1, 2}}
+
+r{a,y} = {a (cid:55)→ {2, 3}}
+where all other rp, p ∈ [X ]2 have the value (cid:62). Then,
+
+(cid:0)r{a,x} (cid:117) r{a,y} (cid:117) r{a,z} (cid:117) (cid:62)(cid:1)(cid:12)(cid:12){x,y,z} = ⊥
+
+r{a,z} = {a (cid:55)→ {3, 1}}
+
+but, in violation of property (9),
+
+(cid:62) (cid:117) (r{a,x} (cid:117) r{a,x})(cid:12)(cid:12){x} (cid:117) (r{a,y} (cid:117) r{a,y})(cid:12)(cid:12){y} (cid:117) (r{a,z} (cid:117) r{a,z})(cid:12)(cid:12){z}
+(cid:117)(r{a,x} (cid:117) r{a,y})(cid:12)(cid:12){x,y} (cid:117) (r{a,x} (cid:117) r{a,z})(cid:12)(cid:12){x,z} (cid:117) (r{a,y} (cid:117) r{a,z})(cid:12)(cid:12){y,z}
+
+({a (cid:55)→ {1, 2}} (cid:117) {a (cid:55)→ {3, 1}})|{x,z} (cid:117) ({a (cid:55)→ {2, 3}} (cid:117) {a (cid:55)→ {3, 1}})|{y,z}
+
+= (cid:62) (cid:117) (cid:62) (cid:117) (cid:62) (cid:117) (cid:62) (cid:117) ({a (cid:55)→ {1, 2}} (cid:117) {a (cid:55)→ {2, 3}})|{x,y}(cid:117)
+= ({a (cid:55)→ {2}})|{x,y} (cid:117) ({a (cid:55)→ {1}})|{x,z} (cid:117) ({a (cid:55)→ {3}})|{x,z}(cid:117)
+= (cid:62) (cid:117) (cid:62) (cid:117) (cid:62) = (cid:62)
+
+
+8
+
+Michael Schwarz and Helmut Seidl
+
+The domain of implications between interval constraints consists of ﬁnite con-
+junctions of the form
+
+x ∈ I =⇒ y ∈ I(cid:48)
+
+for variables x and y and I, I(cid:48) either intervals or the empty set, ordered by
+implication. In particular, x ∈ ∅ may be written as False, while x ∈ [−∞,∞] is
+denoted by True.
+Now, consider the same set X = {a, x, y, z} of variables as for claim (1) and
+
+let
+
+r{a,x} = {True =⇒ a ∈ [1, 2]}
+r{a,y} = {True =⇒ a ∈ [2, 3]}
+r{a,z} = {a ∈ [2, 2] =⇒ False}
+
+where all other rp, p ∈ [X ]2 have the value (cid:62). Then,
+
+(cid:0)r{a,x} (cid:117) r{a,y} (cid:117) r{a,z} (cid:117) (cid:62)(cid:1)(cid:12)(cid:12){x,y,z} = False = ⊥
+
+but
+
+(cid:62) ∧ (r{a,x} ∧ r{a,x})(cid:12)(cid:12){x} ∧ (r{a,y} ∧ r{a,y})(cid:12)(cid:12){y} ∧ (r{a,z} ∧ r{a,z})(cid:12)(cid:12){z}
+∧(r{a,x} ∧ r{a,y})(cid:12)(cid:12){x,y} ∧ (r{a,x} ∧ r{a,z})(cid:12)(cid:12){x,z} ∧ (r{a,y} ∧ r{a,z})(cid:12)(cid:12){y,z}
+
+= (cid:62) ∧ (cid:62) ∧ (cid:62) ∧ (cid:62) ∧ ({True =⇒ a ∈ [1, 2]} ∧ {True =⇒ a ∈ [2, 3]})|{x,y}∧
+
+({True =⇒ a ∈ [1, 2]} ∧ {a ∈ [2, 2] =⇒ False})|{x,z}∧
+({True =⇒ a ∈ [2, 3]} ∧ {a ∈ [2, 2] =⇒ False})|{y,z}
+= (True =⇒ a ∈ [2, 2])|{x,y} ∧ (True =⇒ a ∈ [1, 1])|{x,z}∧
+(True =⇒ a ∈ [3, 3])|{x,z}
+= (cid:62) ∧ (cid:62) ∧ (cid:62) = (cid:62)
+
+(cid:117)(cid:116)
+which means property (9) is violated.
+Subsequently, assume that the 2-decomposable domain R is 2-projective. We
+show that under this assumption, the greatest solution of the constraint system
+(8) exists and coincides with the normal representation. Moreover, we provide
+an eﬃcient algorithm for performing the normalization.
+Assume that X = {x1 . . . xn}, and let Xr = {x1, . . . , xr}, and ¯Xr = X \ Xr
+for r = 0, . . . , n. Assume that we are given sp ∈ Rp, (p ∈ [X ]2). For x, y ∈ X ,
+we deﬁne the sequence
+
+s(0){x,y} = s{x} (cid:117) s{y} (cid:117) s{x,y}
+s(r){x,y} = s(r−1)
+
+{x,y} (cid:117)(cid:16)
+
+s(r−1)
+{x,xr} (cid:117) s(r−1)
+{xr,y}
+
+(cid:17)(cid:12)(cid:12)(cid:12){x,y}
+
+for r > 0 :
+
+Proposition 3. Let ¯s =(cid:100){sp | p ∈ [X ]2} be the abstract relation represented
+by (cid:104)sp(cid:105)p∈[X ]2. Let p ∈ [X ]2. For r = 0, . . . , n,
+2. ¯s| ¯Xr∪{x,y} =(cid:100)(cid:110)
+1. s(r)
+
+| p ⊆ ¯Xr ∪ {x, y}, 1 ≤ |p| ≤ 2
+
+p (cid:118) s(r){x} for each x ∈ p;
+
+(cid:111)
+
+s(r)
+p
+
+(12)
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+9
+
+Proof. For r = 0, the proposition holds by deﬁnition. Now assume that r > 0
+and the assertion already holds for r − 1. For p = {x, y}, we calculate
+
+{x,y} (cid:117)(cid:16)
+
+s(r){x,y} = s(r−1)
+(cid:118) s(r−1)
+
+s(r−1)
+{x,xr} (cid:117) s(r−1)
+{xr,y}
+{x} (cid:117) s(r−1)
+{x,xr}
+
+(cid:17)(cid:12)(cid:12)(cid:12){x,y}
+(cid:12)(cid:12)(cid:12){x} = s(r){x}
+
+(cid:118) s(r−1)
+
+{x} (cid:117) s(r−1)
+{x,xr}
+
+(cid:12)(cid:12)(cid:12){x,y}
+
+and the ﬁrst claim follows. For the second claim Eq. (12), consider the case
+xr (cid:54)∈ {x, y}. Then
+
+(by induction hypothesis)
+
+{z,xr} | z ∈ ¯Xr−1 ∪ {x, y}(cid:111)(cid:17)(cid:12)(cid:12)(cid:12) ¯Xr∪{x,y}
+
+s(r−1)
+
+(cid:27)
+
+| z1, z2 ∈ ¯Xr ∪ {x, y}
+
+(cid:117)
+
+(cid:16)
+
+(cid:17)(cid:12)(cid:12)(cid:12) ¯Xr∪{x,y}
+
+p
+
+p
+
+=
+
+=
+
+¯s| ¯Xr∪{x,y} =
+s(r−1)
+s(r−1)
+s(r−1)
+s(r−1)
+{z1,xr} (cid:117) s(r−1)
+{xr,z2}
+s(r−1)
+{z1,xr} (cid:117) s(r−1)
+{xr}
+
+¯s| ¯Xr−1∪{x,y}
+| p ⊆ ¯Xr−1 ∪ {x, y}, 1≤|p|≤2
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+
+(cid:111)(cid:17)(cid:12)(cid:12)(cid:12) ¯Xr∪{x,y}
+(cid:111) (cid:117)(cid:100)(cid:110)
+(cid:111) (cid:117)
+(cid:17)(cid:12)(cid:12)(cid:12)( ¯Xr∪{x,y})∩{z1,z2}
+(cid:17)(cid:12)(cid:12)(cid:12)( ¯Xr∪{x,y})∩{z1}
+(cid:12)(cid:12)(cid:12)( ¯Xr∪{x,y})∩{xr}
+(cid:111) (cid:117)
+(cid:17)(cid:12)(cid:12)(cid:12){z1,z2}
+(cid:17)(cid:12)(cid:12)(cid:12){z1}
+(cid:111) (cid:117)
+(cid:17)(cid:12)(cid:12)(cid:12){z1,z2}
+
+(cid:117)s(r−1)
+{xr}
+s(r−1)
+s(r−1)
+{z1,xr} (cid:117) s(r−1)
+{xr,z2}
+s(r−1)
+{z1,xr} (cid:117) s(r−1)
+{xr}
+s(r−1)
+{z1,xr} (cid:117) s(r−1)
+s(r−1)
+{xr,z2}
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+s(r)
+p
+
+(cid:16)(cid:100)(cid:110)
+(cid:16)(cid:100)(cid:110)
+=(cid:100)(cid:110)
+(cid:100)(cid:26)(cid:16)
+(cid:100)(cid:26)(cid:16)
+=(cid:100)(cid:110)
+(cid:100)(cid:26)(cid:16)
+(cid:100)(cid:26)(cid:16)
+=(cid:100)(cid:110)
+(cid:100)(cid:26)(cid:16)
+=(cid:100)(cid:110)
+
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+
+| z1, z2 ∈ ¯Xr ∪ {x, y}
+
+| z1, z2 ∈ ¯Xr ∪ {x, y}
+
+| z1 ∈ ¯Xr ∪ {x, y}
+
+(cid:27)
+
+(cid:111)
+
+p
+
+p
+
+p
+
+(cid:27)
+
+(cid:27)
+
+| z1 ∈ ¯Xr ∪ {x, y}
+
+(cid:117)
+(cid:117) s(r−1)
+{xr}
+
+(cid:12)(cid:12)(cid:12)∅
+
+(cid:27)
+
+(by Eq. (9))
+
+(by claim (1))
+
+and the assertion holds. For the second but last equality, we used that the meet
+in the second but last row is non-empty, since
+
+(cid:12)(cid:12)(cid:12)∅
+
+(cid:12)(cid:12)(cid:12){z1}
+
+(cid:12)(cid:12)(cid:12){z1}
+
+(cid:12)(cid:12)(cid:12){z1,z2}
+
+s(r−1)
+{xr}
+
+(cid:119) s(r−1)
+{xr}
+
+(cid:119) s(r−1)
+{z1,xr}
+
+(cid:119) s(r−1)
+{z1,xr}
+
+(cid:119) s(r−1)
+
+{z1,xr} (cid:117) s(r−1)
+{z1,xr}
+
+(cid:12)(cid:12)(cid:12){z1,z2}
+
+holds for each z1, z2 ∈ ¯Xr ∪ {x, y}. Now let xr ∈ {x, y}. Then ¯Xr ∪ {x, y} =
+¯Xr−1 ∪ {x, y}. W.l.o.g., let x = xr. Then s(r−1)
+{xr,y} = s(r−1)
+{x,y} .
+
+{x,xr} = s(r−1)
+{x}
+
+and s(r−1)
+
+
+Michael Schwarz and Helmut Seidl
+
+10
+Hence by claim (1), s(r){x,y} = s(r−1)
+
+{x,y} . Accordingly,
+
+¯s| ¯Xr∪{x,y} = ¯s| ¯Xr−1∪{x,y}
+
+(cid:111)
+
+=(cid:100)(cid:110)
+=(cid:100)(cid:110)
+=(cid:100)(cid:110)
+
+| p ⊆ ¯Xr−1 ∪ {x, y}, 1≤|p|≤2
+
+{x,z2} | z1, z2 ∈ ¯Xr−1 ∪ {x, y}(cid:111)
+
+{z1,x} (cid:117) s(r−1)
+
+(cid:111)
+
+p
+
+s(r−1)
+s(r−1)
+{z1,z2} (cid:117) s(r−1)
+s(r)
+p
+
+| p ⊆ ¯Xr ∪ {x, y}, 1≤|p|≤2
+
+(by induction hypothesis)
+
+(cid:117)(cid:116)
+
+Thus, provided R fulﬁlls Eq. (9), we obtain for k = n:
+
+¯s|{x,y} = s(n){x,y} (cid:117) s(n){x} (cid:117) s(n){y} = s(n){x,y}
+
+Subsequently, we consider Algorithm 1. It consists of one application of the
+Floyd-Warshall algorithm, as is. For that to be suﬃcient, an initialization round
+is performed upfront to ensure that each value t{x,y} not only subsumes s{x,y},
+but also s{x} and s{y}. The complexity of the proposed algorithm is O(n3) if
+calculations with abstract relations over at most three variables, i.e., from RY for
+every Y ⊆ X with |Y | ≤ 3, can be performed in constant time. For Algorithm 1,
+we ﬁnd:
+gorithm 1 for the collection (cid:104)sp(cid:105)p∈[X ]2. Let ¯s = (cid:100){sp | p ∈ [X ]2} the abstract
+Theorem 1. Assume that (cid:104)tp(cid:105)p∈[X ]2 is the collection of values returned by Al-
+relation represented by (cid:104)sp(cid:105)p∈[X ]2. Then for each p ∈ [X ]2,
+1. ¯s|p (cid:118) tp;
+2. If the 2-decomposable domain R is 2-projective, then ¯s|p = tp holds. In that
+
+case, (cid:104)tp(cid:105)p∈[X ]2 is the greatest solution of the constraint system (8).
+
+Thus, Algorithm 1 provides a cubic time normalization procedure – whenever
+R is 2-decomposable and 2-projective. We remark that the initializing ﬁrst loop
+cannot be abandoned. When R is not 2-projective, but 2-decomposable, the
+algorithm still computes overapproximations of normal representations.
+
+Algorithm 1: The variant of the Floyd-Warshall algorithm to compute
+(an overapproximation of) normalization.
+for x, y ∈ X do
+
+t{x,y} := s{x,y} (cid:117) s{x} (cid:117) s{y}
+
+for z ∈ X do
+
+for x, y ∈ X do
+
+t{x,y} := t{x,y} (cid:117)(cid:0)t{x,z} (cid:117) t{z,y}(cid:1)(cid:12)(cid:12){x,y}
+
+// initialization
+
+return (cid:104)tp(cid:105)p∈[X ]2
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+11
+Proof. Let p ∈ [X ]2. By Proposition 1, ¯s|p (cid:118) tp holds, since the right-hand
+sides of the constraint system (8) are all monotonic, and starting from the initial
+values provided in the ﬁrst loop, each update to some t{x,y} in the second loop,
+corresponds to one update performed by the evaluation of some right-hand side
+of (8). Therefore, the ﬁrst assertion follows.
+Now assume that the 2-decomposable relational domain R additionally is 2-
+projective. Let t(r)
+p denote the value of tp attained after the iteration of the second
+loop for the variable xr. By induction on r, we verify by means of Proposition 3
+that for all p ∈ [X ]2, t(r)
+p holds for all r = 0, . . . , n. In particular, tp =
+p (cid:118) ¯s|p, and the second assertion of the theorem follows.
+(cid:117)(cid:116)
+t(n)
+Example 5. Given a (ﬁnite) set of constants, the Pairs domain consists of false
+of conjunctions of atomic propositions x = c, x ∈ p. It is ordered by logical
+implication. Consider, e.g., r = φ{x,y} ∧ φ{y,z} with φ{x,y} ≡ (x = a) ∨ (x =
+b∧ y = c) and φ{y,z} ≡ (y = d∧ z = b). Then r|{x,y} = (x = a∧ y = d). Likewise,
+r|{y,z} = (y = d ∧ z = b) and r|{x,z} = (x = a ∧ z = b).
+
+or conjunctions(cid:86){φp | p ∈ [X ]2} where for p ∈ [X ]2, φp is true or a disjunction
+Assume each r ∈ R is represented by r =(cid:86){r|p | p ∈ [X ]2}, and deﬁne for
+p ∈ [X ]2, φp as the least upper bound of formulas r|p, r ∈ R. Then ¯r =(cid:86){φp |
+
+p (cid:118) s(r)
+
+p ∈ [X ]2} is an upper bound of R and, in fact, the least upper bound. For some
+p ∈ [X ]2, then by deﬁnition, ¯r|p ⇒ φp. By monotonicity of the restriction, on the
+other hand, r|p ⇒ ¯r|p for all r ∈ R. Therefore, φp ⇒ ¯r|p as well, and the claim
+follows. While being 2-decomposable, the Pairs domain is not 2-projective. Let,
+e.g.,
+
+s{w,x} = (w = "fun1" ∧ x = &f1) ∨ (w = "fun3" ∧ x = &f2)
+s{w,y} = (w = "fun2") ∨ (w = "fun3")
+s{w,z} = (w = "fun1" ∧ z = &f1) ∨ (w = "fun2" ∧ z = &f1)
+
+and all other sp = true. Then, Algorithm 1 computes
+
+t{y} = true
+t{y,z} = t{z} = (z = &f1)
+
+t{w} = t{w,x} = t{w,y} = t{w,z} = false
+t{x} = t{x,y} = (x = &f1) ∨ (x = &f2)
+t{x,z} = (x = &f1 ∧ z = &f1) ∨ (x = &f2 ∧ z = &f1)
+which is an overapproximation of the normalization given by ¯s|p = false for
+p ∈ [X ]2. Here, the normalization happens to coincide with the greatest solution
+(cid:117)(cid:116)
+of constraint system (8).
+Example 6. According to Proposition 2, the domains of rational as well as integer
+octagons are 2-decomposable and 2-projective. Therefore, Algorithm 1 computes
+the exact 2-normal form, and thus provides us with cubic time closure algorithms
+(cid:117)(cid:116)
+for these.
+
+Incremental Normalization
+
+5
+If the condition c of a guard can be abstracted by some abstract relation rc ∈
+
+R, then the transfer function (cid:74)?c(cid:75)(cid:93) can be chosen as (cid:74)?c(cid:75)(cid:93)r = r (cid:117) rc. Assume
+
+
+12
+
+Michael Schwarz and Helmut Seidl
+
+Algorithm 2: Incremental version of the Floyd-Warshall algorithm
+to incrementally compute (an overapproximation of) 2-normal forms
+when clusters tp, p ⊆ V , with |p| = 2 have potentially received new
+values.
+for z ∈ V do
+
+for x, y ∈ X do
+
+t{x,y} := t{x,y} (cid:117)(cid:0)t{x,z} (cid:117) t{z,y}(cid:1)(cid:12)(cid:12){x,y}
+
+return (cid:104)tp(cid:105)p∈[X ]2
+
+that the relational domain R is 2-decomposable as well as 2-projective, and
+that rc is represented as the meet rp1 (cid:117) . . . (cid:117) rpk for pj ∈ [X ]2. Then, the
+normalization of r (cid:117) rc can be computed incrementally. For the octagon domain
+over integers, Chawdhary et al. [4] give quadratic incremental closure algorithms.
+Just like theirs, our algorithm for incremental normalization is based on the
+Floyd-Warshall algorithm, i.e., Algorithm 1.
+In our setting, adding new constraints amounts to improving some clusters
+r{a,b} where a and b are from some set V ⊆ X . For simplicity, we require that
+only clusters r{a,b} with a (cid:54)= b are improved. This allows us in the adaption of
+Algorithm 1 to avoid the initialization loop. Whenever X contains more than
+one variable, this extra requirement is no limitation, though, as a constraint
+involving only the variable z may just be added to any 2-variable cluster p
+with z ∈ p. (When X contains only one variable, no normalization is required.)
+Normalization then is computed by the modiﬁed version of Algorithm 1 given
+in Algorithm 2.
+
+Theorem 2. Assume a 2-normal collection of values of some 2-decomposable
+relational domain S = (cid:104)sp(cid:105)p∈[X ]2, and a collection S1 = (cid:104)s(cid:48)
+p(cid:48)(cid:105)p(cid:48)⊆V,|p(cid:48)|=2 with
+Algorithm 2 for the collection S(cid:48) = (cid:104)sp(cid:105)p∈[X ]2,(p(cid:54)⊆V ∨|p|(cid:54)=2) ∪ S1 Let ¯s =(cid:100) S(cid:48) the
+p(cid:48) (cid:118) sp(cid:48) for all p(cid:48). Assume that (cid:104)tp(cid:105)p∈[X ]2 is the collection of values returned by
+s(cid:48)
+abstract relation represented by S(cid:48). Then for each p ∈ [X ]2,
+1. ¯s|p (cid:118) tp;
+2. If the 2-decomposable domain R is 2-projective, then ¯s|p = tp holds. In that
+
+case, (cid:104)tp(cid:105)p∈[X ]2 is the greatest solution of constraint system (8).
+
+Proof. Let p ∈ [X ]2. ¯s|p (cid:118) tp holds since, as observed before, all right-hand sides
+of the constraint system (8) are monotonic and the individual update steps of
+Algorithm 2 each correspond to updates performed by the evaluations of the
+right-hand sides of (8). Thus, the ﬁrst statement follows.
+
+Now consider the case where the relational domain is additionally 2-projective.
+The invariant which the non-incremental Algorithm 1 attains after the initializa-
+tion holds by construction here. Let t(r)
+p denote the value of tp attained after the
+iteration of the second loop for the r-th variable in the non-incremental Algo-
+rithm 1. We choose the order of the iteration of variables in the second loop such
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+13
+
+p
+
+= t(r)
+
+that the variables in V are considered last. Then, for the ﬁrst |X \ V | iterations
+t(r−1)
+p , as the original collection (cid:104)sp(cid:105)p∈[X ]2 was normalized. Therefore, it
+suﬃces to execute the last |V | iterations of the second loop of Algorithm 1 which
+(cid:117)(cid:116)
+is identical to Algorithm 2. Thus, by Theorem 1, the claim follows.
+We have thus shown that re-establishing normalization (and thus closure) after
+adding octagon constraints for m variables is in O(m · n2).
+
+6 Abstract Transformers for Linear Assignments
+Assume we are given a normalized value r over the set X of program variables
+from some 2-decomposable relational domain. Assume further that we are given
+an assignment a of the form x ← e where e is an expression over some subset
+V ⊆ X , and assume that the relational domain satisﬁes properties (3) and (4).
+Let r ∈ R denote the relational value before the assignment and assume r is
+already normalized where rp = r|p has already been computed for all p ∈ [X ]2.
+Let r(cid:48) =(cid:74)a(cid:75)(cid:93) r denote the relational value after the assignment. Then, for every
+p ∈ [X ]2 with x (cid:54)∈ p, r(cid:48)|p = r|p = rp. In order to compute the normalization of
+p = r(cid:48)|p for x ∈ p, i.e., a linear
+r(cid:48), it therefore suﬃces to compute the values r(cid:48)
+number of clusters p. Now consider some variable y ∈ X . Because of property
+(4), we have that
+
+r(cid:48)
+
+p =(cid:74)a(cid:75)(cid:93)r(cid:12)(cid:12){x,y}
+= ((cid:74)a(cid:75)(cid:93)r|V ∪{x,y})
+= ((cid:74)a(cid:75)(cid:93)((cid:100){rp | p ⊆ V ∪ {x, y}}))(cid:12)(cid:12){x,y}
+{x,y} requires taking into account only clusters p ∈ [X ]2
+
+(cid:12)(cid:12)(cid:12){x,y}
+
+i.e., the abstract value r(cid:48)
+with variables from V ∪ {x, y}. We conclude:
+Proposition 4. Assume that computations on abstract relations from R over
+a bounded set of variables is constant time, and assume that the assignment a
+refers only to a bounded number of variables. Assume further that the abstract
+(cid:117)(cid:116)
+
+relation r ∈ R is normalized. Then a normalization of the relation(cid:74)a(cid:75)(cid:93)r can be
+
+computed in linear time.
+
+7 Linear Programming with Octagon Constraints
+
+Let us turn to the implementation of best abstract transformers for assignments
+for the octagon domain (over rationals as well as over integers). For the octagon
+domain, an abstract transformer for assignments can be constructed by adding
+octagon constraints. This works well for right-hand sides of the form y + c or
+−y + c for variables y and constants c. For more general right-hand sides such
+as, e.g., 3 · y − 2 · z, the best transformer can instead be expressed by means of
+optimization problems [25].
+
+
+14
+
+Michael Schwarz and Helmut Seidl
+
+Assume that the octagon is provided by bounds b(cid:96), (cid:96) ∈ LV for some subset
+V ⊆ X of variables. Depending on the sign of a variable occurring in a linear
+combination (cid:96), we say it occurs positively or negatively. Consider the optimiza-
+tion problem of maximizing a linear objective function taking variables from V
+subject to the given set of octagon constraints
+z∈V az · z
+
+maximize (cid:80)
+
+(13)
+
+subject to (cid:96) ≤ b(cid:96)
+
+((cid:96) ∈ LV )
+
+When interpreted over the rationals, optimal solutions can be computed in time
+polynomial in the size of the linear program (i.e., the number of bits to spell it
+out) [15] or exponential time in the number of variables if simplex type algo-
+rithms are used [17]. To this general approach, we here add one more observation,
+namely, that over the rationals, the set of octagon constraints to be satisﬁed in
+optimization problems can be restricted to constraints where each occurring vari-
+able z ∈ V occurs with the same sign as the coeﬃcient az of z in the objective
+function: this considerably reduces the number of constraints to be considered.
+Proposition 5. Assume that we are given the rational octagon linear program
+(13) where az > 0 for all z ∈ V . If the octagon corresponding to the constraints
+is closed, then the same result is obtained when the constraints are restricted to
+octagon linear combinations z and z + y for z, y ∈ V and z (cid:54)= y.
+Proof. The proof of the proposition is obtained by means of the dual
+program:
+
+linear
+
+minimize (cid:80)
+subject to ((cid:80)
+
+(cid:96)∈LV
+
+y(cid:96) · b(cid:96)
+
+z in (cid:96) y(cid:96)) − ((cid:80)−z in (cid:96) y(cid:96)) = az
+
+y(cid:96) ≥ 0
+
+(z ∈ V )
+((cid:96) ∈ LV )
+
+(14)
+
+the minimal gain b is attained, i.e.,(cid:80)
+
+If the original program is unbounded, then so is the program with the restricted
+set of constraints. Therefore, assume that the original linear program is bounded.
+Then the dual optimization problem has a feasible solution y(cid:96), (cid:96) ∈ LV , where
+y(cid:96) · b(cid:96) = b. It remains to prove that
+b can be attained by a feasible solution y(cid:96), (cid:96) ∈ L, where y(cid:96) = 0 for all octagon
+combinations (cid:96) which contain negations. We proceed by induction on the number
+of octagon combinations (cid:96) with negative occurrences of variables from V . Assume
+that there are octagon combinations (cid:96) with negated occurrences of z and y(cid:96) > 0.
+Consider the linear constraint in (13) for z
+
+(cid:96)∈LV
+
+(cid:16)(cid:80)r
+
+(cid:17) −(cid:16)(cid:80)r(cid:48)
+
+(cid:17)
+
+j=1 y(cid:96)
+
+j(cid:48)=1 y(cid:96)(cid:48)
+j(cid:48)
+
+= az
+
+where (cid:96)j enumerates all octagon combinations with positive and (cid:96)(cid:48)
+j(cid:48) enumerates
+all octagon combinations with negative occurrences of z. Since r(cid:48) > 0 and az > 0,
+also r > 0. If y(cid:96)r ≥ y(cid:96)(cid:48)
+r(cid:48) , we proceed to eliminate the octagon combination (cid:96)(cid:48)
+r(cid:48)
+with a negative occurrence of z and proceed to eliminate also all other negative
+(cid:96) with the same gain b where y(cid:48)
+occurrences of z by constructing a solution y(cid:48)
+r(cid:48) =
+(cid:96)(cid:48)
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+15
+
+Now assume that (cid:96)r + (cid:96)(cid:48)
+
+r(cid:48) = 0, then either no further variable is contained in (cid:96)r, (cid:96)(cid:48)
+
+0. If (cid:96)r + (cid:96)(cid:48)
+same variable z(cid:48) occurs with opposite signs. Then we set y(cid:48)
+y(cid:48)
+p = yp otherwise.
+r(cid:48) is a linear combination diﬀerent from 0. Then it
+either is equivalent to an octagon combination not involving variable z, or 2z(cid:48)
+or 2 · (−z(cid:48)) for some variable z(cid:48) diﬀerent from z. In order to deal with all these
+cases consistently, we introduce a correction factor c as 1 if the sum is an octagon
+linear combination, and 2 otherwise. Let q denote the octagon combination with
+c·q = (cid:96)r +(cid:96)(cid:48)
+(cid:96), (cid:96) ∈ LV ,
+be deﬁned by
+
+r(cid:48). Since the octagon r is closed, c·bq ≤ b(cid:96)r +b(cid:96)(cid:48)
+
+r(cid:48) or the
+= y(cid:48)
+r(cid:48) = 0 and
+(cid:96)(cid:48)
+
+r(cid:48) holds. Let y(cid:48)
+
+(cid:96)r
+
+
+
+y(cid:48)
+(cid:96) =
+
+y(cid:96)r − y(cid:96)(cid:48)
+y(cid:96) + c · y(cid:96)(cid:48)
+
+r(cid:48) if (cid:96) = (cid:96)r
+0 if (cid:96) = (cid:96)(cid:48)
+r(cid:48)
+r(cid:48) if c · (cid:96) = q
+y(cid:96) otherwise
+
+(cid:96), (cid:96) ∈ L, is again a feasible solution, i.e., satisﬁes all constraints,
+
+We claim that y(cid:48)
+where the same gain b is attained. Concerning the gain, we have
+r(cid:48) · (b(cid:96)r + b(cid:96)(cid:48)
+
+r(cid:48) + yq · bq = (y(cid:96)r − y(cid:96)(cid:48)
+
+r(cid:48) ) · b(cid:96)r + y(cid:96)(cid:48)
+
+y(cid:96)r · b(cid:96)r + y(cid:96)(cid:48)
+
+r(cid:48) ) + yq · bq
+
+r(cid:48) · b(cid:96)(cid:48)
+
+≥ y(cid:48)
+
+(cid:96)r
+
+· b(cid:96)r + y(cid:48)
+
+q · bq
+
+As the gain b was already minimal, we conclude that the gain for the y(cid:48)
+(cid:96) has not
+changed. It remains to show that the y(cid:48)
+(cid:96) form a feasible solution of the constraints
+in (13). By construction, the equation for z is satisﬁed (we reduce y(cid:96)r with a
+r(cid:48) with a negative occurrence).
+positive occurrence of z by the same amount as y(cid:96)(cid:48)
+If q contains a variable z(cid:48) which is then diﬀerent from z, then this variable must
+occur in (cid:96)r, (cid:96)(cid:48)
+r(cid:48) or both and if so, with the same sign. If it is contained only in (cid:96)(cid:48)
+r(cid:48),
+r(cid:48) in the left-hand side of the constraint for z(cid:48) is replaced with 0, while
+then y(cid:96)(cid:48)
+at the same time yq is increased with y(cid:96)r. If it is contained only in (cid:96)r, then y(cid:96)r
+in the left-hand side of the constraint for z(cid:48) is decreased with y(cid:96)(cid:48)
+r(cid:48) , while at the
+same time yq is increased with y(cid:96)r. If it is contained both in (cid:96)r and (cid:96)(cid:48)
+r(cid:48), then y(cid:96)r
+in the left-hand side of the constraint for z(cid:48) is decreased with y(cid:96)(cid:48)
+r(cid:48) , y(cid:96)(cid:48)
+r(cid:48) is set to
+0, yq is increased with 2 · y(cid:96)(cid:48)
+r(cid:48) .
+
+Thus, in all cases, the equation is satisﬁed for the y(cid:48)
+p.
+We conclude that the combination (cid:96)r can equivalently be removed by means
+
+of the octagon combination q not involving the variable z.
+
+Therefore, now assume that y(cid:96)(cid:48)
+
+r(cid:48) > y(cid:96)r where, w.l.o.g., the maximal value of
+the non-zero y(cid:96)j equals y(cid:96)r. If (cid:96)r + (cid:96)(cid:48)
+r(cid:48) = 0 (otherwise the
+r(cid:48) − y(cid:96)r, and y(cid:48)
+gain were not minimal). Therefore, we set y(cid:48)
+(cid:96) = (cid:96)p
+otherwise to obtain a feasible solution where the minimal gain is attained. At
+the same time, the number of octagon combinations (cid:96) with y(cid:48)
+(cid:96) > 0 where z
+occurs positively has decreased. Therefore, assume that (cid:96)r + (cid:96)(cid:48)
+r(cid:48) is diﬀerent from
+0. Then there is a coeﬃcient c ∈ {1, 2} and an octagon constraint q such that
+
+r(cid:48) = 0, then b(cid:96)r + b(cid:96)(cid:48)
+= 0, y(cid:48)
+r(cid:48) = y(cid:96)(cid:48)
+(cid:96)(cid:48)
+
+(cid:96)r
+
+
+16
+c · q = (cid:96)r + (cid:96)(cid:48)
+
+Michael Schwarz and Helmut Seidl
+
+r(cid:48) and c · bq ≤ b(cid:96)r + b(cid:96)(cid:48)
+
+r(cid:48) . Then we set
+
+
+
+y(cid:48)
+(cid:96) =
+
+0 if (cid:96) = (cid:96)r
+r(cid:48) − y(cid:96)r if (cid:96) = (cid:96)(cid:48)
+y(cid:96)(cid:48)
+r(cid:48)
+yq + c · y(cid:96)r if (cid:96) = q
+y(cid:96) otherwise
+
+Again, we obtain a feasible solution where the gain has not increased, but the
+number of octagon combinations (cid:96) with y(cid:48)
+(cid:96) > 0 where z occurs positively has
+decreased. Altogether, we conclude that, without increasing the gain, the feasible
+solution y(cid:96) can be adjusted such that y(cid:96) = 0 for (cid:96) whenever (cid:96) contains negative
+occurrences of variables in V .
+As a result, we obtain as the dual of the simpliﬁed LP problem
+
+minimize (cid:80)
+subject to yz1 +(cid:80)
+
+z1∈V yz1 · bz1 +(cid:80)
+
+z2∈V \{z1} yz1+z2 · bz1+z2
+(z1 ∈ V )
+(z1 ∈ V )
+(z1, z2 ∈ V, z1 (cid:54)= z2)
+
+z2∈V \{z1} yz1+z2 = az1
+≥ 0
+≥ 0
+
+yz1
+yz1+z2
+
+(15)
+
+Example 7. Assume that the set of program variables consists of x, z1, z2, z3,
+that our goal is to maximize the linear objective function 2z1 + 3z2 + z3 subject
+to the octagon constraints
+
+z1 + z2 ≤ 10
+
+z1 + z3 ≤ 1
+
+z2 + z3 ≤ 1
+
+The dual linear program then is given by
+y1 · 10 + y2 + y3
+
+minimize
+subject to y1 + y2 = 2 y1 + y3 = 3 y2 + y3 = 1
+
+y1, y2, y3 ≥ 0
+
+In this case, there is just one possible solution for the yi, namely,
+
+y1 = 2.5 y2 = 0.5 y3 = 0.5
+
+— implying that the optimal value is given by 25 + 0.5 + 0.5 = 26.
+
+(cid:117)(cid:116)
+For an optimization problem with integer octagon constraints, we may, in
+principle, proceed as for rationals. Solving integer linear programs with octagon
+constraints precisely, however, is NP-hard. This can be seen, e.g., by reduction
+from the NP-complete maximum clique problem, i.e., the problem of deciding
+whether the maximal size of a clique in an undirected graph exceeds some bound.
+Let G = (V, E) denote a ﬁnite undirected graph, and choose V as the set of
+variables. Then we construct the integer optimization problem
+
+maximize (cid:80)
+
+x∈V x
+subject to x + y ≤ 1
+−x ≤ 0
+x ≤ 1
+
+({x, y} (cid:54)∈ E)
+(x ∈ V )
+(x ∈ V )
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+17
+
+The constraints are all integer octagon constraints, while the solution to the
+optimization problem equals the maximal size of a clique. Since the construction
+of the integer optimization problem from the instance of the clique problem can
+be done in polynomial time, it follows that to decide whether the optimal value
+for an integer linear program with octagon constraints exceeds some value, is
+NP-hard.
+
+8 Abstract Assignments for Octagons
+
+Assume that we are given an aﬃne assignment of the form
+
+x ← b +(cid:80)
+
+z∈V az · z
+
+and that the octagon before the assignment is a closed octagon r with coeﬃcients
+b(cid:96), (cid:96) ∈ LX . W.l.o.g., assume that x does not occur in the right-hand side, i.e.,
+x (cid:54)∈ V . Over the rationals, the best upper bound b(cid:48)
+(cid:96) for the octagon combination (cid:96)
+with x occurring in (cid:96) is obtained by a linear program of the form (13). Depending
+on (cid:96), the objective functions are
+
+(cid:96) objective function
+
+x (cid:80)
+−x (cid:80)
+z∈V az · z
+x + y y +(cid:80)
+z∈V −az · z
+x − y −y +(cid:80)
+z∈V az · z
+−x + y y +(cid:80)
+z∈V az · z
+−x − y −y +(cid:80)
+z∈V −az · z
+z∈V −az · z
+The best abstract transformer(cid:74)a(cid:75)(cid:93) then is given by
+(cid:74)a(cid:75)(cid:93)(r) = r|X\{x} ∧ rx
+
+where rx denotes the conjunction
+
+x) ∧ (cid:86)
+
+(x ≤ b + b(cid:48)
+
+(16)
+
+z(cid:54)=x(x + z ≤ b + b(cid:48)
+(−x + z ≤ b(cid:48)
+
+x+z) ∧ (x − z ≤ b + b(cid:48)
+−x+z − b) ∧ (−x − z ≤ b(cid:48)
+
+x−z) ∧
+−x−z − b)
+
+Over the integers, we can proceed analogously to the rational case by solving
+the corresponding integer optimization problems. Since these, in general, are
+NP-hard, we prefer for integer octagons, to rely on rational relaxations of the
+corresponding ILP problems. This means that for each octagon combination (cid:96),
+we determine the best rational upper bound b(cid:96) after the assignment (as deter-
+mined by the corresponding LP problem) which is tightened to (cid:98)b(cid:96)(cid:99) to obtain a
+sound upper bound for (cid:96) over the integers. We remark that for integer octagons,
+an alternative formulation of abstract transformers for aﬃne assignments has
+been provided in [21]. The transformer there is based on the optimal abstract
+transformer for rational polyhedra in [9] whose bounds are tightened and subse-
+quently over-approximated by octagon constraints. The latter step also requires
+
+
+18
+
+Michael Schwarz and Helmut Seidl
+
+solving appropriate (relaxed) LP problems, which are essentially the same as we
+solve – only that we beneﬁt from a reduced number of octagon constraints to be
+taken into account by each LP problem. We obtain:
+
+Theorem 3. For the octagon domain over the rationals, the best transformer
+(16) for a linear assignment can be computed in polynomial time. For n program
+variables and a constant number of variables occurring in the assignment, the
+best transformer can be computed in time O(n).
+(cid:117)(cid:116)
+
+Proof. Assume that the octagon before the assignment is closed. Due to Propo-
+sition 5, the octagon transformer for linear assignments satisﬁes properties (4)
+and (3). Therefore by Proposition 4, only a linear number of optimization prob-
+lems must be solved. Over the rationals, the optimal upper bound to an octagon
+combination can be determined by solving an LP problem – which is known
+to be possible in polynomial time. Note that due to Proposition 5, the set of
+octagon constraints to be taken into account can be reduced to constraints with
+octagon combinations where the signs of variables match the corresponding signs
+occurring in the objective function.
+
+If the right-hand side contains only a bounded number of variables, each of
+the LP problems will refer to a bounded number of variables only, and thus can
+be solved in constant time (e.g., by using the Simplex algorithm). Since only
+O(n) many of these problems must be solved, the overall runtime is linear. (cid:117)(cid:116)
+
+Over the integers, on the other hand, the solution of the relaxed integer LP
+problem for a sound bound to an octagon combination can be obtained as the
+solution to the corresponding relaxed rational LP problem, and the argument
+proceeds as in the rational case. As a corollary, we therefore obtain:
+
+Corollary 1. For the octagon domain over the integers, the integer relaxation of
+(16) for a linear assignment can be computed in polynomial time. For n program
+variables and a constant number of variables occurring in the assignment, the
+(cid:117)(cid:116)
+relaxed best transformer can be computed in time O(n).
+
+9 Related Work
+
+Since being introduced by Miné [20, 21], the weakly relational numerical domain
+of Octagons has found widespread application in the analysis and veriﬁcation
+of programs and is part, e.g., of the highly successful static analyzer Astrée
+[3, 7]. While normalization has been known to be cubic time for rational oc-
+tagons right from the beginning [20], it was open whether this also holds true
+for integer octagons. This question has been settled aﬃrmatively by Bagnara
+et al. [1]. Sankaranarayanan et al. [25] proposed using techniques from linear
+programming to compute best transformers for linear assignments. Chawdhary
+et al. [4] investigated the problem of improved quadratic algorithms for incre-
+mental closure, i.e., adding one further octagon constraint. Implementations of
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+19
+
+Domain
+Integer Octagons [20]
+Rational Octagons [20]
+TVPI [27]1
+Pentagons [18]
+Weighted Hexagons [11]
+Logahedra [13]
+dDBM [24]2
+AVO [5]
+Pairs (Example 5)
+
+2-decomposable
+
+2-projective
+
+Normalization
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+O(n3)
+O(n3)
+
+O(n3 log2 n)
+
+O(n3)
+O(n3)
+O(n3)
+
+ (Appendix A) O(n3) rat.; O(n5) ints
+ (Appendix A) O(2n · n3) rat.; ? ints
+
+
+
+?
+
+Fig. 1: Various weakly relational domains, whether they are 2-projective and
+2-decomposable, and the complexity of their normalization operation.
+
+Octagons are provided, e.g., by the Apron library [14] and Elina [10]. Various
+Octagon algorithms are practically evaluated by Gange et al. [12].
+
+Extensions of octagons have been considered by Péron and Halbwachs [24]
+and Chen et al. [5]. For these extensions, however, known normalization al-
+gorithms turn out to be rather expensive so that more practical approximate
+normalizations have been proposed. Fig. 1 gives an overview over some weakly
+relational domains, whether they are 2-decomposable and whether they are also
+2-projective as well as the best time complexities for (approximate) normaliza-
+tion in the number of variables.
+
+10 Conclusion and Future Work
+
+We have provided an algorithm for normalizing octagon abstract relations over
+rationals as well as over integers. For that, we introduced the notion of 2-
+decomposability for relational domains and provided a cubic-time algorithm
+based on Floyd-Warshall which overapproximates normalization. For the sub-
+class of 2-projective domains comprising, e.g., integer or rational Octagons, it
+computes the exact 2-normal form. The major beneﬁt of the resulting algorithm
+is its simplicity. For the instance of the Octagon domain, e.g., the closure is ob-
+tained without duplication of variables. The general setup also provides us with
+a quadratic algorithm for incremental normalization. For octagons, we also re-
+considered the construction of best abstract transformers for aﬃne assignments
+by means of linear programming. Over the rationals, we observe that only those
+octagon constraints need to be taken into account where the sign of each oc-
+curring variable z agrees with the sign of the occurrence of z in the respective
+1 For TVPI: As operations on values for 3 variables are in O(log2 n).
+2 For int dDBM: Approximate normalization up-to emptiness. Checking emptiness is
+
+exponential.
+
+
+20
+
+Michael Schwarz and Helmut Seidl
+
+objective functions. This, again, may result in a signiﬁcant speedup when it
+comes to practical implementations.
+
+In future work, we would like to provide a new implementation of Octagon
+domains based on our algorithms and evaluate its practical performance on re-
+alistic examples. Combining our algorithms with orthogonal techniques such as
+online decomposition [28] in particular seems like a promising line of inquiry.
+We also would like to explore in greater detail the potential of further, perhaps
+non-numerical 2-decomposable domains.
+
+Acknowledgements. This work was supported in part by Deutsche Forschungs-
+gemeinschaft (DFG) – 378803395/2428 ConVeY.
+
+A 2-Projectivity for Extensions of Octagons
+
+Here, we investigate extensions to the Octagon domain and the domain of dif-
+ference bounds, respectively, that have been proposed in the literature, and in-
+vestigate whether they are 2-decomposable and 2-projective.
+
+Example 8. Consider the domain of diﬀerence-bound matrices enhanced with
+disequalities [24] where X = {a, b, c}. This domain is 2-decomposable. Now, for
+2-projectivity, let, e.g.,
+
+r{a,b} = (a − b ≤ −1 ∧ b (cid:54)= 98 ∧ b (cid:54)= 97)
+r{a,c} = (c ≤ 99)
+r{b,c} = (b − c ≤ −1)
+
+and all other rp = (cid:62). We remark that, by abuse of notation, we write b (cid:54)= 98
+instead of introducing a dedicated variable c98 and constraints b (cid:54)= c98 ∧ c98 ≤
+98∧0−c98 ≤ −98, and analogously for b (cid:54)= 97. Now, consider (9) with Y = {a, c},
+z = b, r(cid:48) = {c ≤ 99} Then,
+
+(r{b} ∧ r{b,a} ∧ r{b,c} ∧ r(cid:48))(cid:12)(cid:12)Y
+= (r{b} ∧ r{b,a} ∧ r{b,c} ∧ r(cid:48))(cid:12)(cid:12){a,c}
+= (c ≤ 99) ∧ (r{b} ∧ r{b})(cid:12)(cid:12)∅ ∧ (r{a,b} ∧ r{a,b})(cid:12)(cid:12){a} ∧ (r{b,c} ∧ r{b,c})(cid:12)(cid:12){c}
+∧(r{a,b} ∧ r{b,c})(cid:12)(cid:12){a,c} ∧ (r{b} ∧ r{b,a})(cid:12)(cid:12){a} ∧ (r{b} ∧ r{b,c})(cid:12)(cid:12){c}
+= r(cid:48) ∧(cid:86)k
+
+= (c ≤ 99 ∧ a − c ≤ −2 ∧ c ≤ 95)
+(cid:54)= (c ≤ 99 ∧ a − c ≤ −2 ∧ c ≤ 97)
+= (c ≤ 99) ∧ (cid:62) ∧ (cid:62) ∧ (cid:62) ∧ (a − c ≤ −2) ∧ (cid:62) ∧ (cid:62)
+
+i,j=1 (r{b,yi} ∧ r{b,yj})(cid:12)(cid:12)Y ∩{yi,yj}
+
+and the domain thus is not 2-projective.
+
+(cid:117)(cid:116)
+
+Example 9. Consider the domain of octagons enhanced with additional con-
+straints for the absolute values of variables [5], i.e., with additional constraints
+of the form ±|x| ± |y| ≤ c and ±|x| ± y ≤ c. This domain is 2-decomposable.
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+21
+
+Now, for 2-projectivity, let, e.g.,
+
+r{a,d} = a − |d| ≤ 2
+r{b,c} = b + c ≤ 5
+r{b,d} = b − d ≤ 5
+r{c,d} = −c + d ≤ 2 ∧ −|d| ≤ 0
+
+with all other rp = (cid:62) for p ∈ [X ]2. Now, consider (9) with Y = {a, b, c}, z = d,
+r(cid:48) = (b + c ≤ 5).
+
+(r{d} ∧ r{d,a} ∧ r{d,b} ∧ r{d,c} ∧ r(cid:48))(cid:12)(cid:12)Y
+= (r{d} ∧ r{d,a} ∧ r{d,b} ∧ r{d,c} ∧ r(cid:48))(cid:12)(cid:12){a,b,c}
+
+= b + c ≤ 5 ∧ b − c ≤ 7 ∧ b ≤ 6 ∧ a + b ≤ 9
+(cid:54)= b + c ≤ 5 ∧ b − c ≤ 7 ∧ b ≤ 6
+= b + c ≤ 5 ∧ (cid:62) ∧ (cid:62) ∧ {b − c ≤ 7}
+= b + c ≤ 5 ∧ (a − |d| ≤ 2 ∧ b − d ≤ 5)|{a,b}
+∧(a − |d| ≤ 2 ∧ (−c + d ≤ 2 ∧ −|d| ≤ 0))|{a,c}∧
+(b − d ≤ 5 ∧ (−c + d ≤ 2 ∧ −|d| ≤ 0))|{b,c}
+
+= {b + c ≤ 5}∧
+
+= b + c ≤ 5 ∧ (r{d,a} ∧ r{d,b})(cid:12)(cid:12){a,b} ∧ (r{d,a} ∧ r{d,c})(cid:12)(cid:12){a,c} ∧ (r{d,b} ∧ r{d,c})(cid:12)(cid:12){b,c}
+(r{d,a})(cid:12)(cid:12){a} ∧ (r{d,a} ∧ r{d,b})(cid:12)(cid:12){a,b} ∧ (r{d,a} ∧ r{d,c})(cid:12)(cid:12){a,c}∧
+(r{d,b})(cid:12)(cid:12){b} ∧ (r{d,b} ∧ r{d,c})(cid:12)(cid:12){b,c}∧
+(r{d,c})(cid:12)(cid:12){c}
+(r{d,a} ∧ r{d,a})(cid:12)(cid:12){a} ∧ (r{d,a} ∧ r{d,b})(cid:12)(cid:12){a,b} ∧ (r{d,a} ∧ r{d,c})(cid:12)(cid:12){a,c}
+∧(r{d,a} ∧ r{d,d})(cid:12)(cid:12){a}∧
+(r{d,b} ∧ r{d,b})(cid:12)(cid:12){b} ∧ (r{d,b} ∧ r{d,c})(cid:12)(cid:12){b,c} ∧ (r{d,b} ∧ r{d,d})(cid:12)(cid:12){b}∧
+(r{d,c} ∧ r{d,c})(cid:12)(cid:12){c} ∧ (r{d,c} ∧ r{d,d})(cid:12)(cid:12){c}∧
+(r{d,d} ∧ r{d,d})(cid:12)(cid:12){∅}
+i,j=1 (r{d,yi} ∧ r{d,yj})(cid:12)(cid:12)Y ∩{yi,yj}
+= r(cid:48) ∧(cid:86)k
+
+= {b + c ≤ 5}∧
+
+and the domain thus is not 2-projective.
+
+(cid:117)(cid:116)
+
+
+Bibliography
+
+URL
+
+[1] Bagnara, R., Hill, P.M., Zaﬀanella, E.: An improved tight closure algorithm
+for integer octagonal constraints. In: Logozzo, F., Peled, D.A., Zuck, L.D.
+(eds.) Veriﬁcation, Model Checking, and Abstract Interpretation, pp. 8–
+21, Springer Berlin Heidelberg, Berlin, Heidelberg (2008), ISBN 978-3-540-
+78163-9
+
+[2] Bagnara, R., Hill, P.M., Zaﬀanella, E.: Weakly-relational shapes for numeric
+abstractions: improved algorithms and proofs of correctness. Formal Meth-
+ods Syst. Des. 35(3), 279–323 (2009), doi: 10.1007/s10703-009-0073-1,
+URL https://doi.org/10.1007/s10703-009-0073-1
+
+[3] Blanchet, B., Cousot, P., Cousot, R., Feret, J., Mauborgne, L., Miné, A.,
+Monniaux, D., Rival, X.: A static analyzer for large safety-critical software.
+In: Proceedings of the ACM SIGPLAN 2003 Conference on Programming
+Language Design and Implementation, p. 196–207, PLDI ’03, Association
+for Computing Machinery, New York, NY, USA (2003), ISBN 1581136625,
+doi: 10.1145/781131.781153, URL https://doi.org/10.1145/781131.
+781153
+
+[4] Chawdhary, A., Robbins, E., King, A.:
+
+Incrementally closing oc-
+tagons. Formal Methods Syst. Des. 54(2), 232–277 (2019), doi:
+10.1007/s10703-017-0314-7,
+https://doi.org/10.1007/
+s10703-017-0314-7
+
+[5] Chen, L., Liu, J., Miné, A., Kapur, D., Wang, J.: An abstract domain
+to infer octagonal constraints with absolute value. In: Müller-Olm, M.,
+Seidl, H. (eds.) Static Analysis - 21st International Symposium, SAS
+2014, Munich, Germany, September 11-13, 2014. Proceedings, Lecture
+Notes in Computer Science, vol. 8723, pp. 101–117, Springer (2014),
+doi: 10.1007/978-3-319-10936-7_7, URL https://doi.org/10.1007/
+978-3-319-10936-7_7
+
+[6] Cormen, T.H., Leiserson, C.E., Rivest, R.L., Stein, C.: Introduction to Al-
+
+gorithms. MIT Press, Cambridge (2009)
+
+[7] Cousot, P., Cousot, R., Feret, J., Mauborgne, L., Miné, A., Rival, X.: Why
+does astrée scale up? Form. Methods Syst. Des. 35(3), 229–264 (dec 2009),
+ISSN 0925-9856, doi: 10.1007/s10703-009-0089-6, URL https://doi.
+org/10.1007/s10703-009-0089-6
+
+[8] Cousot, P., Halbwachs, N.: Automatic discovery of linear restraints among
+variables of a program. In: Aho, A.V., Zilles, S.N., Szymanski, T.G. (eds.)
+Conference Record of the Fifth Annual ACM Symposium on Principles of
+Programming Languages, Tucson, Arizona, USA, January 1978, pp. 84–
+96, ACM Press (1978), doi: 10.1145/512760.512770, URL https://doi.
+org/10.1145/512760.512770
+
+[9] Cousot, P., Halbwachs, N.: Automatic discovery of linear restraints among
+variables of a program. In: Proceedings of the 5th ACM SIGACT-SIGPLAN
+Symposium on Principles of Programming Languages, p. 84–96, POPL
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+23
+
+’78, Association for Computing Machinery, New York, NY, USA (1978),
+ISBN 9781450373487, doi: 10.1145/512760.512770, URL https://doi.
+org/10.1145/512760.512770
+
+[10] ELINA: Elina: Eth library for numerical analysis. http://elina.ethz.ch/
+
+(2018)
+
+[11] Fulara, J., Durnoga, K., Jakubczyk, K., Schubert, A.: Relational abstract
+domain of weighted hexagons. Electron. Notes Theor. Comput. Sci. 267(1),
+59–72 (2010), doi: 10.1016/j.entcs.2010.09.006, URL https://doi.
+org/10.1016/j.entcs.2010.09.006
+
+[12] Gange, G., Ma, Z., Navas, J.A., Schachte, P., Søndergaard, H., Stuckey, P.J.:
+A fresh look at zones and octagons. ACM Trans. Program. Lang. Syst.
+43(3) (sep 2021), ISSN 0164-0925, doi: 10.1145/3457885, URL https:
+//doi.org/10.1145/3457885
+
+[13] Howe, J.M., King, A.: Logahedra: A new weakly relational domain. In: Liu,
+Z., Ravn, A.P. (eds.) Automated Technology for Veriﬁcation and Analysis,
+7th International Symposium, ATVA 2009, Macao, China, October 14-16,
+2009. Proceedings, Lecture Notes in Computer Science, vol. 5799, pp. 306–
+320, Springer (2009), doi: 10.1007/978-3-642-04761-9_23, URL https:
+//doi.org/10.1007/978-3-642-04761-9_23
+
+[14] Jeannet, B., Miné, A.: Apron: A library of numerical abstract domains for
+static analysis. In: Bouajjani, A., Maler, O. (eds.) Computer Aided Veriﬁca-
+tion, 21st International Conference, CAV 2009, Grenoble, France, June 26
+- July 2, 2009. Proceedings, LNCS, vol. 5643, pp. 661–667, Springer (2009),
+doi: 10.1007/978-3-642-02658-4_52, URL https://doi.org/10.1007/
+978-3-642-02658-4_52
+
+[15] Karmarkar, N.: A new polynomial-time algorithm for linear programming.
+In: Proceedings of the sixteenth annual ACM symposium on Theory of
+computing, pp. 302–311 (1984)
+
+[16] Karr, M.: Aﬃne relationships among variables of a program. Acta Infor-
+matica 6, 133–151 (1976), doi: 10.1007/BF00268497, URL https://doi.
+org/10.1007/BF00268497
+
+[17] Klee, V., Minty, G.J.: How good is the simplex algorithm. Inequalities 3(3),
+
+159–175 (1972)
+
+[18] Logozzo, F., Fähndrich, M.: Pentagons: A weakly relational abstract do-
+main for the eﬃcient validation of array accesses. In: Proceedings of the
+2008 ACM Symposium on Applied Computing, p. 184–188, SAC ’08, As-
+sociation for Computing Machinery, New York, NY, USA (2008), ISBN
+9781595937537, doi: 10.1145/1363686.1363736, URL https://doi.org/
+10.1145/1363686.1363736
+
+[19] Miné, A.: A new numerical abstract domain based on diﬀerence-bound ma-
+trices. In: Danvy, O., Filinski, A. (eds.) Programs as Data Objects, Sec-
+ond Symposium, PADO 2001, Aarhus, Denmark, May 21-23, 2001, Pro-
+ceedings, LNCS, vol. 2053, pp. 155–172, Springer (2001), doi: 10.1007/
+3-540-44978-7_10, URL https://doi.org/10.1007/3-540-44978-7_10
+[20] Miné, A.: The octagon abstract domain. In: WCRE’ 01, p. 310, IEEE Com-
+
+puter Society (2001), doi: 10.1109/WCRE.2001.957836
+
+
+24
+
+Michael Schwarz and Helmut Seidl
+
+[21] Miné, A.: The
+
+octagon
+
+bol. Comput. 19(1),
+31–100
+10.1007/s10990-006-8609-1,
+s10990-006-8609-1
+
+abstract
+(mar
+URL
+
+domain. Higher Order
+2006),
+
+Sym-
+ISSN 1388-3690, doi:
+https://doi.org/10.1007/
+
+[22] Müller-Olm, M., Seidl, H.: Precise interprocedural analysis through linear
+algebra. In: Jones, N.D., Leroy, X. (eds.) Proceedings of the 31st ACM
+SIGPLAN-SIGACT Symposium on Principles of Programming Languages,
+POPL 2004, Venice, Italy, January 14-16, 2004, pp. 330–341, ACM (2004),
+doi: 10.1145/964001.964029, URL https://doi.org/10.1145/964001.
+964029
+
+[23] Müller-Olm, M., Seidl, H.: Analysis of modular arithmetic. ACM Trans.
+Program. Lang. Syst. 29(5), 29 (2007), doi: 10.1145/1275497.1275504,
+URL https://doi.org/10.1145/1275497.1275504
+
+[24] Péron, M., Halbwachs, N.: An abstract domain extending diﬀerence-bound
+matrices with disequality constraints. In: Cook, B., Podelski, A. (eds.) Ver-
+iﬁcation, Model Checking, and Abstract Interpretation, 8th International
+Conference, VMCAI 2007, Nice, France, January 14-16, 2007, Proceedings,
+Lecture Notes in Computer Science, vol. 4349, pp. 268–282, Springer (2007),
+doi: 10.1007/978-3-540-69738-1_20, URL https://doi.org/10.1007/
+978-3-540-69738-1_20
+
+[25] Sankaranarayanan, S., Sipma, H.B., Manna, Z.: Scalable analysis of linear
+systems using mathematical programming. In: Cousot, R. (ed.) Veriﬁcation,
+Model Checking, and Abstract Interpretation, LNCS, vol. 3385, pp. 25–
+41, Springer, Berlin, Heidelberg (2005), ISBN 978-3-540-30579-8, doi: 10.
+1007/978-3-540-30579-8_2
+
+[26] Schwarz, M., Saan, S., Seidl, H., Erhard, J., Vojdani, V.: Clustered rela-
+tional thread-modular abstract interpretation with local traces. In: Wies,
+T. (ed.) Programming Languages and Systems - 32nd European Symposium
+on Programming, ESOP 2023, Held as Part of the European Joint Confer-
+ences on Theory and Practice of Software, ETAPS 2023, Paris, France,
+April 22-27, 2023, Proceedings, Lecture Notes in Computer Science, vol.
+13990, pp. 28–58, Springer (2023), doi: 10.1007/978-3-031-30044-8_2,
+URL https://doi.org/10.1007/978-3-031-30044-8_2
+
+[27] Simon, A., King, A., Howe, J.M.: Two variables per linear inequality as
+an abstract domain. In: Leuschel, M. (ed.) Logic Based Program Synthesis
+and Transformation, 12th International Workshop, LOPSTR 2002, Madrid,
+Spain, September 17-20,2002, Revised Selected Papers, LNCS, vol. 2664,
+pp. 71–89, Springer (2002), doi: 10.1007/3-540-45013-0_7, URL https:
+//doi.org/10.1007/3-540-45013-0_7
+
+[28] Singh, G., Püschel, M., Vechev, M.: A practical construction for decompos-
+ing numerical abstract domains. Proc. ACM Program. Lang. 2(POPL) (dec
+2018), doi: 10.1145/3158143, URL https://doi.org/10.1145/3158143
+
+

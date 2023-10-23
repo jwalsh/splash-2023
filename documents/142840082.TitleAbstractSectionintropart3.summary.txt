@@ -1,0 +1,3 @@
+
+
+This section discusses the problem of analyzing programs with modular computations, which has already been addressed in the literature. It mentions the domains of congruences, linear congruences, trapezoidal congruences, and modular arithmetic, which all involve non-convex properties. It also mentions the single step assignment method, symbolic constant propagation, and fixed point arithmetic in the context of deductive methods. The section then introduces an intermediate language inspired by the one used in symbolic constant propagation, which allows modulo computations and bound checks. It also explains how the language describes two kinds of error alarms: divisions by zero and failed bound checks. The paper is then outlined.

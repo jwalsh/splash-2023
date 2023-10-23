@@ -1,0 +1,85 @@
+Title-Abstract. Section intro
+-André Melliès, Christopher D. Richards, and Jérôme Vouillon. 2007. A Very Modal Model of a
+
+Modern, Major, General Type System (POPL). 109–122. https://doi.org/10./11902160235
+
+Mike Barnett, Bor-Yuh Evan Chang, Robert DeLine, Bart Jacobs, and K. Rustan M. Leino. 2005. Boogie: A Modular Reusable
+
+Veriﬁer for Object-Oriented Programs. In FMCO (LNCS). 364–387. https://doi.org/10.1007/11804192_17
+
+Frédéric Besson. 2021. Itauto: An Extensible Intuitionistic SAT Solver. In ITP (LIPIcs, Vol. 193). 9:1–9:18. https://doi.org/10.
+
+4230/LIPIcs.ITP.2021.9
+
+Lars Birkedal, Thomas Dinsdale-Young, Armaël Guéneau, Guilhem Jaber, Kasper Svendsen, and Nikos Tzevelekos. 2021.
+Theorems for Free from Separation Logic Speciﬁcations. PACMPL 5, ICFP (2021), 81:1–81:29. https://doi.org/10.1145/
+3473586
+
+James Brotherston and Max Kanovich. 2014. Undecidability of Propositional Separation Logic and Its Neighbours. J. ACM
+
+61, 2 (2014), 14:1–14:43. https://doi.org/10.1145/2542667
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:28
+
+Ike Mulder and Robbert Krebbers
+
+Sebastian Burckhardt, Chris Dern, Madanlal Musuvathi, Tan. 2010. Line-up: A Complete and Automatic Lineariz-
+
+ability Checker (PLDI). 330–340. https://doi.org/10.1145/1806596.1806634
+
+Quentin Carbonneaux, Noam Zilberstein, Christoph Klee, Peter W. O’Hearn, and Francesco Zappa Nardelli. 2022. Applying
+
+Formal Veriﬁcation to Microkernel IPC at Meta. In CPP. 116–129. https://doi.org/10.1145/3497775.3503681
+
+Tej Chajed, Joseph Tassarotti, Mark Theng, Ralf Jung, M. Frans Kaashoek, and Nickolai Zeldovich. 2021. GoJournal: A
+Veriﬁed, Concurrent, Crash-Safe Journaling System. In OSDI. 423–439. https://www.usenix.org/conference/osdi21/
+presentation/chajed
+
+Łukasz Czajka. 2020. Practical Proof Search for Coq by Type Inhabitation. In IJCAR (LNCS). 28–57. https://doi.org/10.1007/
+
+978-3-030-51054-1_3
+
+Pedro da Rocha Pinto. 2016. Reasoning with Time and Data Abstractions. Ph. D. Dissertation. Imperial College London.
+
+https://doi.org/10.25560/47923
+
+Pedro da Rocha Pinto, Thomas Dinsdale-Young, and Philippa Gardner. 2014. TaDA: A Logic for Time and Data Abstraction.
+
+In ECOOP (LNCS). 207–231. https://doi.org/10.1007/978-3-662-44202-9_9
+
+Hoang-Hai Dang, Jaehwang Jung, Jaemin Choi, Duc-Than Nguyen, William Mansky, Jeehoon Kang, and Derek Dreyer.
+2022. Compass: Strong and Compositional Library Speciﬁcations in Relaxed Memory Separation Logic (PLDI92–808.
+https://doi.org/10.1145/3519939.3523451
+
+David Delahaye. 2000. A Tactic Language for the System Coq. In LPAR (LNCS). 85–95. https://doi.org/10.1007/3-540-44404-
+
+1_7
+
+Brijesh Dongol and John Derrick. 2015. Verifying Linearisability: A Comparative Survey. ACM Comput. Surv. 48, 2 (2015),
+
+19:1–19:43. https://doi.org/10.1145/2796550
+
+Derek Dreyer, Georg Neis, Andreas Rossberg, and Lars Birkedal. 2010. A Relational Modal Logic for Higher-Order Stateful
+
+ADTs (POPL). 185–198. https://doi.org/10.1145/1706299.1706323
+
+Marco Eilers, Severin Meier, and Peter Müller. 2021. Product Programs in the Wild: Retroﬁtting Program Veriﬁers to Check
+
+Information Flow Security. In CAV (LNCS). 718–741. https://doi.org/10.1007/978-3-030-81685-8_34
+
+Burak Ekici, Alain Mebsoutare Tinelli, Chantal Keller, Guy Katz, Andrew Reynolds, and Clark Barrett. 2017. SMTCoq:
+A Plug-In for Integrating SMT Solvers into Coq CALNCS). 126–133. https://doi.org/10.1007/978-3-319-63390-9_7
+Ivana Filipović, Peter�Hear Noam Rinetzky, and Hongseok Yang. 2010. Abstraction for Concurrent Objects. TCS 411, 51
+
+(2010), 4379–4398. https://doi.org/10.1016/j.tcs.2010.09.021
+
+Dan Frumin, Robbert Krebbers, and Lars Birkedal. 2018. ReLoC: A Mechanised Relational Logic for Fine-Grained Concurrency
+
+(LICS). 442–451. https://doi.org/10.1145/3209108.3209174
+
+Dan Frumin, Robbert Krebbers, and Lars Birkedal. 2021a. Compositional Non-Interference for Fine-Grained Concurrent
+
+Programs. In IEEE Symposium on Security and Privacy (SP). 1416–1433. https://doi.org/10.1109/

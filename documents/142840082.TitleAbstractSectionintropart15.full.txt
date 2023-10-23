@@ -1,0 +1,33 @@
+Title-Abstract. Section intro
+𝑙,𝑢[⦆𝑅♯≝(𝑒♯,[𝛼,𝛼+𝑢′−𝑙′[,Ω𝑒)
+
+ModTranslation
+
+the modulo specifications from the translated sub-expression, and the result
+is returned along the outermost modulo from the main expression as modular
+specifications. This is formalized in the following inference rule.
+
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+
+⦅𝑒 mod[𝑙,𝑢[⦆𝑅♯≝(rmMod(𝑒♯,𝑚)𝑅♯,[𝑙,𝑢[,Ω𝑒)
+
+𝛼≝𝑙′mod[𝑙,𝑢[
+
+(𝑒♯,[𝑙′,𝑢′[,Ω𝑒)≝⦅𝑒⦆𝑅♯
+𝛼+𝑢′−𝑙′≤𝑢
+
+(𝑢′−𝑙′)|��−𝑙′)
+
+ModIdentityNoMod
+
+The following theorem states that the evaluation of a translated expression
+keeps all the possible values of the evaluation of the original expression. More-
+over, the set of potential error alarms returned by the translation contains at
+least all the potential error alarms of the evaluation of the original expression.
+This is a stronger statement than the one needed to rewrite expressions, that
+corresponds to the corollary below, because the error alarms that may be yield
+by the evaluation of the abstract expression are discarded.
+
+Theorem 4. For all abstract element𝑅♯ and every expression𝑒∈ expr, with
+⟨𝑅0,Ω0⟩≝𝛾(𝑅♯) and(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+∀𝜌∈𝑅0,⟦𝑒⟧

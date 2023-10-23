@@ -1,0 +1,3 @@
+
+
+This section discusses the progress property of ElixirST, which states that a well-typed process can always transition from one form to another. It is shown that a process depending on external factors should not have a problem handling incoming messages, and this is extended to all terms to form the Progress Theorem. The theorem states that if a typing derivation is valid, then either the process is a value or there exists a new term and action that the process can transition to, and the action must be allowed by the protocol. This is checked using the after function.

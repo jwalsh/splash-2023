@@ -1,0 +1,65 @@
+Title-Abstract. Section intro
+)
+abstract domain describes a set of properties about semantics states𝒟♯, which
+by a concretization function𝛾. It also contains a sound abstract counterpart to
+the join operator⊔ noted⊔♯, a primitivelfp♯ to approximate the increasing iter-
+ation of concrete operators, and two abstract transformers assign♯ and guard♯
+the primitives𝜄 and reduce. The primitive𝜄 extracts the range of abstract ex-
+⟨𝒟♯,𝛾,⊔♯,lfp♯, assign♯, guard♯,𝜄, reduce⟩, such that:
+5.1𝒟♯ is a set of properties,
+5.2𝛾∶𝒟♯→𝒟 is a concretization function that, given an abstract element𝑅♯,
+outputs all the memory states and error alarms that verify the property𝑅♯,
+5.3 for every two abstract elements𝑅♯,𝑆♯∈𝒟♯,𝛾(𝑅♯)⊔𝛾(𝑆♯)⊑𝛾(𝑅♯⊔♯𝑆♯),
+5.4 for every abstract element𝑅♯∈𝒟♯ and every abstract transformer𝔽♯∶
+𝒟♯→𝒟♯, lfp♯𝑅♯(𝔽♯) is an abstract element that satisfies⨆𝑛∈ℕ𝔽𝑛(⟨𝑅0,Ω0⟩)⊑
+𝛾(lfp♯𝑅♯(𝔽♯)) for every semantics element⟨𝑅0,Ω0⟩∈𝒟 and every⊔-complete
+morphism3𝔽∶𝒟→𝒟 such that:
+(i)⟨𝑅0,Ω0⟩⊑𝔽(⟨𝑅0,Ω0⟩),
+(ii)⟨𝑅0,Ω0⟩⊑𝛾(𝑅♯),
+3 that is to say𝔽(⨆𝑃)=⨆{𝔽(⟨𝑅0,Ω0⟩)∣⟨𝑅0,Ω0⟩∈𝑃} for every set𝑃⊆𝒟.
+
+pressions and reduce performs sound expression rewriting for all the memory
+states contained in the semantics state given as an argument.
+
+Definition 5. An abstract domain consists of a tuple comprising eight elements
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+13
+
+Fig. 9: Abstract semantics.
+
+⦃𝑋←𝑒⦄♯≝ assign♯(𝑋,𝐸)
+⦃𝑠1⨾𝑠2⦄♯≝⦃𝑠2⦄♯◦⦃𝑠1⦄♯
+⦃ if𝑒⋈0 then𝑠⨾ endif⦄♯𝑅♯≝((⦃𝑠⦄♯◦ guard♯(𝑒,⋈))𝑅♯)⊔ guard♯(𝑒,̸⋈)𝑅♯
+⦃ while𝑒⋈0 do𝑠⨾ done⦄♯𝑅♯≝ guard♯(𝑒,̸⋈)(lfp♯[𝑋♯↦𝑅♯⊔♯(⦃𝑠⦄♯◦ guard♯(𝑒,⋈))𝑋♯])
+(iii) for every abstract element𝑆♯∈𝒟♯,(𝔽◦𝛾)(𝑆♯)⊑(𝛾◦𝔽♯)(𝑆♯),
+5.5 for every variable𝑋∈𝒱, and every expression𝑒∈ expr, assign♯(𝑋,𝑒)∶
+𝐷♯→𝐷♯ is a function that satisfies(⦃𝑋←𝑒⦄◦𝛾)𝑅♯⊑(𝛾◦ assign♯(𝑋,𝑒))𝑅♯
+for every abstract element𝑅♯∈𝒟♯,
+5.6 for every comparison relation⋈∈{=,≠,<,≤,≥,>}, and every expression𝑒∈
+expr, guard♯(𝑒,⋈)∶𝐷♯→𝐷♯ is a function that satisfies(⦃𝑒⋈0?⦄◦𝛾)𝑅♯⊑
+(𝛾◦ guard♯(𝑒,⋈))𝑅♯ for every abstract element𝑅♯∈𝒟♯,
+5.7 for every expression𝑒∈ expr,𝜄(𝑒) :𝒟♯ →𝕀 is a function that satisfies
+⟦𝑒⟧𝑉𝜌⊆𝜄(𝑒)𝑅♯ for every abstract element𝑅♯∈𝒟♯ and for every memory
+state𝜌∈𝑅0 with⟨𝑅0,Ω0⟩=𝛾(𝑅♯) and𝕀≝{∅}∪{[𝑎,𝑏]∣𝑎∈{−∞}ℤ,𝑏∈
+𝑍∪{+∞},𝑎≤𝑏}, the set of intervals overℤ∪{−∞,+∞},
+5.8 for every abstract expression𝑒♯, reduce(𝑒♯)∶𝒟♯→ expr♯ is an abstract ex-
+pression transformer such that the rewriting relation𝛾(𝑅♯)⊨toExpr(𝑒♯)≼∅
+toExpr(reduce(𝑒♯)𝑅♯) holds for every abstract element𝑅♯.
+Thelfp♯ operator is usually described as an increasing iteration, followed by a
+The abstract semantics of a statement⦃ stmt⦄♯∶𝒟�𝒟♯ maps a prop-
+the abstract operatorlfp♯, we must ensure that the first argument is a sound
+(⦃�⦄◦⦃�⋈0?⦄) from the in the, by the function
+⟨𝑅0,Ω0⟩↦⟨𝑅0,Ω0⟩⊔(⦃𝑠⦄◦⦃𝑒⋈0?⦄)⟨�,Ω0⟩, where⟨𝑅0,Ω0⟩ is the semanticserty about semantics states, before statement st to the prop-
+erty that is satisfied after applying this statement. It is obtained by lifting thecrete semantics. see Fig) abstract domain. Its definition is
+given in Fig. operation is replaced with its abstract counter-
+part. The abstraction requires. to apply
+
+decreasing These by the a element,
+a widening operator, and a narrowing operator [7]. We now assume that such an
+abstract domain has been chosen.
+
+approximation of a monotonic function, and that the second argument is an
+abstraction of a pre

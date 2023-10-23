@@ -1,0 +1,130 @@
+Title-Abstract. Section intro
+1 ∗... ∗  ⊢ .
+
+Let us consider the premise of refines-closure: we need to prove ⊢ (cid:31) (|= 1 () ≾ 2 () : ). This
+mentions Iris’s persistence modality (cid:31)—the new proof obligation can be read as “it is persistently
+true that 1 () logically reﬁnes 2 () at type ”. A proof of (cid:31)  implies that  is duplicable, and can
+thus be used more than once—this is not a given in substructural logics. To see why this modality
+is necessary, note that clients may use the closure any number of times (and concurrently). Since
+the two closures have not introduced any state (and the proof context Δ is thus empty), we can
+apply iris-(cid:31)-intro, introducing the (cid:31) modality, and continue symbolic execution.
+
+We can then use alloc-l, alloc-r and newlock-r to symbolically execute instructions on both
+
+sides. Our proof obligation now looks as follows:
+
+ℓ ↦→ 1, ℓ ↦→s 1, isLock(, false) ⊢ |= (rec...) ≾ (...) : () → Z
+
+(2)
+
+We obtain two maps-to connectives ℓ ↦→ 1 and ℓ ↦→s 1 in our proof context. Remember that these
+are exclusive resources that can only by one thread, and which signify the right to read
+and write to a location ℓ. Similarly, isLock(, false) is an exclusive resource that says the lock  is
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:9
+
+unlocked. In our proof obligation Equation (2), the two references and lock are captured and used
+by the closures. Moreover, the left-hand closure will perform a CAS on ℓ, meaning that concurrent
+calls to this closure will all try to write to the same location. However, only one thread can hold
+the ℓ ↦→  resource, so we need a way to give shared access to this resource in the logic.
+
+Proof Phase 2: Establish an invariant. In Iris, we can verify concurrent accesses using an
+invariant . At any point during the veriﬁcation, a resource  can be turned into  using
+inv-alloc. This is called invariant allocation. The assertion  is persistent, so unlike exclusive
+resources such as ℓ ↦→ 1 and ℓ ↦→s 1, the invariant assertion can be kept in the proof context when
+applying iris-(cid:31)-intro. In Proof Phase 4, we will see how to access the invariant resource .
+
+We return to our proof obligation Equation (2). To continue, we will ﬁrst allocate an invariant
+using inv-alloc. We take  ≜ ∃. ℓ
+↦→  ∗ ℓ ↦→s  ∗ isLock(, false), which expresses that the
+values stored at ℓ and ℓ are in sync. After refines-closure and iris-(cid:31)-intro, we are left with:
+
+∃. ℓ ↦→  ∗ ℓ ↦→s  ∗ isLock(, false)
+
+N
+
+⊢ |= (rec...) () ≾ (...) () : Z.
+
+(3)
+
+The left-hand side is now a recursive function applied to the unit value (), which will repeat until
+the CAS on line 6 succeeds. To ﬁnish the proof, we need to account for the recursive call.
+
+Proof Phase 3: Löb induction. To verify recursive functions, step-indexed separation logics
+such as Iris and ReLoC use a principle called Löb induction. In essence, whenever we are proving
+a goal , we are allowed to assume the induction hypothesis ⊲ —the same goal, but guarded by
+the later modality (⊲) [Appel et al. 2007; Nakano 2000]. We are allowed to strip later modalities of
+hypotheses only after we perform a step of symbolic the left-hand side. This ensures
+we do actual work before we apply the induction hypothesis. After doing some of this work, we
+reach the recursion point and need to prove  again. Since the work stripped oﬀ the later modality
+of our induction hypothesis, we are in shape to apply the induction hypothesis and ﬁnish the proof.
+A selection of Iris’s rules for the ⊲ and (cid: modality and Löb induction are shown in Fig. 3b.
+Rule Löb states that, if we are proving that Δ ⊢ , we can assume that the induction hypothesis
+(cid:31)(Δ −∗ ) holds, but only later. We can get rid of this later (⊲) whenever our goal gets preﬁxed by
+a later, as witnessed by ⊲-intro. Iris’s (cid:31) modality ensures that the induction hypothesis Δ −∗ 
+can be used more than once. This is reﬂected in the logic by the rules (cid:31)-elim and (cid:31)-dup.
+
+We can now continue proving our goal Equation (3). After Löb and unfold-rec-l, our goal is:
+
+  ∃. ℓ ↦→  ∗ ℓ ↦→s  ∗ isLock(, false)
+
+(cid:31) (|= (rec...) () ≾ (...) () : Z)
+
+N
+
+,
+
+! ⊢ |= (let  :=!ℓ...) ≾... : Z
+
+(4)
+
+Proof Phase 4: Symbolic execution of inner closures. To ﬁnish the proof, we need to justify
+the safety of the load and CAS operations of the left-hand expression. Additionally, we need to show
+that a successful CAS from  to  + 1 (the linearization point) corresponds to an execution path for
+the right-hand expression that terminates in . The invariant we have established guarantees that.
+Some additional rules for symbolic execution with invariants in ReLoC can be found in Fig. 3c.
+
+As mentioned before, we can only access the resources in  for the duration of atomic expressions.
+Let us consider the load-l rule, to see how this is enforced. The premise of the rule mentions the
+E2  is all invariants with names
+fancy update modality
+in E1 hold, then  holds, and additionally all invariants with names in E2 hold. The masks E
+thus allow Iris to keep track of the opened invariants, and avoids opening invariants twice (i.e.,
+invariant reentrancy, which is unsound). Note that load-l also shows that reﬁnement judgments
+|=E 1 ≾ 2 :  have a mask parameter. We let E = ⊤ when the mask is omitted.
+
+E2. The semantics of
+
+|⇛E1
+
+|⇛E1
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:10
+
+Ike Mulder and Robbert Krebbers
+
+refines-closure
+Δ ⊢ (cid:31)(|= 1 () ≾ 2 () : )
+
+Δ ⊢ |= 1 ≾ 2 : () → 
+
+iris-(cid:31)-intro
+All hypotheses in Δ are persistent
+
+Δ ⊢ 
+
+Δ ⊢ (cid:31) 
+
+alloc-l
+∀ℓ. Δ, ℓ ↦→  ⊢ |=  [ℓ] ≾  : 
+
+alloc-r
+�

@@ -1,0 +1,79 @@
+Title-Abstract. Section intro
+ Denmark, May 21-23, 2001, Pro-
+ceedings, LNCS, vol. 2053, pp. 155–172, Springer (2001), doi: 10.1007/
+540-44978-7_10, URL https://doi.org/10.1007/540-44978-7_10
+[20] Miné, A.: The octagon abstract domain. In: WCRE’ 01, 310, IEEE Com-
+
+puter Society), doi: 10.1109/WCRE.2001.957836
+
+
+24
+
+Michael Schwarz and Helmut Seidl
+
+[21] Miné, A.: The
+
+octagon
+
+bol. Comput. 19(1),
+31–100
+1007/s10990-006-8609-1,
+s10990-006-8609-1
+
+abstract
+
+URL
+
+domain. Higher Order
+2006),
+
+Sym-
+ISSN 1388-3690, doi:
+https://doi.org/10.1007/
+
+[22ller-Olm, M., Seidl, H.: Precise interprocedural analysis through linear
+. In: Jones, N.D.,, (eds.) Proceedings of the 31st ACM
+SIGPLAN-SIGACT Symposium on Principles of Programming Languages,
+POPL 2004, Venice, Italy, January 14-16, 2004, pp–341, ACM (2004),
+doi: 10.1145/964001.964029, URL https://org/10.1145/964001.
+964029
+
+[23] Müller-Olm., Seidl, H.: Analysis of modular arithmetic. ACM Trans.
+Program. Syst. 29(5), 29 (2007), doi: 10.1145/1275497.1275504,
+URL https://doi.org/10.1145/1275497.1275504
+
+[24] Pé M., Halbwachs, N.: An abstract domain extending diﬀerence-bound
+matrices with disequality constraints. In: Cook, B., Podelski, A. (eds.) Ver-
+iﬁcation, Model Checking, and Abstract Interpretation, 8th International
+Conference,I 2007, Nice, France, January 14-16, 2007, Proceedings,
+Lecture Notes in Computer Science, vol. 4349, pp. 268–282, Springer (2007),
+doi: 10.1007/978-3-540-69738-1_20, URL https://doi.org/10.1007/
+978-3-540-69738-1_20
+
+[25] Sankaranarayanan, S., Sipma, H.B., Manna, Z.: Scalable analysis of linear
+systems using mathematical programming. In: Cousot, R. (ed.) Veriﬁcation,
+Model Checking, and Abstract Interpretation, LNCS, vol. 3385, pp. 25–
+41, Springer, Berlin, Heidelberg (2005), ISBN 978-3-540-30579-8, doi: 10.
+1007/978-3-540-30579-8_2
+
+[26] Schwarz, M., Saan, S., Seidl, H., Erhard, J., Vojdani, V.: Clustered rela-
+tional thread-modular abstract interpretation with local traces. In: Wies,
+T. (ed.) Programming Languages and Systems - 32nd European Symposium
+on Programming, ESOP 2023, Held as Part of the European Joint Confer-
+ences on Theory and Practice of Software, ETAPS 2023, Paris, France,
+April 22-27, 2023, Proceedings, Lecture Notes in Computer Science, vol.
+13990, pp. 28–58, Springer (2023), doi: 10.1007/978-3-031-30044-8_2,
+URL https://doi.org/10.1007/978-3-031-30044-8_2
+
+[27] Simon, A., King, A., Howe, J.M.: Two variables per linear inequality as
+an abstract domain. In: Leuschel, M. (ed.) Logic Based Program Synthesis
+and Transformation, 12th International Workshop, LOPSTR 2002, Madrid,
+Spain, September 17-20,2002, Revised Selected Papers, LNCS, vol. 2664,
+pp. 71–89, Springer (2002), doi: 10.1007/3-540-45013-0_7, URL https:
+//doi.org/10.1007/3-540-45013-0_7
+
+[28] Singh, G., Püschel, M., Vechev, M.: A practical construction for decompos-
+ing numerical abstract domains. Proc. ACM Program. Lang. 2(POPL) (dec
+2018), doi: 10.1145/3158143, URL https://doi.org/10.1145/3158143
+
+

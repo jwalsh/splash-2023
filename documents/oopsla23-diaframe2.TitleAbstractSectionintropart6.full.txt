@@ -1,0 +1,155 @@
+Title-Abstract. Section intro
+ then
+
+"n"
+
+else
+
+"f" #()).
+
+10
+
+11
+
+12
+
+13
+
+14
+
+15
+
+16
+
+17
+
+18
+
+19
+
+Definition cg incrementer : val :=
+
+: <>,
+
+let: "l" := ref #1 in
+let: "lk" := newlock #() in
+(: <>,
+
+acquire "lk";;
+let: "n" :=! "l" in
+"l" ← "n" + #1 ;;
+release "lk";;
+"n").
+
+Lemma fg cg incrementer refinement :
+
+⊢ REL fg incrementer << cg incrementer : () → () → lrel int.
+
+Proof.
+
+iStepsS.
+iAssert (|={⊤}=> inv (nroot.@"incr")
+
+(∃ (n : nat), x ↦→ #n ∗ x0 ↦→ #n ∗ is locked r x1 false))%I
+with "[-]" as ">#Hinv"; first iStepsS.
+
+iSmash.
+
+Qed.
+
+Fig. 2. Verification of a refinement for a fine-grained concurrent incrementer in Diaframe 2.0.
+
+It is well known that it is diﬃcult to prove such contextual reﬁnements, since they quantify over
+all contexts . A common way to make these proofs tractable, is by introducing a notion of logical
+reﬁnement, which implies contextual reﬁnement, but is easier to prove [Pitts 2005]. There exist
+many approaches to deﬁne a notion of logical reﬁnement, but in this paper we focus on approaches
+based on separation logic as pioneered in the work by Dreyer et al. [2010] and Turon et al. [2013].
+Approaches based on separation logic enable the use of resource and ownership reasoning and
+are thereby well-suited for programs that use mutable state and concurrency. A state-of-the-art
+separation logic for reﬁnements based on this idea is ReLoC [Frumin et al. 2018, 2021b]. ReLoC is
+embedded in Iris and comes with a judgment (|= 1 ≾ 2 : ) for logical reﬁnements.
+
+ReLoC’s soundness theorem states that to prove the contextual reﬁnement 1 ⪯ctx 2 : , it
+suﬃces to prove a (closed) Iris entailment (⊢ |= 1 ≾ 2 : ). Here, |= 1 ≾ 2 :  is a proposition
+in separation logic, which allows us to write reﬁnements that are conditional on mutable state.
+↦→  ∗ ℓ ↦→s  ⊢ |=! ℓ ≾! ℓ : Z, i.e., a load of ℓ contextually
+For example, we can prove that ℓ
+reﬁnes a load of ℓ, if both locations are valid pointers and point to the same value . The maps-to
+connectives ℓ ↦→  and ℓ ↦→  represent the right to read and write to a location ℓ. Since we are
+reasoning about two programs (and thus, two heaps), ReLoC uses the subscripted ↦→s (with ‘s’ for
+speciﬁcation) to indicate the heap of the right-hand side execution.
+
+Proofs of ReLoC’s reﬁnement judgment |= 1 ≾ 2 :  use symbolic execution to reduce
+expressions 1 and 2. The execution of 1 can be thought of as demonic: all possible behaviors of
+1 need to be considered. The execution of 2 is angelic—we just need to ﬁnd one behavior that
+matches with 1. In a concurrent setting, this means 1 needs to account for (possibly uncooperative)
+other threads, while 2 can assume cooperative threads and scheduling.
+
+Veriﬁcation of the example. Let us now return to the veriﬁcation of the example in Fig. 2. Our
+
+top-level goal (line 21) is the following logical reﬁnement of closures:
+
+⊢ |= fg incrementer ≾ cg incrementer : () → () → Z.
+
+(1)
+
+The proof consists of 4 phases:
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:8
+
+Ike Mulder and Robbert Krebbers
+
+(1) Symbolically execute both outer closures. This will create shared mutable state used by the
+
+inner closures.
+
+(2) Determine and establish a proper invariant for the shared mutable state.
+(3) Perform induction to account for the recursive call in fg incrementer.
+(4) Symbolically execute the inner closures, using the established invariant. This should allow
+
+us to conclude the reﬁnement proof.
+
+These phases are representative for proofs of logical reﬁnements. For this example, Diaframe 2.0 can
+automatically deal with Proof Phase 1, Proof Phase 3 and Proof Phase 4. Automatically determining
+proper invariants is very diﬃcult, so we leave Proof Phase 2 up to the user (line 24–26).
+
+N
+
+.) Iris’s invariant assertion 
+
+N
+
+As shown in Fig. 2, the Diaframe 2.0 proof takes 5 lines. The user’s main proof burden is writing
+, i.e Phase 2. (In Coq, we write
+
+down the invariant ∃. ℓ ↦→  ∗ ℓ ↦→  ∗ isLock(, false)
+inv N R for 
+states that there is a (shared) invariant with
+name N, governing resources satisfying Iris assertion . Since  can be shared, accessing the
+resources in  must come at a price. They can only be accessed temporarily, during the execution
+of a single atomic expression (e.g., a load, store, or CAS) on the left-hand of the reﬁnement. After
+this expression, the invariant must be closed, i.e., one must show that assertion  still holds. Since
+execution of the right-hand side is angelic, we can execute the right-hand side multiple steps while
+an invariant is opened.
+
+N
+
+Our proof proceeds as follows. We open the invariant to symbolically execute the load on the
+left-hand side. This does not change the stored value, so we can immediately close the invariant.
+We now reach the CAS on the left. We open the invariant again, and distinguish two cases. If the
+CAS succeeds, we symbolically execute the entire right-hand side, which signiﬁes the linearization
+point. The invariant guarantees that the right-hand side expression returns  as desired. If the CAS
+fails, we close the invariant and use the induction hypothesis to ﬁnish the proof.
+
+2.2 Background: Formal Rules for Contextual Refinement
+
+To put the proof on a formal footing, we introduce some of Iris’s and ReLoC’s (existing) proof rules. overview can be found in Fig. 3. We go through the phases of the proof, introducing relevant
+concepts (such as the (cid:31) modality, invariant reasoning, and Löb induction) when necessary.
+
+Proof Phase 1: Symbolic execution of outer closures and the (cid:31) modality. Recalling our
+initial proof obligation ⊢ |= fg incrementer cg incrementer : () → () → Z, we can start our
+proof by using refines-closure. This rule is applicable for any proof context Δ, where Δ stands
+for a list of assertions 1,..., . We denote�� 

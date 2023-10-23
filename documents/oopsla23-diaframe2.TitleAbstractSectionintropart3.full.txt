@@ -1,0 +1,110 @@
+Title-Abstract. Section intro
+izability is to construct proofs interactively. Reﬁnement and logical
+atomicity proofs in Iris are constructed interactively using the Iris Proof Mode in Coq [Krebbers
+et al. 2018, 2017b]. Similarly, linearizability proofs using the resource morphism approach [Nanevski
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:3
+
+et al. 2019] are constructed interactively using the FCSL framework in Coq [Sergey et al. 2015].
+Both Iris and FCSL tactic-based style. That is, one writes down the program and speciﬁcation
+(and all auxiliary deﬁnitions) and then carries out the proof using a sequence of tactics, where each
+tactic decomposes the proof obligation into simpler proof obligations.
+
+An alternative proof style is used in the Voila tool [Wolf et al. 2021]—a proof outline checker for
+logical atomicity in TaDA [da Rocha Pinto et al. 2014] (a logic that preceded and inﬂuenced Iris).
+Contrary to the tactic-based style, Voila provides a proof style where the program is annotated
+with assertions and pragmas to guide the proof search. Being a proof outline checker, Voila’s goal
+is not full automation—it requires the user to provide (with pragmas) key steps of the proof. This
+signiﬁcantly reduces the proof burden compared to interactive proofs in tactic-based tools such as
+Iris and F, but still requires annotations for all lines of code that touch shared state
+This discussion indicates that proving linearizability is currently a laborious endeavor. This is
+
+also emphasized by Carbonneaux et al. [2022] (who veriﬁed a queue for Meta using Iris):
+We were also surprised that the most important lemmas took only a couple
+lines to prove while using the invariants and writing the code proofs required
+hundreds of rather straightforward lines. While Iris’ proof mode made using CSL
+[Concurrent Separation Logic] easy, this observation seems to indicate that there
+remains untapped potential to increase the reasoning density.
+
+This paper presents a step forward to obtain this untapped potential. We present Diaframe 2.0—
+a proof automation extension for Iris, which we have successfully used to automate (parts of)
+contextual reﬁnement and logical atomicity proofs. Before describing the key ideas and architecture
+of Diaframe 2.0, let us ﬁrst outline our design goals.
+
+Design goal #1: Fully automated proofs for ‘simple’ programs. Our goal is to prove lineariz-
+ability of ‘simple’ programs fully automatically. That is, once the program and speciﬁcation are
+written down, the tool should ﬁnd a proof without user assistance. This brings the tooling for
+compositional approaches closer to the tooling for non-compositional (trace-based) approaches.
+
+Design goal #2: Assistance using interactive proofs for ‘complex’ programs. Although we
+aim for full proof automation of ‘simple’ programs, this should not come at the cost of expressivity.
+We also want to verify arbitrarily ‘complex’ programs and give them strong speciﬁcations. Providing
+full automation that works in every situation is impossible—due to Iris’s expressive logic, any proof
+automation is inherently incomplete (in fact, propositional separation logic is already undecidable
+[Brotherston and Kanovich 2014]). For more complex examples, the proof automation should be
+predictable and behave in an acceptable manner when it encounters a goal it cannot solve. This
+means the proof automation should be able to make partial progress (instead of only being able to
+fully solve a goal or fail), so that the user can assist if needed.
+
+Design goal #3: Declarative and modular deﬁnitions of proof automation. Logics for re-
+ﬁnement and logical atomicity are very diﬀerent—they use diﬀerent judgments with bespoke proof
+rules. To avoid having to reinvent the wheel for both logics, we would like to write our proof
+automation in a way that is declarative (i.e., that abstracts over low-level aspects) and modular (i.e.,
+that can be composed out of diﬀerent ‘modules’). Despite the diﬀerences between both logics, both
+are based on separation logic. This means that the proof automation for both logics needs to deal
+with the fact that resources are substructural (can be used at most once), and should share features
+provided by Iris such as modalities, impredicative invariants and custom ghost state. It is thus
+desirable to have a shared ‘core’ module. We want to have an integration between (the automation
+for) both logics so that logically atomic triples (which provide internal compositionality) can be
+used to prove reﬁnements (which provide external compositionality). This should be achievable by
+
+Proc. ACM Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:4
+
+Ike Mulder and Robbert Krebbers
+
+combining the two modules. During the development, we wish to be able to quickly experiment
+with diﬀerent rules and priorities. This should be possible by changing the relevant module locally
+instead of the proof automation globally. In the future, we want to support new features of Iris
+(such as prophecy variables [Jung et al. 2020] and later credits [Spies et al. 2022]) or new speciﬁca-
+tion styles in Iris (such as termination-preserving reﬁnement [Gäher et al. 2022] and the security
+condition non-interference [Frumin et al. 2021a; Greg al. 2021]). Ideally, this should also be
+possible by adding additional modules instead of having to change the proof automation globally.
+
+Design goal #4: Foundational proofs in a proof assistant. To ensure that our proof automa-
+tion is as trustworthy as possible, we want it to be foundational [Appel 2001]. This means that
+proofs are conducted in a proof assistant against the operational semantics programming
+language. To achieve this, the proof rules of the logic need to be proved sound (which has already
+been done for Iris) and our automation needs to be proved sound against the Iris proof rules (which
+is one of the contributions of this paper).
+
+Key ideas for achieving the design goals. Our desired proof automation should not only be
+able to fully automatically construct simple proofs of linearizability (Design goal # 1), it should
+allow user assistance with interactive proofs ( #2), and be deﬁned declaratively (Design
+goal #3). We list the key design choices that we hold responsible for achieving this combination of
+constraints. Our ﬁnal design goal is to produce foundational proofs (Design goal #4), but we believe
+our key ideas could be useful even in a non-foundational setting (i.e., outside of a proof assistant). Minimize backtracking. the proof automation cooperates well with interactive
+proofs, we avoid the use of backtracking in our proof automation whenever possible. In
+many cases, not apparent that backtracking can be avoided—but it can be avoided more
+frequently than one might expect. By avoiding backtracking, it becomes much easier to
+alternate between proof automation and interactive proof tactics: the proof automation can
+simply be ‘run’ until it gets stuck, at which point the user can use a tactic (or other means) to
+direct the proof.
+
+• Use program and logical state to select proof rules. While we want to minimize backtracking,
+multiple proof rules are often applicable during the veriﬁcation of a program. To select the
+correct proof rule, the proof automation also inspects the logical state of the proof. This
+gives Diaframe 2.0 an edge on other proof automation tools, where such information is not
+available or fully leveraged. For example, this allows Diaframe 2.0 to automatically perform
+some key steps for dealing with shared state in logical atomicity proofs, while they must be
+provided explicitly in proof outlines for Voila.
+
+• Represent proof rules as instances of a general format, and leverage near-applicability. To
+implement our proof automation in a declarative and

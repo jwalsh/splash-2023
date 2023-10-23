@@ -1,0 +1,3 @@
+
+
+Elixir System provides a bespoke spawning function called session/4 which allows the initiation of two concurrent processes executing in tandem as part of a session. This function takes two pairs of arguments: two references of function names (that will be spawned), along with their list of arguments. The actor (pre-server) is spawned, passing its pid (ιserver) to the second spawned actor (pre-client). Then, pre-client relays back its pid (ιclient) to pre-server. The server process executes the body t, where it has access to the mailbox, which is denoted as M. As it executes, messages may be sent or received (shown by the action α) and stored in the (modified) mailbox M'.

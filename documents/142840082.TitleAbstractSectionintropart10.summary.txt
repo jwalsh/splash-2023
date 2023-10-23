@@ -1,0 +1,3 @@
+
+
+This section introduces two primitives that operate over abstract expressions: the opposite function and the rmMod function. The opposite function pushes unary minus to the leafs of abstract expressions, while the rmMod function applies the modulo on the expression. Theorem 3 states that any abstract expression that is evaluated over a modular ring can be rewritten in the expression in which the modulo computation has been forced. Additionally, the section introduces the translation⦅𝑒⦆𝑅♯ of an expression𝑒, in the context of an abstract element𝑅♯, which is defined inductively and by cases by the means of a set of inference rules.

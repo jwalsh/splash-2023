@@ -1,0 +1,111 @@
+Title-Abstract. Section intro
+Fixed Linearization Points (PLDI).
+
+459–470. https://doi.org/10.1145/2491956.2462189
+
+William Mansky. 2022. Bringing Iris into the Veriﬁed Software Toolchain.
+
+https://doi.org/10.48550/arXiv.2207.06574
+
+arXiv:arXiv:2207.06574
+
+Maged M. Michael and Michael L. Scott. 1996. Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue
+
+Algorithms (PODC). 267–275. https://doi.org/10.1145/248052.248106
+
+Ike Mulder, Łukasz Czajka, and Robbert Krebbers. 2023. Beyond Backtracking: Connections in Fine-Grained Concurrent
+
+Separation Logic. https://ikemulder.nl/media/papers/diaframe-vee-draft.pdf Manuscript.
+
+Ike Mulder and Robbert Krebbers. 2023. Artifact of ‘Proof Automation for Linearizability in Separation Logic’. https:
+
+//doi.org/10.5281/zenodo.7712620 Project webpage: https://gitlab.mpi-sws.org/iris/diaframe.
+
+Ike Mulder, Robbert Krebbers, and Herman Geuvers. 2022. Diaframe: Automated Veriﬁcation of Fine-Grained Concurrent
+
+Programs in Iris (PLDI). 809–824. https://doi.org/10.1145/3519939.3523432
+
+Peter Müller, Malte Schwerhoﬀ, and Alexander J. Summers. 2016. Viper: A Veriﬁcation Infrastructure for Permission-Based
+
+Reasoning. In VMCAI (LNCS). 41–62. https://doi.org/10.1007/978-3-662-49122-5_2
+
+Hiroshi Nakano. 2000. A Modality for Recursion. In LICS. 255–255. https://doi.org/10.1109/LICS.2000.855774
+Aleksandar Nanevski, Anindya Banerjee, Germán Andrés Delbianco, and Ignacio Fábregas. 2019. Specifying Concurrent
+Programs in Separation Logic: Morphisms and Simulations. In OOPSLA, Vol. 3. 161:1–161:30. https://doi.org/10.1145/
+3360587
+
+Matthew J. Parkinson and Alexander J. Summers. 2011. The Relationship between Separation Logic and Implicit Dynamic
+
+Frames. In ESOP (LNCS). 439–458.doi.org/10.1007/978-3-642-19718-5_23
+uzica Pisk Thomas Wies, Zuﬀerey. 2014. GRASShopper. In TACAS (LNCS). 124–139. https://doi.org/10.
+
+1007/978-3-642-54862-8_9
+
+Andrew M. Pitts. 2005. Typed Operational Reasoning. In Advanced Topics in Types and Programming Languages, Benjamin C.
+
+Pierce (Ed.)., Chapter 7, 245–
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 20
+
+
+91:30
+
+Ike Mulder and Robbert Krebbers
+
+Michael Sammler, Rodolphe Lepigre, Robbert Krebbers, Kayvan Memarian, Derek Dreyer, and Deepak 2021. ReﬁnedC:
+Automating the Foundational Veriﬁcation of C Reﬁned Ownership Types (PLDI). 158–174. https://doi.org/10.
+1145/3453483.3454036
+
+Ilya Sergey, Aleksandar Nanevski, and Aninderjee. 2015. Veriﬁcation of Fine-Grained Concurrent
+s (PLDI). 77–87. https://doi.org/10.1145/2737924.2737964
+
+Matthieu Sozeau and Nicolas Oury. 2008-Class Type Classes. In TPHOLs (LNCS). 278–293. https://doi.org/10.1007/978-
+
+3-540-71067-7_23Simon Spies, Lennard Gäher, Joseph Tassarotti, Ralf Jung, Robbert Kreb Lars Birkedal, and Derek Dreyer. 2022. Later
+
+Credits: Resourceful Reasoning for the Later. ICFP (2022). https://doi.org/10.1145/3547631
+
+Bas Spitters and Eelis Van Der Weegen. 2011. Type Classes for Mathematics in Type Theory. MSCS 21, 4 (201195–825.
+
+https://doi/10.1017/S0960129511000119Kendsen and Lars Birkedal. 2014.
+
+Impredicative Concurrenticates. In ESOP (LNCS). 149–168.
+
+https://doi.org/10.1007/978-3-54833-8_9
+
+Kasper Svendsen, Lars Birkedal Matthew Parkinson. 2013. Modular Reasoning about Separation of Concurrent Data
+
+Structures. In ESOP (LNCS). 169–188. https://doi.org/10.1007/978-3-642-37036-6_11
+
+Richard Kent Treiber. Systems Programming: Coping with Parallelism. International Business Machines Incorporated,
+
+Thomas J. Watson Research Center.
+
+Aaron Tur Derek Dreyer, Birkedal. 2013. Unifying Reﬁnement and Hoare-Style Reasoning in a Logic for
+
+Higher Concurrency (ICFP). 377–390. https://doi.org/10.1145/2500365.2500600
+
+Viktor Vafeiadis. 2010. Automatically Proving Linearizability. In CA Vol. 6174. 450–464. https://doi.org/10.1007/978-3-
+
+642-14295-6_40
+
+Simon Friis Vindum and Lars Birkedal. 2021. Contextual Reﬁnement of the Michael Queue (Proof Pearl). In CPP.
+
+76–90. https://doi.org/10.1145/3437992.34
+
+Simon Friis Vindum, Dan Frumin, and Lars Birkedal. 2022. Mechanized Veriﬁcation of a Fine-Grained Concurrent Queue
+
+from Meta’s Folly Library. In CPP. 100–115. https://doi.org/10.1145/3497775.89
+
+Felix A, Malte Schwerho�, and Peter Müller. 2021. Concise Outlines for a Complex Logic: A Proof Outline Checker
+
+for TaDA. In FM (LNCS). 407–426. https://doi/10.1007/978-3-0300870-6_
+, Petri, and Suresh Jagannathan. Poling: SMT Aizability Proof In CAV (LNCS). 3–19.
+
+https://doi.10.1007/3-319-21668_1
+
+ 2022-10- accepted 2023-02-25
+
+ProcM Program. Lang. 7, No. OOPSLA1, Article 91. Publication date 2023.
+
+

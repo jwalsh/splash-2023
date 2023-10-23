@@ -1,0 +1,5 @@
+
+
+This section discusses the experiences of verifying the logical atomicity of the Michael-Scott queue using proof automation. It reports that the proof reuses some techniques from Vindum and Birkedal [2021], but represents the queue data structure invariant differently. After establishing hints and pure automation for this data structure, most of the separation-logic reasoning can be dealt with automatically. The remaining proof burden consists of dealing with prophecy variables and establishing pure facts outside of the reach of the automation. 
+
+The section then compares the proof automation to interactive refinement proofs in ReLoC. It reports that on average, the proof size is reduced by a factor of 7 (179 vs 1355 lines of proof burden), coming down to 0.6 line of proof burden per line of implementation. Assistance from the user is required in the same cases as those discussed in the previous section. Additionally, it may be necessary to manually establish an invariant or to manually perform right-hand side execution. Finally, the section briefly mentions Viper [Müller et al. 2016], a non-foundational tool for automated veriﬁcation using separation logic.

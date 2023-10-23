@@ -1,0 +1,3 @@
+
+
+This section discusses the design goals and key ideas for Diaframe 2.0, a proof automation extension for Iris. The design goals include fully automated proofs for 'simple' programs, assistance using interactive proofs for 'complex' programs, declarative and modular definitions of proof automation, and foundational proofs in a proof assistant. The key ideas for achieving these goals include minimizing backtracking, using program and logical state to select proof rules, and representing proof rules as instances of a general format and leveraging near-applicability.

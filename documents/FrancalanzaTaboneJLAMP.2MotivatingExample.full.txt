@@ -1,0 +1,266 @@
+2. Motivating Example
+Consider a simple counter system, adapted from [9], whereby a (server) process stores a
+counter total which can be increased by a (client) interacting process or else terminated by this
+same (client) process. A sample Elixir Counter module is shown in Listing 1. It offers one
+
+3
+
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+
+defmodule Counter do
+
+@spec server(pid, number) :: atom
+def server(client, total) do
+
+receive do
+
+{:incr, value} -> server(client, total + value)
+{:stop}
+
+-> terminate(client, total)
+
+end
+
+end
+
+@spec terminate(pid, number) :: atom
+defp terminate(client,total) do
+
+send(client, {:value, total})
+:ok
+
+end
+
+end
+
+Listing 1: Counter written in Elixir
+
+public function called server on lines 3–8 taking two arguments: the pid of the client, client,
+and the initial counter total, total. A process executing this function waits to receive client
+requests as messages in its mailbox using the receive do ...
+end statement; this construct
+is blocking, meaning that the process stops until a message with the expected format is received.
+The server function accepts two types of messages, namely, increment requests with label
+:incr carrying payload val, or termination requests denoted by the label :stop. This function
+branches accordingly: for increment requests, it recurses while updating the running total to
+total+value on line 5, whereas termination requests on line 6 are handled by calling the private
+function terminate. Private functions, defined using defp, are only visible from within a
+module. In this case, the function terminate (defined on lines 11–14) sends a :value message
+carrying the final total value total to the client process and terminates with the atom value
+:ok. Assuming that a client process carrying a pid bound to variable cid already exists, a counter
+server linked to cid initialised with a running total of 0 can be launched using the statement:
+
+sid = spawn(Counter, :server, [cid, 0]).
+
+Elixir conducts dynamic typechecking to catch runtime errors. In addition, @spec annota-
+tions such as those on lines 2 and 10 can help with detecting potential errors at compile-time.
+However, the language offers limited support to assist the static detection of errors relating to
+the concurrent messaging. For instance, it might not be immediately apparent that the payload
+carried by a :incr request should be a number value. Similarly, the code in Listing 1 does
+not necessarily convey enough information that the intended interaction with a server process
+should follow the protocol depicted in Figure 2. This abstract specification states that a server
+can be incremented an arbitrary number of times, followed by a single termination request (i.e.,
+no further increment or termination requests can succeed it).
+
+From the perspective of the server, the entire session of interactions can be formalised as the
+
+session type (called counter) below:
+
+(cid:40)?incr(number).counter,
+
+(cid:41)
+
+counter = &
+
+?stop().!value(number).end
+
+(1)
+
+It states that the server can branch (i.e., &) in two ways: if it receives (i.e., ?) an incr label
+with a number payload, the server recurses back to the beginning; and if it receives a stop label,
+
+4
+
+
+Server
+
+cu r s e
+
+e
+
+r
+
+Client
+
+1
+
+2
+
+c
+h
+o
+c
+e
+
+i
+
+incr(number)
+
+stop()
+
+value(number)
+
+Figure 2: Counter protocol
+
+it has to send (i.e., !) back a label value with a payload of type number (i.e., !value(number)).
+No further interactions are allowed when the end statement is reached. Accordingly, the client
+has to follow a compatible protocol, such as the dual of the same session type.
+
+(cid:40)!incr(number).counter,
+
+(cid:41)
+
+counter = ⊕
+
+(2)
+Concretely, it can repeatedly make a choice (i.e., ⊕) to send one of two labels, either increment
+or stop. The former ensures that it recurses back to the beginning, while the latter results in the
+client receiving a value of type number.
+
+!stop().?value(number).end
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+
+defmodule Counter do
+
+use ElixirST
+
+@session "counter = &{?incr(number).counter,
+
+?stop().!value(number).end}"
+
+@spec server(pid, number) :: atom
+def server(client, value) do
+
+receive do
+
+{:incr, value} -> server(client, total + value)
+{:stop}
+
+-> terminate(client, total)
+
+end
+
+end
+
+@spec terminate(pid, number) :: atom
+defp terminate(client,total) do
+
+send(client, {:value, total})
+:ok
+
+end
+
+@dual "counter"
+@spec client(pid) :: number
+def client(server) do
+
+...
+
+end
+
+end
+
+Listing 2: Counter annotated with session types
+
+This paper proposes an approach whereby module definitions are augmented with a @session
+annotation for functions, as shown in Listing 2. Whereas line 4 requires the public function
+
+5
+
+
+server to adhere to the session type counter, no session annotation is required for the private
+function terminate on line 15. Lines 22–24 present a case in which the client code is defined
+as a public function within the same module; in such a case, we can annotate it with the @dual
+information on line 20.
+
+Our proposed session type annotations serve two important purposes. On the one hand, they
+provide a high-level (yet formal) specification as to how a public function is to be interacted
+with, without the need to look inside its implementation, as in the case of line 4. For instance,
+by inspecting the counter session type on line 4 of Listing 2, one can immediately tell that a
+process running function server accepts two types of messages with labels incr or stop. On
+the other hand, they allow function implementations to be typechecked against such specifica-
+tions. E.g., we are able to statically check that the function server (and its ancillary function
+terminate) adheres to the protocol dictated by session type counter on line 4. We can also re-
+ject the problematic client implementation given in Listing 3 at compile-time, on the grounds
+that it violates the dual session type of counter. Concretely, the client selects an illegal choice
+decr on line 23, since the server cannot handle an incoming message labelled decr. The client
+also expects to receive a value with a number (line 26) after ‘forgetting’ to send a termination
+request (i.e., a message with a stop label). Both cases breach the counter protocol.
+
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+
+@dual "counter"
+def client(server) do
+
+send(server, {:incr, 5})
+send(server, {:decr, 2})
+# send(server , {:stop})
+
+receive do
+
+{:value, num} -> num
+
+end
+
+end
+
+Listing 3: Counter client with issues

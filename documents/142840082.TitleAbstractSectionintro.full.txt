@@ -1,0 +1,23 @@
+Title-Abstract. Section intro
+Symbolic transformation of expressions in
+
+modular arithmetic
+
+Jérôme Boillot1 and Jérôme Feret1,2
+
+1 École Normale Supure, Université PSL, Paris, France
+
+2 INRIA, Paris
+
+jerome.{boillot,feret}@ens.fr
+
+Abstract. We present symbolic methods to improve the precision of
+static analyses of modular based on Abstract Inter-
+pretation. Like similar symbolic methods, the idea is to simplify on-the-
+fly arithmetic expressions before they are given to abstract transfer func-
+tions of underlying abstract domains. When manipulating fixed-length
+integer data types, casts and overflows like modulo com-
+putations which hinder the use of symbolic techniques. The goal of this
+article formalize how modulo operations can be safely eliminated by
+abstracting arbitrary arithmetic expressions into sum, product, or divi-
+s

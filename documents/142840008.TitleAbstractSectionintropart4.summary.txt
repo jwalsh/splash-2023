@@ -1,0 +1,7 @@
+
+
+This section discusses the development of Astrée, a static analyzer for real-time embedded software written in C. It was initially supported by the ASTRÉE project, the Centre National de la Recherche Scientifique, the École Normale Supérieure and, since September 2007, by INRIA (Paris—Rocquencourt). It has achieved unprecedented results in proving the absence of any runtime errors in the primary flight control software of the Airbus A340 fly-by-wire system, the electric flight control codes of the A380 series, and the automatic docking software of the Jules Vernes Automated Transfer Vehicle (ATV).
+
+The section also discusses the usability enhancements of Astrée, such as the integration of a preprocessor, Windows support, and the ability to classify and comment findings from the GUI. It can also be integrated into a CD/CI platform, and has a Qualification structure similar to the aiT QSK. It also provides numerous analysis directives that allow users to interact with the tool, and a formal language AAL has been developed to locate analyzer directives in the abstract syntax tree without modifying the source code.
+
+Finally, Astrée has been extended to support interleaving semantics and integration analysis, and abstract OS libraries have been developed to support the OSEK/AUTOSAR and ARINC 653 norms.

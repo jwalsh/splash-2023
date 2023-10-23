@@ -1,0 +1,15 @@
+3.4. Type System
+ Rules [tTuple], [tEList] and
+[tList] check the types of tuples, empty lists and respectively. Rule [tArithmetic] en-
+sures that numbers are used when doing. The remaining rules, [tBoolean[tNot] and [tCompar are analogous.
+
+Pattern Typing. In the term typing rules [tBranch] andCase], new variables are introduced as
+a result of pattern matching. These need to be their respective type for typechecking
+purposes is obtained via ⊢p
+pat T : Γ ▷ defined in Figure 6, which states
+that all variables in a pattern p are collected (with their type) in Γ. Basic values are checked in
+[tpBasic], and new variables are introduced in [tpVariable]. The latter also ensures that the pid of
+the dual process remains unchanged (i.e., x (cid:44) w), which allows to statically locate the destination
+pid messages. Each element in a tuple is checked individually for either values or variables
+([tpTuple]). Lists are checked using [tpEList] and [tpList]. Multiple variable environments Γ
+and Γ′ are joined together as Γ, Γ′ (their domains must be distinct).

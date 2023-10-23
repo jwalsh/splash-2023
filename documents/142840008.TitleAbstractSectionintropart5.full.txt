@@ -1,0 +1,127 @@
+Title-Abstract. Section intro
+XML converter has been
+developed for Astrée which automatically generates the appropriate data struc-
+tures and access functions for the Astrée analysis, and enables a fully automatic
+integration analysis of AUTOSAR projects [20].
+
+Code Guideline Checking Coding guidelines aim at improving code quality and
+can be considered a prerequisite for developing safety- or security-relevant soft-
+ware. In particular, obeying coding guidelines is strongly recommended by all
+current safety standards. Their purpose is to reduce the risk of programming
+errors by enforcing low complexity, enforcing usage of a language subset, using
+well-trusted design principles, etc. According to ISO 26262, the language sub-
+set to be enforced should exclude, e.g., ambiguously defined language constructs,
+language constructs that could result in unhandled runtime errors, and language
+constructs known to be error-prone. Since the Astrée architecture is well suited
+for sound and precise code guideline checking, over the years, the analyzer has
+been extended to support all major coding guidelines, such as MISRA C/C++
+[44, 45, 41], SEI CERT C/C++ [55], CWE [56], etc.
+
+Cybersecurity Vulnerability Scanning Many security attacks can be traced back
+to behaviors undefined or unspecified according to the C semantics. By applying
+
+
+Abstract Interpretation in Industry – Experience and Lessons Learned
+
+11
+
+sound static runtime error analyzers, a high degree of security can be achieved for
+safety-critical software since the absence of such defects can be proven. In addi-
+tion, security hyperproperties require additional analyses to be performed which,
+by nature, have a high complexity. To support this, Astrée has been extended
+by a generic abstract domain for taint analysis that can be freely instantiated
+by the users [33]. It augments Astrée’s process-interleaving interprocedural code
+analysis by carrying and computing taint information at the byte level. Any
+number of taint hues can be tracked by Astrée, and their combinations will be
+soundly abstracted. Tainted input is specified through directives attached to
+program locations. Such directives can precisely describe which variables, and
+which part of those variables is to be tainted, with the given taint hues, each
+time this program location is reached. Any assignment is interpreted as prop-
+agating the join of all taint hues from its right-hand side to the targets of its
+left-hand side. In addition, specific directives may be introduced to explicitly
+modify the taint hues of some variable parts. This is particularly useful to model
+cleansing function effects or to emulate changes of security levels in the code.
+The result of the analysis with tainting can be explored in the Astrée GUI, or
+explicitly dumped using dedicated directives. Finally, the taint sink directives
+may be used to declare that some parts of some variables must be considered as
+taint sinks for a given set of taint hues. When a tainted value is assigned to a
+taint sink, then Astrée will emit a dedicated alarm, and remove the sinked hues,
+so that only the first occurrence has to be examined to fix potential issues with
+the security data flow.
+
+The main intended use of taint analysis in Astrée is to expose potential
+vulnerabilities with respect to security policies or resilience mechanisms. Thanks
+to the intrinsic soundness of the approach, no tainting can be forgotten, and that
+without any bound on the number of iterations of loops, size of data or length of
+the call stack. Based on its taint analysis, Astrée provides an automatic detection
+-PHT vulnerabilities [32].
+
+Data and Control Flow All current safety norms require determining the data
+and control flow in the source code and making sure that it is compliant to
+the intended control and data flow as defined in the software architecture. To
+meet this requirement, Astrée has been extended by a data and control flow
+analysis module, which tracks accesses to global, static, and local variables. The
+soundness of the analysis ensures that all potential targets of data and function
+pointers are discovered. Data and control flow reports show the number of read
+and write accesses for every global, static, and out-of-frame local variable, lists
+the location of each access and shows the function from which the access is
+made. All variables are classified as being thread-local, effectively shared between
+different threads, or subject to a data race.
+
+To further support integration verification, a recent extension of Astrée pro-
+vides a generic concept for specifying software components, enabling the analyzer
+to lift the data and control flow analysis to report data and control flow inter-
+actions between software components. This is complemented by an automatic
+taint analysis that efficiently tracks the flow of values between components, and
+
+
+12
+
+D. Kästner et al.
+
+automatically reports undesired data flow and undesired control dependencies.
+The combination of augmented data and control analysis and the taint analysis
+for software components provides a sound interference analysis [35].
+
+C++ To respond to the increasing interest in C++ even in the domain of safety-
+critical software, since 2020 Astrée also provides a dedicated analysis mode for
+C++ and mixed C/C++. It uses the same analysis technology as Astrée’s se-
+mantic C code analysis and has similar capabilities. At the same time it is also
+subject to the same restrictions. The analyzer is designed to meet the character-
+istics of safety-critical embedded software. Typical properties of such software
+include a static execution model that uses a fixed number of threads, no or lim-
+ited usage of dynamic memory allocation and dynamic data structures. Astrée
+provides an abstract standard template library, that models the behavior of STL
+containers in an abstract way suitable for analysis with Astrée. Astrée does not
+attempt to analyze the control flow of exceptions; it only reports if an exception
+could be raised.
+
+Precision and Efficiency Constant development effort is required to work at
+precision and scalability of the analyzer. Over the years, various additional ab-
+stract domains have been developed to avoid false alarms on common embedded
+software elements. Examples are domains for finite integer sets, gauges [62, 21],
+domains for precise analysis of interpolation functions, finite state machines, etc.
+Astrée’s state machine domain heuristically detects state variables and disam-
+biguates them by state partitioning in the relevant program scope [14]. In consequence the analyzer becomes aware of the exact transitions of the state machine
+and the false alarms due to control flow over-approximation can be avoided.
+Over the past years, the size of embedded software has grown significantly; typ-
+ical automotive AUTOSAR projects span 5-50 million lines of (preprocessed)
+code. One prerequisite to enable an efficient analysis of such large-scale projects
+is an efficient strategy to heuristically control the context-sensitivity of the ana-
+lyzer and distinguish critical call chains where full flow- and context-sensitivity
+is needed from less critical ones where building a summary context is enough
+[20].
+
+4 The User Perspective
+
+Whereas from an academic perspective, software verification can be fun and is
+a topic of great merit, this is not necessarily a view shared by every software
+developer working in the field. In fact, the ISO 26262 norm puts en emphasis on
+the need to embrace functional safety in the company organization and establish
+a safety culture [18]. Verification activities should not be – as they often are –
+perceived as a burden that drains on development cost, delays delivery and does
+not provide an added value to the end product. Introducing new verification
+steps should not be perceived as admitting a mistake. The capability of defect
+
+
+Abstract Interpretation in Industry

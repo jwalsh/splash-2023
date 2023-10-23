@@ -1,0 +1,173 @@
+Title-Abstract. Section intro
+id:111)
+
+r|p | r ∈ R
+
+(p ∈ [X ]2)
+
+(7)
+holds for each abstract relation r ∈ R and each ﬁnite set of abstract relations
+R ⊆ R. The most prominent example of a 2-decomposable domain is the Octagon
+domain [20] – either over rationals or integers, while aﬃne equalities or aﬃne
+(cid:68)
+inequalities are examples of domains that are not 2-decomposable.
+Each value r from a 2-decomposable relational domain R can be represented
+r|p
+. This
+as the meet of its restrictions to 2-clusters, i.e., by the collection
+Consider an arbitrary collection (cid:104)sp(cid:105)p∈[X ]2 with sp ∈ Rp with r = (cid:100){sp | p ∈
+representation is called 2-normal, and an algorithm to compute it, normalization.
+[X ]2}. Then r|p (cid:118) sp always holds, while equality need not hold. In the Octagon
+domain over the rationals or the integers, the 2-normal representation of an
+octagon value corresponds to its strong closure and tight closure, respectively,
+as described in [1, 20]. Here, we do not distinguish between diﬀerent types of
+closure for rational and integer octagons. Instead, we call a non-⊥ octagon O
+over a numerical set of values I ∈ {Q, Z} closed if for each octagon combination
+(cid:96), the upper bound b(cid:96) equals the minimal value b ∈ I such that (cid:96) ≤ b is implied
+by O, or ∞ if no such bound exists.
+
+p∈[X ]2
+
+(cid:69)
+
+While for rational octagons, closure in cubic time was already proposed by
+Miné [20], it is much more recent that a corresponding algorithm was provided
+for integer octagons [1, 2]. Here, we re-consider these results. By referring to
+2-decomposable domains instead of to octagons, we succeed in providing a con-
+ceptually simple normalization algorithm with a simple correctness proof, from
+which cubic closure algorithms for the Octagon domains can be derived.
+
+some set X of variables. Assume that r ∈ R is given by r =(cid:100){sp | p ∈ [X ]2, sp ∈
+
+4 2-Projectivity
+Subsequently, we assume that R is an arbitrary 2-decomposable domain over
+Rp}. Then, we consider the following constraint system in the unknowns rp, p ∈
+[X ]2, over R,
+
+r{x,y} (cid:118) s{x,y} (cid:117)(cid:0)r{x,z} (cid:117) r{z,y}(cid:1)(cid:12)(cid:12){x,y}
+
+(8)
+for x, y, z ∈ X. All right-hand sides of the constraint system (8) are monotonic.
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+5
+Proposition 1. The collection (cid:104)r|p(cid:105)p∈[X ]2 is a solution of constraint system (8).
+Proof. Let x, y, z ∈ X. Then
+
+r|{x,y} = r|{x,y} (cid:117) r|{x,y} (cid:118) s{x,y} (cid:117) r|{x,y} (cid:118) s{x,y} (cid:117)(cid:16)
+
+r|{x,z} (cid:117) r|{z,y}
+
+(cid:17)(cid:12)(cid:12)(cid:12){x,y} (cid:117)(cid:116)
+
+From Proposition 1, we conclude that the greatest solution of (8) – if it exists –
+is an overapproximation of the normal representation of r. In general, the Kleene
+ﬁxpoint iteration for computing greatest solutions of constraint systems (8) may
+not terminate. Let us call a 2-decomposable relational domain R 2-projective
+when from each abstract relation r, each single variable can be eliminated by
+using projections onto clusters from [X ]2 only, i.e., when for every Y ⊆ X,
+z ∈ X \ Y, yj ∈ Y ∪ {z}, r(cid:48) ∈ RY, and r{z,yj} ∈ R{z,yj},
+
+(cid:0)r{z,y1} (cid:117)... (cid:117) r{z,yk} (cid:117) r(cid:48)(cid:1)(cid:12)(cid:12)Y = r(cid:48) (cid:117)(cid:100)k
+
+i,j=1
+
+(cid:0)r{z,yi} (cid:117) r{z,yj}(cid:1)(cid:12)(cid:12)Y ∩{yi,yj}
+
+(9)
+
+Proposition 2. The following 2-decomposable domains are 2-projective:
+
+1. rational octagons;
+2. integer octagons;
+3. 2-variable rational aﬃne inequalities;
+4. 2-variable rational aﬃne equalities.
+
+Proof. Let us consider the claims (1) and (2) for octagons. Intuitively, their cor-
+rectness follows from the correctness of Fourier-Motzkin elimination of a single
+variable z from a system of inequalities. In general, this holds only for ratio-
+nal inequalities as considered for claim (1). However, it also holds for systems
+of integer inequalities – given that all coeﬃcients are integer and all non-zero
+coeﬃcients of z are either 1 or −1.
+x∈X ax · x an octagon combination if at
+most two of the coeﬃcients ax are non-zero and these are then from {−1, 1}. For
+a subset Y of variables, let LY denote the set of all octagon combinations with
+variables from Y. An integer octagon constraint is of the form (cid:96) ≤ b where (cid:96) is
+a linear octagon combination and the bound b is integer or ∞.
+
+Let us call a linear combination (cid:80)
+
+Subsequently, we represent an abstract octagon relation over Y by a closed
+
+conjunction
+
+(cid:86)
+
+(10)
+of octagon constraints with variables from Y if the octagon is satisﬁable, or ⊥
+if it is not. Here, the conjunction (10) is satisﬁable and closed iﬀ
+
+(cid:96)∈LY
+
+(cid:96) ≤ b(cid:96)
+
+0 ≤ b(cid:96) + b−(cid:96)
+b(cid:96) ≤ (b(cid:96)1 + b(cid:96)2 )/c
+
+if (cid:96) ∈ LY
+if (cid:96)1 (cid:54)= (cid:96)2 and c · (cid:96) = (cid:96)1 + (cid:96)2
+
+holds for some c ∈ {1, 2}. Here, factor 2 occurs if one variable x occurs both
+in (cid:96)1 and (cid:96)2 with the same sign, while another variable y occurs with diﬀerent
+signs, i.e.,
+
+c · (cid:96) = (x + y) + (x − y) = 2 · x
+
+
+6
+
+Michael Schwarz and Helmut Seidl
+
+In case of octagons over rationals, the operator “/” denotes division, whereas
+in case of octagons over integers, it denotes integer division, i.e., may include
+rounding downwards. By deﬁnition, the closed representation of an abstract
+octagon relation is also 2-normal.
+
+For computing the closure for an arbitrary conjunction r of octagon con-
+straints with one or two variables only, we may ﬁrst determine the least given
+upper bound b(cid:96) for each occurring octagon linear combination (cid:96). As a result, we
+obtain at most 8 octagon constraints for which satiﬁability (over rationals or in-
+tegers) can be decided in constant time. Provided the conjunction is satisﬁable,
+all implied tighter upper bounds (over rationals or integers) can be inferred.
+Example 2. Consider the integer octagon given by conjunction of the constraints
+
+x + y ≤ −2
+
+x − y ≤ 5
+
+− x + y ≤ 0
+
+By adding up constraints with positive and negative occurrences of the same
+variable, we derive that
+
+y ≤ −1
+
+x ≤ 1
+
+must also hold, while no further bounds can be inferred. If the conjunction of
+octagon constraints additionally has the inequality
+
+−x − y ≤ 0
+
+then, by adding this to the ﬁrst inequality, we derive
+
+0 ≤ −2
+
+– which is false – implying that the octagon equals ⊥.
+(cid:117)(cid:116)
+Assume that each non-⊥ value r{yj,z}, yj ∈ Y ∪ {z}, is represented as a closed
+conjunction of octagon constraints with variables from {yj, z}. Assume likewise,
+that r(cid:48) (cid:54)= ⊥ is represented by a conjunction of octagon constraints with variables
+from Y

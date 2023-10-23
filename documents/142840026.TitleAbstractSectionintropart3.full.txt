@@ -1,0 +1,87 @@
+Title-Abstract. Section intro
+ 6] methods compute an upper bound
+on the worst-case robust loss using abstract interpretation-based DNN certifiers.
+Figure 3 shows the high-level idea behind certified training which leverages the
+output g(α(ϕ)) computed by the DNN certifier. Here one computes z ∈ g(α(ϕ))
+where the robust loss is maximum and then updates the model with respect
+to the resulting loss value. State-of-the-art certified training methods employ
+differentiable certifiers [38, 51], which makes the computation of the worst-case
+robust loss differentiable. As a result, the parameter updates are performed by
+differentiating through the certifier code directly.
+Since certified training computes an upper bound on the worst-case robust
+loss when this loss is ≤ 0, the actual loss is also ≤ 0. This is not the case with
+the lower bound computed by adversarial training. As a result, DNNs trained
+with certified training achieve higher robustness guarantees than those trained
+
+5
+
+
+with adversarial training [38]. They are also easier to certify than those trained
+with adversarial and standard training. Even imprecise abstract domains such as
+intervals give precise certification results for DNNs trained with certified train-
+ing. The work of [4] theoretically shows the existence of two DNNs f, f′ such
+that (i) they have the same accuracy, and (ii) interval analysis achieves the same
+certification results on f′ as a more precise certifier on f.
+
+Training with only the robust loss deteriorates model accuracy, therefore in
+practice, robust loss is combined with standard accuracy loss during training us-
+ing custom mechanisms [21]. While one would expect that training with precise
+certifiers yields more accurate and robust DNNs than imprecise ones, as they
+reduce the approximation error in computing the robust loss, in practice, the
+highly imprecise interval domain performs the best for certified training. This is
+because the optimization problem for training becomes harder with more com-
+plex abstract domains [24]. Most certified training methods target robustness
+with respect to norm-based changes to pixel intensities in images. Even with all
+the progress in this direction, DNNs trained with state-of-the-art certified train-
+ing methods [40, 6, 74] suffer significant loss of accuracy on popular datasets such
+as CIFAR10 [29]. There have been conflicting hypotheses in the literature about
+whether accuracy conflicts with norm-based robustness [59] or not [73]. The work
+of [72] is the first to build a certified training method for challenging geometric
+robustness by developing a fast geometric certifier that can be efficiently paral-
+lelized on GPUs. Interestingly, the work shows that it is possible to achieve both
+high accuracy and robustness on the autonomous driving dataset [9]. Therefore,
+in certain practical scenarios, both high accuracy and safety may be achievable.
+
+4 Certification for Interpreting DNNs
+
+Abstract interpretation-based DNN certifiers [52, 51, 70] generate high-dimensional
+abstract elements at different layers capturing complex relationships between
+neurons and DNN inputs to prove DNN safety. However, the individual neurons
+and inputs in the DNN do not have any semantic meaning, unlike the variables
+in programs, therefore it is not clear whether the safety proofs are based on any
+meaningful features learned by the DNN. If the DNN is proven to be safe but the
+proof is based on meaningless features not aligned with human intuition, then
+the DNN behavior cannot be considered trustworthy. While there has been a lot
+of work on interpreting black-box DNNs, standard methods [46, 66] can only ex-
+plain the DNN individual inputs and cannot interpret the complex
+invariants encoded by the abstract elements capturing DNN behavior on an infi-
+nite set of inputs. The main challenge in interpreting DNN proofs mapping
+the complex abstract elements to human understandable interpretations.
+
+The work of [7] is the first to develop a method for interpreting robustness
+proofs computed by DNN certifiers. The method can interpret proofs computed
+by different certifiers. It builds upon the novel concept of proof features that are
+computed by projecting the high-dimensional abstract elements onto individual
+neurons. The proof features can be analyzed independently by generating the
+
+6
+
+
+corresponding interpretations. Since certain proof features can be more impor-
+tant for the proof than others, a priority function over the proof features that
+signify the importance of each individual proof feature in the complete proof is
+defined. The method extracts a set of proof features by retaining only the more
+important parts of the proof that preserve the property.
+
+A comparison of proof interpretations for DNNs trained with standard and
+robust training methods [36, 74, 6] on the popular MNIST [35] and CIFAR10
+datasets [29] shows that the proof features corresponding to the standard net-
+works rely on meaningless input features while the proofs of adversarially trained
+DNNs [36] filter out some of these spurious features. In contrast, the networks
+trained with certifiable training [74] produce proofs that do not rely on any spu-
+rious features but they also miss out on some meaningful features. Proofs for
+training methods that combine both empirical and certified robustness [6] not
+only preserve meaningful features but also selectively filter out spurious ones.
+These observations are empirically shown to be not contingent on any specific
+DNN certifier. These insights suggest that DNNs can satisfy safety properties
+but their behavior can still be untrustworthy.

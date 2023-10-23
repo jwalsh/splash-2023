@@ -1,0 +1,1917 @@
+Symbolic transformation of expressions in
+
+modular arithmetic
+
+Jérôme Boillot1 and Jérôme Feret1,2
+
+1 École Normale Supérieure, Université PSL, Paris, France
+
+2 INRIA, Paris, France
+
+jerome.{boillot,feret}@ens.fr
+
+Abstract. We present symbolic methods to improve the precision of
+static analyses of modular integer expressions based on Abstract Inter-
+pretation. Like similar symbolic methods, the idea is to simplify on-the-
+fly arithmetic expressions before they are given to abstract transfer func-
+tions of underlying abstract domains. When manipulating fixed-length
+integer data types, casts and overflows generally act like modulo com-
+putations which hinder the use of symbolic techniques. The goal of this
+article is to formalize how modulo operations can be safely eliminated by
+abstracting arbitrary arithmetic expressions into sum, product, or divi-
+sion of linear forms with integer coefficients, while simplifying them. We
+provide some rules to simplify arithmetic expressions that are involved
+in the computation of linear interpolations, while ensuring the soundness
+of the transformation.
+All these methods have been incorporated within the Astrée static ana-
+lyzer that checks for the absence of run-time errors in embedded critical
+software, but also in an available toy abstract interpreter. The effects
+of our new abstract domain are then evaluated on several code excerpts
+from industrial code.
+
+Keywords: Modular Arithmetic · Program Transformation · Sym-
+bolic Propagation · Abstract Intepretation · Interpolation.
+
+1
+
+Introduction
+
+An important Computer Science challenge is to prove that given programs can-
+not crash. It is particularly needed in critical embedded applications such as
+planes, where potential errors can be fatal. Because of Rice’s theorem, we know
+that it is impossible to create an analyzer that is both automatic (it does not re-
+quire user interaction to finish, and can do so in finite time), sound (any proved
+
+
+2
+
+J. Boillot, J. Feret.
+
+int x, y;
+if (x >= y) {
+
+unsigned int r = (unsigned int) x - y;
+assert(r == (int64_t) x - y);
+
+1
+2
+3
+4
+5
+
+}
+
+𝑋←[−231,231[⨾
+𝑌←[−231,231[⨾
+if𝑋+−𝑌≥0 then
+𝑅←((𝑋 mod[0,232[)+−(𝑌 mod[0,232[))
+mod[0,232[⨾
+//𝑅=𝑋−𝑌
+↪
+
+endif
+
+1
+2
+3
+4
+
+5
+6
+
+(a) C language
+
+(b) Article’s language
+
+Fig. 1: Distance computation example.
+
+property of the program actually holds), and complete (it is able to prove any
+property that holds). Because in general the most precise invariants are not
+computable, we decide to drop the completeness constraint. This means such
+analyzer can raise alarms that are false-positives. We are particularly interested
+in the Abstract Interpretation framework [5,6] and properties of integer expres-
+sions. Thus, the static analyzer we will present is parameterized by an auxiliary
+numerical abstract domain we will use to compute and represent numerical prop-
+erties of program instructions.
+
+There exist different numerical abstract domains that vary in precision, but
+also in time and memory costs. For example, we could name the interval do-
+main [4] that computes sound variable bounds, and the polyhedra domain [8]
+that discovers linear inequalities. In order to prove the correctness of a program,
+it is sometimes necessary to retain information about the relationships between
+variables (e.g., equalities between variables, or linear inequalities like in the poly-
+hedron domain). Such abstract domains are called relational, and their usage can
+be very costly. That is why symbolic methods have been developed: to keep rela-
+tions between variables by reasoning directly over the arithmetic expressions, and
+to apply sound program transformations on-the-fly to ease the analysis. This is
+what [21] describes with its abstraction of any arithmetic expressions into linear
+forms with interval coefficients. This abstraction allows algebraic simplifications.
+When programming in languages, like C, that allow usage of fixed-length
+integers, it is important to consider how overflows and casts between different
+integer data types are handled. In C, this semantics is detailed in the C Standard
+[14]; we take into account that, in addition to explicit casts, some implicit casts
+are performed in arithmetic operations (e.g., via the integer promotion). Un-
+signed integers do not overflow, the result is reduced modulo the largest value
+of the resulting type plus one. Casts also correspond to the use of a modulo.
+Thus, if we want to use symbolic methods, it appears necessary to deal with
+those modulo computations in the abstract representation.
+
+In this paper, we present symbolic enhancement techniques similar to the
+ones described in [21], but that allow safe modulo elimination when it is pos-
+sible. Consider, for instance, the program of Fig. 1 that computes the distance
+
+between𝑋 and𝑌 when𝑋≥𝑌. As for every further introducing examples, we
+
+provide the C code in Fig. 1a and the representation in our internal language
+in Fig. 1b. Please note that in all the following examples the int data type is
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+3
+
+(a) C language
+
+(b) Article’s language
+
+Fig. 2: Variable elimination example.
+
+𝑋←[−231,231[⨾
+𝑃0←[−231,231[⨾
+𝑃1←[−231,231[⨾
+𝐴←((𝑋 mod[0,232[)+−(𝑃0 mod[0,232[))
+mod[0,232[⨾
+𝐵←((𝑃1 mod[0,232[)+−(𝑋 mod[0,232[))
+↪
+mod[0,232[⨾
+if𝑃1+−𝑃0≥0 then
+↪
+𝑅←(𝐴+𝐵) mod[0,232[⨾
+//𝑅=𝑃1−𝑃0
+
+endif
+
+if𝑋+−𝑋0≥0 then
+if𝑋+−𝑋1≤0 then
+if𝑋0+−𝑋1≠0 then
+if𝑌0+−𝑌1≤0 then
+𝑅←𝑌0+((𝑋+−𝑋0)×(𝑌1+−𝑌0))∕
+(𝑋1+−𝑋0)⨾
+//𝑌0≤𝑅≤𝑌1
+↪
+endif⨾
+endif⨾
+endif⨾
+
+endif
+
+int x, p0, p1;
+unsigned int a = (unsigned int) x - p0;
+unsigned int b = (unsigned int) p1 - x;
+if (p1 >= p0) {
+
+unsigned int r = a + b;
+assert(r == (int64_t) p1 - p0);
+
+}
+
+1
+2
+3
+4
+
+5
+
+6
+7
+8
+9
+
+unsigned int x, x0, x1, y0, y1;
+if (x0 <= x && x <= x1) {
+
+if (x0 != x1 && y0 <= y1) {
+
+unsigned int r = y0 + ((uint64_t)
+
+(x-x0) * (y1-y0) / (x1-x0));
+
+assert(y0 <= r && r <= y1);
+
+↪
+
+}
+
+}
+
+1
+2
+3
+4
+5
+
+6
+7
+8
+9
+10
+
+1
+2
+3
+4
+5
+6
+7
+
+1
+2
+3
+4
+
+5
+6
+7
+
+(a) C language
+Fig. 3: First example of linear interpolation computation.
+
+(b) Article’s language (simplified)
+
+even linearization, could not infer this invariant. But our modulo elimination
+technique allows us to compute it. In our second example in Fig. 2 we would
+
+consistently represented using a 32-bit format. Nevertheless, this representation
+remains a parameter of the analysis. We expect the analyzer to infer that, when
+
+𝑋≥𝑌 is verified,𝑅=𝑋−𝑌. Note that𝑋 mod[0,232[≠𝑋 and the same
+holds with𝑌. So, traditional abstract domains like integers or polyhedron, or
+like to replace the expression𝐴+𝐵 by𝑃1−𝑃0 by making the occurrences of the
+variable𝑋 in the expressions𝐴 and𝐵 cancel each other. This is made possible
+ple in Fig. 3 (modulos are omitted for readability), if all conditions are met𝑅
+is the linear interpolation of some function𝑓 in𝑋 such that𝑓(𝑋0)=𝑌0 and
+𝑓(𝑋1)=𝑌1. Then,𝑅 should be between𝑌0 and𝑌1. The abstract domain we
+
+by the symbolic constant propagation domain. In addition, in our latest exam-
+
+present is able to compute such invariants thanks to the interpolation detection
+step in the reduction heuristic.
+
+Related Work. The problem of analyzing programs with modular computations
+has already been addressed in the literature. Accurate results are especially im-
+portant when inferring properties about pointer alignments and arrays lookup
+parallelization algorithms. The domains of congruences [11], linear congruences
+[12,22], trapezoidal congruences [18] have been used in that context. They of-
+
+
+4
+
+J. Boillot, J. Feret.
+
+fer several trade-offs for describing modular properties on intervals, linear in-
+equalities, and rational linear inequalities. Modular arithmetic usually involves
+non-convex properties. A generic domain functor has been introduced in [23] to
+adapt abstract domains, so they can deal with modular properties.
+
+The granularity of expression assignments is also important. For instance,
+while the single step assignment [9] method helps static analysis by decompos-
+ing the evaluation of expressions and by distinguishing multiple usages of each
+variable, it may also make more difficult symbolic simplifications of expressions.
+In contrast, symbolic constant propagation [21] allows composite assignments to
+be recombined to form composite expressions that can be simplified more easily.
+In the static analyzer Mopsa [16], abstract domains can rewrite expressions by
+resolving some aspects (such as pointers, floating point arithmetic), and simplify
+them symbolically. Lastly, some work has been done on fixed point arithmetic
+in the context of deductive methods [10].
+
+Adapting symbolic simplification approaches in the context of modular arith-
+metic is different from detecting modular numerical properties. This is the issue
+we address in the present paper. Note that, while we focus on the simplification
+of expressions, the analysis of interpolation algorithms also requires precise han-
+dling of array lookup procedures. Analyzing array lookup loops and expressions
+involved in interpolation algorithms are orthogonal issues. The literature already
+describes some methods to address the former one [13,24].
+
+In this work, we use an intermediate language inspired by the one used in [21].
+We focus on integer arithmetic rather than floating-point computations, and we
+have introduced modulo computations and bound check operators. Moreover, we
+have adapted our rewriting relation from the one that is given in [21] by adding
+an explicit treatment of error alarms.
+
+Outline. The paper is organized as follows. In Sect. 2, we present some prelimi-
+nary results on modular integer arithmetic, which suggest it should be possible
+to effectively simplify expressions evaluated over modular rings. In Sect. 3, we in-
+troduce a toy arithmetic language that allows modulo computations and bound
+checks. The semantics of this language describes two kinds of error alarms: divi-
+sions by zero and failed bound checks. In Sect. 4 we explain how the integration
+of the expression rewriting technique can be done soundly. Then, in Sect. 5 we
+introduce an abstract representation of expressions that can be tuned by the
+parameters of a generic numerical abstract domain described in Sect. 6. Such a
+generic abstract domain is then instantiated in Sect. 7, by making explicit the
+heuristics used to symbolically simplify expressions. Finally, Sect. 8 describes
+some aspects of our implementations and an evaluation of the introduced ab-
+stract domain over several code excerpts from industrial code.
+
+2 Preliminary Results on Modular Integer Arithmetic
+
+modular arithmetic. First, we introduce the set of modulo specifications𝕄 that
+
+In this section, we give basic properties to reason on Euclidean division and
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+5
+
+denotes arithmetic operations without modulo. This is formalized in the follow-
+ing definition:
+
+is defined as follows: 𝕄≝{[𝑙,𝑢[∣𝑙,𝑢∈ℤ,𝑙<𝑢}∪{ℤ}.
+The set𝕄 contains two kinds of elements. Intervals of the form[𝑙,𝑢[ denote
+operations modulo𝑢−𝑙 with result in the interval[𝑙,𝑢[, whereas the elementℤ
+Definition 1. We define the modulo of𝑘∈ℤ by an element of𝕄 as
+𝑘mod[𝑙,𝑢[≝𝑙+irem(𝑘−𝑙,𝑢−𝑙)
+𝑘modℤ
+whereirem(𝑚,𝑛) denotes the remainder of the Euclidean division of the integer
+𝑚 by the strictly positive integer𝑛, that is to say the unique integer𝑟 such that
+0≤𝑟<𝑛 and𝑛 divides𝑚−𝑟.
+In particular, when the integer𝑘 belongs to the interval[𝑙,𝑢[ we have𝑘mod
+[𝑙,𝑢[=𝑘.
+Definition 2. An element𝑚∈𝕄 is said to be𝑘-splittable, with𝑘 a strictly
+positive integer, if𝑚 can be split in𝑘 sets of same cardinality. We define𝕊∶
+ℕ∗→℘(𝕄) such that𝕊(𝑘) is the set of elements of𝕄 that are𝑘-splittable. More
+Example 1. The intervals[0,216[ and[−215,215[ both are216-splittable and28-
+We use the notion of𝑘-splittability to reason about the application of consec-
+Property 1. Let𝑛∈ℤ be an integer. Let[𝑙,𝑢[ and𝑚 be two elements of𝕄.
+If𝑚 is(𝑢−𝑙)-splittable (i.e., if𝑚∈𝕊(𝑢−𝑙)), then(𝑛mod𝑚)mod[𝑙,𝑢[=
+𝑛mod[𝑙,𝑢[.
+Property 2. Let𝑛∈ℤ be an integer. Let[𝑙1,𝑢1[ and[𝑙2,𝑢2[ be two elements of𝕄
+such that[𝑙1,𝑢1[⊆[𝑙2,𝑢2[. Then,(𝑛mod[𝑙1,𝑢1[)mod[𝑙2,𝑢2[=𝑛mod[𝑙1,𝑢1[.
+Property 3. Let𝑛∈ℤ be an integer. Let[𝑙1,𝑢1[ and[𝑙2,𝑢2[ be two elements of
+𝕄. We consider𝛼≝𝑙1mod[𝑙2,𝑢2[. If𝛼+𝑢1−𝑙1≤𝑢2 and(𝑢1−𝑙1)|(𝛼−𝑙1), then
+we have(𝑛mod[𝑙1,𝑢1[)mod[𝑙2,𝑢2[=𝑛mod[𝛼,𝛼+𝑢1−𝑙1[. This is pictured in
+
+utive modulo computations. In particular, when two modulo operations follow
+each other, the inner one can be ignored under some specific conditions. This is
+formalized in the following property.
+
+∀𝑘>0,𝕊(𝑘)≝{[𝑙,𝑢[∈𝕄∣(𝑘|(𝑢−𝑙))}∪{ℤ}.
+
+formally,
+
+splittable.
+
+≝𝑘
+
+We now give two other properties to simplify consecutive modulo computa-
+
+tions under some conditions.
+
+Fig. 4.
+
+
+6
+
+J. Boillot, J. Feret.
+
+𝑙1
+
+[
+
+𝑢1
+
+]
+
+mod[𝑙2,𝑢2[
+
+[
+
+𝑙2
+mod[𝑙2,𝑢2[
+
+𝛼
+
+[
+
+𝛼+𝑢1−𝑙1
+
+]
+
+𝑢2
+
+]
+
+Fig. 4: Translation when applying consecutive modulos.
+
+expr⩴𝑋
+| [𝑎,𝑏]
+| −expr
+| expr⋄ expr
+| expr⋓ expr
+| expr mod[𝑙,𝑢[
+| bound_check(expr,[𝑙,𝑢[)
+stmt⩴𝑋← expr
+|
+if expr⋈0 then stmt⨾ endif ⋈∈{=,≠,<,≤,≥,>}
+| while expr⋈0 do stmt⨾ done ⋈∈{=,≠,<,≤,≥,>}
+| stmt⨾ stmt
+
+𝑋∈𝒱
+𝑎,𝑏∈ℤ,𝑎≤𝑏
+⋄∈{+,×,∕}
+𝑙,𝑢∈ℤ,𝑙<𝑢
+𝑙,𝑢∈ℤ,𝑙<𝑢
+𝑋∈𝒱
+
+Fig. 5: Syntax of our extended language.
+
+Note that Prop. 2 is a particular case of Prop. 3. Indeed, with the notations of
+
+Prop. 3, if[𝑙1,𝑢1[⊆[𝑙2,𝑢2[ we have𝛼=𝑙1. Then,𝛼+𝑢1−𝑙1=𝑢1 and𝛼−𝑙1=0.
+So,𝛼+𝑢1−𝑙1≤𝑢2 and(𝑢1−𝑙1)|(𝛼−𝑙1). We can conclude, thanks to Prop. 3,
+that(𝑛mod[𝑙1,𝑢1[)mod[𝑙2,𝑢2[=𝑛mod[𝑙1,𝑢1[
+Example 2. Let𝑛 be an integer inℤ. Then,
+– by Prop. 1,(𝑛mod[−215,215[)mod[0,28[=𝑛mod[0,28[,
+– because23∈[0,28[,23mod[0,28[=23,
+– by Prop. 2,(𝑛mod[0,28[)mod[0,216[=𝑛mod[0,28[,
+– by Prop. 3,(𝑛mod[2,4[)mod[10,20[=𝑛mod[12,14[ (with𝛼=12).
+
+We finish this preliminary results section, with few examples about modulo
+
+computations.
+
+3 Syntax and Semantics of the Language
+3.1 Syntax of the Language
+The syntax of our language is introduced in Fig. 5. The analysis that is described
+in this paper only refines the result of integer computations. Thus, the descrip-
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+7
+
+tion of pointers and floating point arithmetic is omitted. We indeed suppose
+that lvalue resolution has been partially solved (see [2, Sect. 6.1.3]) and that the
+abstraction presented here assigns no information to the value of floating point
+variables (which are handled by some other abstract domains of the analyzer).
+We focus on integer expressions, which are made of variables, constant inter-
+vals, classical arithmetic operations, modulo within a constant modular ring,
+
+and bound checks. A specific operator⋓ is added to our extended syntax to rep-
+For example, in Fig. 3, if it is defined, the value of𝑅 is between the values of
+𝑌0 and𝑌1, regardless of their order. We then denote𝑅←𝑌0⋓𝑌1. Assuming we
+can establish that𝑌0≤𝑌1, it follows that𝑌0≤𝑅≤𝑌1.
+The variables involved in the program belong to a finite set, denoted𝒱.
+
+resent the value of some sub-expressions. This operator represents the convex
+join of two integer expressions, that is any value between its operands. This is
+especially helpful to deal with expressions involved in interpolation procedures.
+
+We use interval constants to represent constants or to model non-determinism
+that may be due to some unknown inputs or potentially imprecise abstraction.
+Implicit and explicit casts have been decomposed by means of two operators:
+as it will be seen in the description of the semantics, the bound check operator
+bound_check checks whether the value of an expression does not overflow, and
+the modulo operator mod extracts the remainder of the Euclidean division.
+Lastly, we assume that bit shifting has been replaced with equivalent arithmetic
+operations.
+
+Statements include assignments, sequential composition, conditional branch-
+ing (we only consider positive branches, negative ones can be encoded conse-
+quently), and loops. The conditions of branching and loops compare expressions
+
+with the value0. This toy language is enough to encode the semantics of the
+For the rest of the paper, every constant expression of the form[𝛼,𝛼] with
+𝛼∈ℤ is denoted𝛼cst.
+
+integer arithmetic restriction of real-life programming languages like C.
+
+3.2 Concrete Semantics of the Language
+We now describe the concrete semantics of our language, that is a mathematical
+expression of its behaviors. It is worth noting that, due to the use of intervals
+and convex join operators, the evaluation of an expression may induce non-
+determinism. Additionally, our semantics tracks erroneous computations.
+
+We introduce a set of possible errors that we noteΩ. We assume thatΩ
+contains in particular two distinct elements𝜔𝑑 and𝜔𝑜: the error𝜔𝑑 stands for a
+division by zero, whereas the error𝜔𝑜 denotes a bound check failure. The other
+elements ofΩ can be raised by the other domains of the analyzer, especially
+A memory state is a function that maps each variable from the set𝒱 to an
+integer inℤ. The set of all memory states is denotedℰ. The concrete semantics
+⟦ expr⟧∈ℰ→(℘(ℤ)×℘(Ω)) of an expression maps a memory state to sets of
+values and errors. To simplify the formulas, given an expression𝑒∈ expr and a
+memory state𝜌∈ℰ, the first component of⟦𝑒⟧𝜌 is often written⟦𝑒⟧𝑉𝜌∈℘(ℤ),
+
+during the resolution of the lvalues.
+
+
+8
+
+J. Boillot, J. Feret.
+
+⟦𝑋⟧𝜌≝ ⟨{𝜌(𝑋)},∅⟩
+⟦[𝑎,𝑏]⟧𝜌≝⟨{𝑥∈ℤ∣𝑎≤𝑥≤𝑏},∅⟩
+⟦−𝑒⟧𝜌≝⟨{−𝑥∣𝑥∈⟦𝑒⟧𝑉𝜌},⟦𝑒⟧Ω𝜌⟩
+⟦𝑒1+𝑒2⟧𝜌≝⟨{𝑥+𝑦∣𝑥∈⟦𝑒1⟧𝑉𝜌,𝑦∈⟦𝑒2⟧𝑉𝜌},⟦𝑒1⟧Ω𝜌∪⟦𝑒2⟧Ω𝜌⟩
+⟦𝑒1×𝑒2⟧𝜌≝⟨{𝑥×𝑦∣𝑥∈⟦𝑒1⟧𝑉𝜌,𝑦∈⟦𝑒2⟧𝑉𝜌},⟦𝑒1⟧Ω𝜌∪⟦𝑒2⟧Ω𝜌⟩
+⟦𝑒1∕𝑒2⟧𝜌≝⟨{truncate(𝑥∕𝑦)∣𝑥∈⟦𝑒1⟧𝑉𝜌,𝑦∈⟦𝑒2⟧𝑉𝜌,𝑦≠0},⟦𝑒1⟧Ω𝜌∪⟦𝑒2⟧Ω𝜌∪Ω1⟩
+withΩ1≝{{𝜔𝑑}
+if0∈⟦𝑒2⟧𝑉𝜌
+∅
+⟦𝑒1⋓𝑒2⟧𝜌≝⟨{𝑧∈ℤ||||||||𝑥∈⟦𝑒1⟧𝑉𝜌,𝑦∈⟦𝑒2⟧𝑉𝜌
+},⟦𝑒1⟧Ω𝜌∪⟦𝑒2⟧Ω𝜌⟩
+𝑥≤𝑧≤𝑦 ∨𝑦≤𝑧≤𝑥
+⟦𝑒 mod[𝑙,𝑢[⟧𝜌≝⟨{𝑥mod[𝑙,𝑢[∣𝑥∈⟦𝑒⟧𝑉𝜌},⟦𝑒⟧Ω𝜌⟩
+⟦ bound_check(𝑒,[𝑙,𝑢[)⟧𝜌≝⟨⟦𝑒⟧𝑉𝜌,⟦𝑒⟧Ω𝜌∪Ω1⟩ withΩ1≝{{𝜔𝑜}
+if⟦𝑒⟧𝑉𝜌⊈[𝑙,𝑢[
+∅
+while the second one is written⟦𝑒⟧Ω𝜌∈℘(Ω). These notations are used in the
+
+Fig. 6: Concrete semantics of expressions.
+
+otherwise
+
+otherwise
+
+inductive definition given in Fig. 6 and also until the rest of the paper.
+
+argument.
+
+the errors, but does not raise new ones. Finally, bound-checking propagates val-
+
+The evaluation of a variable raises no error, it only gives the value that is
+fetched from the memory state. The evaluation of an interval constant raises no
+error either. It provides an arbitrary value in the corresponding interval. Clas-
+sical arithmetic operators and modulo consist in applying the corresponding
+operations element-wise while propagating the errors potentially raised when
+evaluating their sub-expressions. Additionally, the result of every division be-
+tween two integers is truncated, that is rounded towards zero, while raising the
+
+error𝜔𝑑 when the denominator can take the value0. The convex join operator
+⋓ outputs any value between the potential values of its operands and propagates
+ues while raising the error𝜔𝑜 when they do not fit in the interval given as an
+It is worth to note that division by0 and overflows are handled differently:
+executions that perform divisions by0 are halted (they produce no memory
+𝒟 collects both sets of memory states and errors. Thus, it is defined as follows:
+It is equipped with the component-wise join⊔ and order⊑.
+The concrete semantics of a statement,⦃ stmt⦄∶𝒟→𝒟, maps each element
+of the semantics domain𝜌∈𝒟 to another one. For a given statement, it applies
+
+states), whereas those that cause overflows are continued without modifying the
+current value. It corresponds to user-defined semantics assumptions [1], which
+are more specific than C standard which assumes the result is non-deterministic.
+
+We now define the concrete semantics of statements. The semantics domain
+
+𝒟≝℘(ℰ)×℘(Ω).
+
+
+9
+
+Fig. 7: Concrete semantics of statements.
+
+the elements of the set given as an argument.
+
+Symbolic transformation of expressions in modular arithmetic
+
+⦃𝑋←𝑒⦄⟨𝑅0,Ω0⟩≝⟨∅,Ω0⟩⊔⨆
+𝜌∈𝑅0{⟨{𝜌[𝑋↦𝑣]},⟦𝑒⟧Ω𝜌⟩||||𝑣∈⟦𝑒⟧𝑉𝜌}
+⦃𝑒⋈0?⦄⟨𝑅0,Ω0⟩≝⟨∅,Ω0⟩⊔⨆
+𝜌∈𝑅0{⟨{𝜌},⟦𝑒⟧Ω𝜌⟩||||∃𝑣∈⟦𝑒⟧𝑉𝜌,𝑣⋈0}
+⦃𝑠1⨾𝑠2⦄≝⦃𝑠2⦄◦⦃𝑠1⦄
+⦃ if𝑒⋈0 then𝑠⨾ endif⦄⟨𝑅0,Ω0⟩≝(⦃𝑠⦄◦⦃𝑒⋈0?⦄)⟨𝑅0,Ω0⟩⊔⦃𝑒̸⋈0?⦄⟨𝑅0,Ω0⟩
+⦃ while𝑒⋈0 do𝑠⨾ done⦄⟨𝑅0,Ω0⟩≝⦃𝑒̸⋈0?⦄(⨆
+𝑛∈ℕ(⦃𝑠⦄◦⦃𝑒⋈0?⦄)𝑛⟨𝑅0,Ω0⟩)
+tial errors. It is defined by induction over the syntax in Fig. 7. The operator⨆
+refers to the iteration of the binary associative and commutative operator⊔ over
+expression𝑒∈ expr to a variable𝑋∈𝒱, is obtained by considering each potential
+𝜌[𝑋←𝑥] denotes the function equal to𝜌 on𝒱⧵{𝑋} and that maps𝑋 to𝑥. The
+
+memory state before the execution of the assignment and each potential value
+for the expression in that memory state ; for each combination, the memory
+state is updated by taking into account the potential value of the expression.
+
+the transformation over the possible memory states and accumulates the poten-
+
+Roughly speaking, the set of potential memory states, after assigning an
+
+evaluation of the expression can also yield errors, which are also collected. The
+semantics of the sequential composition of two statements is the composition of
+their semantics. Lastly, the semantics of conditional branching and loops rely on
+the handling of guarding conditions: the execution of the guard restricts the set
+of memory states to those that satisfy the corresponding condition. The potential
+errors raised when evaluating the expression are also collected. The semantics
+of conditional branching apply the semantics of the true branch on the result of
+the application of the guard, and join it to the result of the application of the
+negation of the guard. Lastly, the semantics of loops is obtained by unfolding
+the loop according to its number of iterations.
+
+4 Soundness requirements of expression rewriting
+
+by a set of error alarms. Rewriting an expression may rely on some conditions
+about the current state of the system. Additionally, it can simplify some parts
+of the initial expression, which could potentially raise some error alarms. The
+set of these error alarms are reported as side-conditions.
+
+We now introduce a rewriting order over expressions, noted≼, and parameterized
+Definition 3. The relation≼Ω1, withΩ1∈℘(Ω) a set of potential error alarms,
+⟨𝑅0,Ω0⟩⊨𝑒1≼Ω1𝑒2 ≝ ∀𝜌∈𝑅0,⟦𝑒1⟧𝑉𝜌⊆⟦𝑒2⟧𝑉𝜌 ∧⟦𝑒1⟧Ω𝜌⊆⟦𝑒2⟧Ω𝜌∪Ω1
+
+is defined as follows:
+
+
+with⟨𝑅0,Ω0⟩∈𝒟 a semantics element and𝑒1,𝑒2∈ expr two expressions.
+The definition of the rewriting relation≼Ω1 is based on the semantics of
+expressions. Given a semantics element⟨𝑅0,Ω0⟩∈𝒟, an expression𝑒1 can be
+rewritten in the expression𝑒2 if and only if, in every memory state𝜌∈𝑅0, the
+potential values of the expression𝑒1 are all potential values of the expression
+𝑒2. Yet, simplifications of the expression𝑒1 may hide error alarms, which are
+reported in the setΩ1.
+Example 3. We wonder whether the expression0cst× bound_check(𝑋,[0,28[)
+can be simplified into the expression0cst. It depends on the potential range of the
+variable𝑋. Let𝑅0 be a set of memory states. If, for every memory state𝜌∈𝑅0,
+we have𝜌(𝑋)∈[0,28[, then⟨𝑅0,∅⟩⊨0cst× bound_check(𝑋,[0,28[)≼∅0cst.
+Otherwise, we can prove that⟨𝑅0,∅⟩⊨0cst×bound_check(𝑋,[0,28[)≼{𝜔𝑜}0cst.
+Example 4. The expression((𝑋 mod[0,28[)+−(𝑌 mod[0,28[)) mod[0,28[
+can be rewritten as𝑋−𝑌 under some specific assumptions. Let𝑅0 be a set
+of memory states. If for every memory state𝜌∈𝑅0, we have𝜌(𝑋),𝜌(𝑌)∈
+[−27,27[ and𝜌(𝑋)−𝜌(𝑌)∈[0,28[, it follows that⟨𝑅0,∅⟩⊨((𝑋 mod[0,28[)+
+−(𝑌 mod[0,28[)) mod[0,28[≼∅𝑋+−𝑌. Indeed, either no cast wraps-around,
+Property 4. For every semantics element⟨𝑅0,Ω0⟩∈𝒟, expressions𝑒1,𝑒2,𝑒3∈
+expr, and sets of error alarmsΩ1,Ω′1 ∈℘(Ω), if⟨𝑅0,Ω0⟩⊨𝑒1 ≼Ω1 𝑒2 and
+⟨𝑅0,Ω0⟩⊨𝑒2≼Ω′1𝑒3, then⟨𝑅0,Ω0⟩⊨𝑒1≼Ω1∪Ω′1𝑒3.
+
+We can check that the rewriting order warns about the potential failure of the
+bound check, despite the fact that the expression that contains this bound check
+has been removed by simplifications.
+
+or exactly two among the three that appear in the expression. In the later case,
+they compensate each other.
+
+The following property states the transitivity of the rewriting relation.
+
+10
+
+J. Boillot, J. Feret.
+
+Transitivity is obtained by evaluating the expression with the same memory
+states and by collecting all the error alarms that may be hidden by the expres-
+sion rewritings.
+
+In statements, expressions can be rewritten. The following theorem states the
+soundness of the replacement of an expression by another one in assignments or
+guards. It would also be true for every statement of the language, yet we omit
+this result since it is not necessary to prove the soundness of our analysis.
+
+Theorem 1. For every semantics element⟨𝑅0,Ω0⟩∈𝒟, expressions𝑒,𝑒′∈
+expr, set of error alarmsΩ1∈℘(Ω), and variable𝑋∈𝒱 such that⟨𝑅0,Ω0⟩⊨
+𝑒≼Ω1𝑒′, we have:
+–⦃𝑉←𝑒⦄⟨𝑅0,Ω0⟩⊑⟨∅,Ω1⟩⊔(⦃𝑉←𝑒′⦄⟨𝑅0,Ω0⟩),
+–⦃𝑒⋈0?⦄⟨𝑅0,Ω0⟩⊑⟨∅,Ω1⟩⊔(⦃𝑒′⋈0?⦄⟨𝑅0,Ω0⟩).
+
+This way, when an expression is replaced by another one in an assignment or a
+guard, while following the rewriting order, all the possible memory states and
+error alarms are kept in the result. Note that the approximation may lead to the
+introduction of additional memory states or false-negative error alarms.
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+expr♯⩴ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖) ∀𝑖,𝑎𝑖∈ℤ
+| expr♯⊞ expr♯
+| expr♯⊠ expr♯
+| expr♯⧄ expr♯
+| expr♯⋓□ expr♯
+
+11
+
+Fig. 8: Syntax of abstract expressions.
+
+5 Abstract Representation of Expressions
+
+As far as it is possible to totally order their variables, linear expressions have a
+canonical representation. It is obtained by factorizing occurrences of each vari-
+able and ordering their terms increasingly, with respect to the order on the
+variables. We introduce in this section an abstract syntax for expressions, in
+which some linear expressions are described canonically. The main goal is to
+highlight the patterns that can be simplified symbolically.
+
+5.1 Abstract Syntax of Expression
+
+has to occur in the expression, would it be with a zero coefficient. This eases the
+definition of operations over linear forms. Constants are specific linear combina-
+
+The abstract syntax of expressions is given in Fig. 8. Apart from linear com-
+binations, abstract expressions are defined using the same operators as in the
+language syntax. For the sake of rigor, and to distinguish them from their con-
+crete counterparts, all the abstract operators are enclosed within a box.
+
+Linear combinations are written asℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+with𝑎0∈ℤ and
+∀𝑖,𝑎𝑖∈ℤ. In particular, we use the convention that every variable in the set𝒱
+tions, where all coefficients, except potentially the first one, are equal to0. We
+writeℒ□(𝛼) the constant whose first coefficient is equal to𝛼∈ℤ. The set of all
+such abstract expressions is denoted Const♯. A variable is a linear combination
+of which all the coefficients are fixed at0, except that of the variable, which is
+equal to1. It is denotedℒ□(𝑋). Lastly, variable differences are linear combina-
+tions of which all the coefficients are fixed to0, except for two variables. One of
+them has the coefficient1 and the other−1. The variable difference between𝑋
+and𝑌, two variables of𝒱, is writtenℒ□(𝑋−𝑌).
+Intervals are introduced by the means of the convex join operator⋓□. Lastly,
+of𝕄. Inner modulo computations are assumed to have been resolved, either by
+
+bound checks and modulo computations are not described. Indeed, bound checks
+are assumed to have been eliminated while reporting the potential error alarms.
+About modulo computations, abstract expressions are given with an evaluation
+context. This context takes the form of a modular ring specified by an element
+
+proving that they leave the value of the expression unchanged, or by replacing
+them conservatively by an interval.
+
+
+6 Generic Abstraction
+
+are mapped to the least upper bound of the semantics states which satisfy them
+
+to lift the execution of assignments and guards on properties. It also contains
+
+12
+
+J. Boillot, J. Feret.
+
+set expr.
+
+The translation of classical expressions into abstract ones is parametric, with re-
+spect to the choice of an abstract domain, to reason about semantics states. The
+
+The meaning of an abstract expression is defined thanks to a functiontoExpr
+which translates abstract expressions in the set expr♯ back to expressions in the
+Definition 4. The functiontoExpr∶ expr♯→ expr is defined inductively as
+follows:toExpr(ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖))≝𝑎0cst+(𝑎1cst𝑋1+(⋯+(𝑎𝑛cst𝑋𝑛)))
+toExpr(𝑒♯1⊞𝑒♯2)≝toExpr(𝑒♯1)+toExpr(𝑒♯2)
+toExpr(𝑒♯1⊠𝑒♯2)≝toExpr(𝑒♯1)×toExpr(𝑒♯2)
+toExpr(𝑒♯1⧄𝑒♯2)≝toExpr(𝑒♯1)∕toExpr(𝑒♯2)
+toExpr(𝑒♯1⋓□𝑒♯2)≝toExpr(𝑒♯1)⋓toExpr(𝑒♯2)
+abstract domain describes a set of properties about semantics states𝒟♯, which
+by a concretization function𝛾. It also contains a sound abstract counterpart to
+the join operator⊔ noted⊔♯, a primitivelfp♯ to approximate the increasing iter-
+ation of concrete operators, and two abstract transformers assign♯ and guard♯
+the primitives𝜄 and reduce. The primitive𝜄 extracts the range of abstract ex-
+⟨𝒟♯,𝛾,⊔♯,lfp♯, assign♯, guard♯,𝜄, reduce⟩, such that:
+5.1𝒟♯ is a set of properties,
+5.2𝛾∶𝒟♯→𝒟 is a concretization function that, given an abstract element𝑅♯,
+outputs all the memory states and error alarms that verify the property𝑅♯,
+5.3 for every two abstract elements𝑅♯,𝑆♯∈𝒟♯,𝛾(𝑅♯)⊔𝛾(𝑆♯)⊑𝛾(𝑅♯⊔♯𝑆♯),
+5.4 for every abstract element𝑅♯∈𝒟♯ and every abstract transformer𝔽♯∶
+𝒟♯→𝒟♯, lfp♯𝑅♯(𝔽♯) is an abstract element that satisfies⨆𝑛∈ℕ𝔽𝑛(⟨𝑅0,Ω0⟩)⊑
+𝛾(lfp♯𝑅♯(𝔽♯)) for every semantics element⟨𝑅0,Ω0⟩∈𝒟 and every⊔-complete
+morphism3𝔽∶𝒟→𝒟 such that:
+(i)⟨𝑅0,Ω0⟩⊑𝔽(⟨𝑅0,Ω0⟩),
+(ii)⟨𝑅0,Ω0⟩⊑𝛾(𝑅♯),
+3 that is to say𝔽(⨆𝑃)=⨆{𝔽(⟨𝑅0,Ω0⟩)∣⟨𝑅0,Ω0⟩∈𝑃} for every set𝑃⊆𝒟.
+
+pressions and reduce performs sound expression rewriting for all the memory
+states contained in the semantics state given as an argument.
+
+Definition 5. An abstract domain consists of a tuple comprising eight elements
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+13
+
+Fig. 9: Abstract semantics.
+
+⦃𝑋←𝑒⦄♯≝ assign♯(𝑋,𝐸)
+⦃𝑠1⨾𝑠2⦄♯≝⦃𝑠2⦄♯◦⦃𝑠1⦄♯
+⦃ if𝑒⋈0 then𝑠⨾ endif⦄♯𝑅♯≝((⦃𝑠⦄♯◦ guard♯(𝑒,⋈))𝑅♯)⊔ guard♯(𝑒,̸⋈)𝑅♯
+⦃ while𝑒⋈0 do𝑠⨾ done⦄♯𝑅♯≝ guard♯(𝑒,̸⋈)(lfp♯[𝑋♯↦𝑅♯⊔♯(⦃𝑠⦄♯◦ guard♯(𝑒,⋈))𝑋♯])
+(iii) for every abstract element𝑆♯∈𝒟♯,(𝔽◦𝛾)(𝑆♯)⊑(𝛾◦𝔽♯)(𝑆♯),
+5.5 for every variable𝑋∈𝒱, and every expression𝑒∈ expr, assign♯(𝑋,𝑒)∶
+𝐷♯→𝐷♯ is a function that satisfies(⦃𝑋←𝑒⦄◦𝛾)𝑅♯⊑(𝛾◦ assign♯(𝑋,𝑒))𝑅♯
+for every abstract element𝑅♯∈𝒟♯,
+5.6 for every comparison relation⋈∈{=,≠,<,≤,≥,>}, and every expression𝑒∈
+expr, guard♯(𝑒,⋈)∶𝐷♯→𝐷♯ is a function that satisfies(⦃𝑒⋈0?⦄◦𝛾)𝑅♯⊑
+(𝛾◦ guard♯(𝑒,⋈))𝑅♯ for every abstract element𝑅♯∈𝒟♯,
+5.7 for every expression𝑒∈ expr,𝜄(𝑒) :𝒟♯ →𝕀 is a function that satisfies
+⟦𝑒⟧𝑉𝜌⊆𝜄(𝑒)𝑅♯ for every abstract element𝑅♯∈𝒟♯ and for every memory
+state𝜌∈𝑅0 with⟨𝑅0,Ω0⟩=𝛾(𝑅♯) and𝕀≝{∅}∪{[𝑎,𝑏]∣𝑎∈{−∞}∪ℤ,𝑏∈
+𝑍∪{+∞},𝑎≤𝑏}, the set of intervals overℤ∪{−∞,+∞},
+5.8 for every abstract expression𝑒♯, reduce(𝑒♯)∶𝒟♯→ expr♯ is an abstract ex-
+pression transformer such that the rewriting relation𝛾(𝑅♯)⊨toExpr(𝑒♯)≼∅
+toExpr(reduce(𝑒♯)𝑅♯) holds for every abstract element𝑅♯.
+Thelfp♯ operator is usually described as an increasing iteration, followed by a
+The abstract semantics of a statement⦃ stmt⦄♯∶𝒟♯→𝒟♯ maps a prop-
+the abstract operatorlfp♯, we must ensure that the first argument is a sound
+(⦃𝑠⦄◦⦃𝑒⋈0?⦄) from the iteration, in the concrete semantics, by the function
+⟨𝑅0,Ω0⟩↦⟨𝑅0,Ω0⟩⊔(⦃𝑠⦄◦⦃𝑒⋈0?⦄)⟨𝑅0,Ω0⟩, where⟨𝑅0,Ω0⟩ is the semantics
+
+erty about semantics states, before applying the statement stmt, to the prop-
+erty that is satisfied after applying this statement. It is obtained by lifting the
+concrete semantics (e.g. see Fig. 7) in the abstract domain. Its definition is
+given in Fig. 9. Each concrete operation is replaced with its abstract counter-
+part. The abstraction of loops requires more explanations. In order to apply
+
+decreasing iteration. These are defined by the means of a base abstract element,
+a widening operator, and a narrowing operator [7]. We now assume that such an
+abstract domain has been chosen.
+
+approximation of a monotonic function, and that the second argument is an
+abstraction of a pre-fixpoint of this function. Hence, we replace the function
+
+state just before interpreting the loop. This does not change the result of the
+concrete iterations.
+
+We can now state the soundness of the abstract semantics.
+
+
+14
+
+J. Boillot, J. Feret.
+
+Theorem 2. Let⟨𝑅0,Ω0⟩∈𝒟 be a semantics state. Let𝑅♯∈𝒟♯ be an abstract
+state. Let𝑠∈ stmt be a statement. Then⟨𝑅0,Ω0⟩⊑𝛾(𝑅♯) ⟹ ⦃𝑠⦄⟨𝑅0,Ω0⟩⊑
+𝛾(⦃𝑠⦄♯𝑅♯).
+
+Thm. 2 states that the abstract semantics ignores no concrete behavior. Nev-
+
+ertheless, it may introduce fictitious ones due to the abstraction.
+
+(that are linear forms).
+
+nothing has to be done. When the abstract expression is a constant, the modulo
+computation can be directly applied on the constant. Lastly, if the value of the
+abstract expression ranges within the interval of the modulo, then the modulo
+computation can be safely discarded. In all other cases, no information can be
+
+This way, the opposite of a linear form is obtained by taking the opposite
+
+6.1 Primitives over abstract expressions
+We now introduce two primitives that operate over abstract expressions.
+
+Theopposite function pushes unary minus to the leafs of abstract expressions
+Definition 6. The functionopposite∶ expr♯→ expr♯ is defined inductively as
+follows: opposite(ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖))≝ℒ□(−𝑎0+∑𝑋𝑖∈𝒱(−𝑎𝑖)𝑋𝑖)
+opposite(𝑒♯1⊞𝑒♯2)≝opposite(𝑒♯1)⊞opposite(𝑒♯2)
+opposite(𝑒♯1⊠𝑒♯2)≝opposite(𝑒♯1)⊠𝑒♯2
+opposite(𝑒♯1⧄𝑒♯2)≝opposite(𝑒♯1)⧄𝑒♯2
+opposite(𝑒♯1⋓□𝑒♯2)≝opposite(𝑒♯1)⋓□opposite(𝑒♯2)
+of each coefficient. The functionopposite propagates over the sub-expressions
+of the⊞ and the⋓□ operators. Lastly, the opposite of a product or a quotient
+Definition 7. For any abstract expression𝑒♯∈ expr♯ and any modulo specifica-
+tion𝑚∈𝕄, the functionrmMod(𝑒,𝑚)∶𝒟♯→ expr♯ is defined as follows:
+if𝑚=ℤ,
+else if𝑒♯=ℒ□(𝛼) with𝛼∈ℤ,
+rmMod(𝑒♯,𝑚)𝑅♯≝
+else if𝜄(toExpr(𝑒♯))𝑅♯⊆𝑚,
+otherwise, with𝑚=[𝑙,𝑢[.
+In the previous definition, if the modulo specification is equal to the setℤ,
+
+We now introduce an operator to propagate a modulo computation over an
+abstract expression. Given an abstract expression and a modulo specification, it
+applies the modulo on the expression.
+
+between two sub-expressions is obtained by propagating it to only one of them
+(the first one has been chosen arbitrarily).
+
+𝑒♯
+ℒ□(𝛼mod𝑚)
+𝑒♯
+
+reduce(ℒ□(𝑙)⋓□ℒ□(𝑢−1))𝑅♯
+
+⎧⎪⎪⎨⎪⎪⎩
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+15
+
+Moreover, this rewrite does not hide any potential error alarms.
+
+Example 5. We give two examples of elimination of modulo computations. We
+
+ulo computation can be eliminated without modifying the abstract expression.
+
+case, the result of the modulo computation cannot be described precisely as
+an abstract expression. It is then soundly replaced by the abstract expression
+
+it is a parameter of our abstraction.
+
+kept about the expression. It is then replaced with the interval of the modular
+ring (or more precisely its reduction).
+
+The following theorem states that any abstract expression that is evaluated
+over a modular ring can be rewritten in the expression in which the modulo
+
+computation has been forced, that is to say the output of the functionrmMod.
+Theorem 3. For all abstract value𝑅♯∈𝒟♯, abstract expression𝑒♯∈ expr♯, and
+potential modular ring𝑚∈𝕄, the following property holds,
+𝛾(𝑅♯)⊨toExpr(𝑒♯) mod𝑚≼∅toExpr(rmMod(𝑒♯,𝑚)).
+compute the result of the abstract expressionℒ□(0) ⋓□ℒ□(25), that intuitively
+denotes the interval[0,25], respectively modulo[0,28[ and[10,26[. We as-
+sume that the primitive𝜄 provides the exact range of this expression, that
+is to say that𝜄(toExpr(ℒ□(0) ⋓□ ℒ□(25)))𝑅♯ = 𝜄(0cst⋓25cst) = [0,25]. Since
+the interval[0,25] is included in the interval[0,28[, the corresponding mod-
+We obtainrmMod(ℒ□(0) ⋓□ℒ□(25),[0,28[)𝑅♯=ℒ□(0) ⋓□ℒ□(25). In the second
+reduce(ℒ□(10)⋓□ℒ□(25))𝑅♯. We keep the primitive reduce uninterpreted, since
+pressions into abstract ones. Given an expression𝑒∈ expr, its translation⦅𝑒⦆∶
+𝒟♯→ expr♯×𝕄×℘(Ω) is a function that maps an abstract element𝑅♯ to a
+triple(𝑒♯,𝑚,Ω𝑒). Remember that abstract expressions do not have modulo oper-
+ators. However, the element𝑚∈𝕄 stands for a modulo computation to be ap-
+must be translated conservatively. This can be done thanks to thermMod opera-
+Ω𝑒. The translation is only valid for the semantics states satisfying the property
+𝑅♯ (i.e., for the states in𝛾(𝑅♯)). Thus, the abstract element𝑅♯ should be used
+The translation⦅𝑒⦆𝑅♯ of an expression𝑒, in the context of an abstract ele-
+ment𝑅♯, is defined inductively and by cases by the means of a set of inference
+cients are set to0, except the one corresponding to the variable which is set to1.
+
+6.2 Translation from Classical to Abstract Expressions
+We now have all the material needed to define the translation of classical ex-
+
+plied on the potential values of the abstract expression. This way, the outermost
+modulo computation can be kept precisely, whereas inner modulo computations
+
+tor, yet it may yield a loss of information. Bound checks also cannot be described
+in abstract expressions, so potential bound check failures are reported in the set
+
+to drive the translation process to get a more accurate result.
+
+rules.
+
+Variable. A variable is replaced by a linear combination where all the coeffi-
+
+
+rule.
+
+16
+
+J. Boillot, J. Feret.
+
+𝑋∈𝒱
+
+Such a replacement hides no error alarms, and the abstract expression obtained
+
+this way can be interpreted inℤ. This is formalized in the following inference
+Interval. An interval is encoded by the means of the convex join operator⋓□.
+result can be interpreted inℤ. This is formalized in the following inference rule.
+
+The bounds of the interval are given as operands (their order has been chosen
+arbitrarily). Then, the reduce operator is applied to potentially simplify the
+resulting abstract expression. This translation yields no potential errors and its
+
+⦅𝑋⦆𝑅♯≝(ℒ□(𝑋),ℤ,∅)
+
+Variable
+
+𝑎,𝑏∈ℤ
+
+𝑎≤𝑏
+
+⦅[𝑎,𝑏]⦆𝑅♯≝(reduce(ℒ□(𝑎)⋓□ℒ□(𝑏))𝑅♯,ℤ,∅)
+
+Interval
+
+Unary minus. The translation of an expression starting with a unary minus is
+defined inductively. First, the argument is translated, which provides an abstract
+expression, a modulo specification, and a set of potential errors. The primitive
+
+opposite is then applied to the abstract expression, which yields no additional
+inℤ, or in a modular ring.
+
+error alarms. Furthermore, when the abstract expression is evaluated over a
+modular ring, the ring is kept the same, but the elements of the potential modular
+interval are also negated.
+
+This is formalized in the two following inference rules, which distinguish two
+cases according to whether the translation of the argument can be interpreted
+
+OppositeNoMod
+
+(𝑒♯,ℤ,Ω𝑒)≝⦅𝑒⦆𝑅♯
+(𝑒♯,[𝑙,𝑢[,Ω𝑒)≝⦅𝑒⦆𝑅♯
+
+⦅−𝑒⦆𝑅♯≝(reduce(opposite(𝑒♯))𝑅♯,ℤ,Ω𝑒)
+⦅−𝑒⦆𝑅♯≝(reduce(opposite(𝑒♯))𝑅♯,[−𝑢+1,−𝑙+1[,Ω𝑒)
+
+OppositeMod
+
+Convex join. An expression of the form𝑒1⋓𝑒2 is translated thanks to its
+abstract counterpart⋓□. First, the sub-expressions are translated, which provides
+outermost modulo computations are conservatively suppressed using thermMod
+primitive before the results are passed to the ⋓□ abstract operator. The final
+interpreted inℤ. No additional potential errors are collected. This is formalized
+
+result may be simplified by the means of the reduce operator before being
+
+abstract expressions, modulo specifications, and sets of potential errors. The
+
+in the following inference rule.
+
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑒′♯1≝rmMod(𝑒♯1,𝑚1)𝑅♯
+𝑒′♯2≝rmMod(𝑒♯2,𝑚2)𝑅♯
+⦅𝑒1⋓𝑒2⦆𝑅♯≝(reduce(𝑒′♯1 ⋓□𝑒′♯2)𝑅♯,ℤ,Ω1∪Ω2)
+
+ConvexJoin
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+17
+
+Addition. According to the result of the translation of its arguments, more or
+less precise inference rules can be used to translate a sum of two expressions.
+
+result in loss of information. The resulting abstract expression can be potentially
+simplified by the means of the reduce parametric operator.
+
+In all cases, the computation yields no additional error alarms. This is formal-
+
+take advantage of the algebraic simplifications of our abstract domain and rewrite
+e1 == e2 into e1 - e2 == 0. We then need a rule that simplifies addition of
+
+Whenever both operands are translated into constants, whether they need
+to be respectively interpreted in modular rings or not, the potential application
+of the modulo operations can be directly applied on the constant values. The
+
+a constant, and the other one must be interpreted in modular arithmetic, the
+potential modulo operator of the constant expression can be directly applied.
+Then, the result is added to the other abstract expression and to the bounds
+of its modular ring. The resulting abstract expression may be simplified by the
+means of the reduce operator. In the context of real programming languages,
+
+result can be interpreted inℤ. Whenever exactly one operand is translated into
+branching is generally not limited to comparisons to0. Then, we would like to
+abstract expressions interpreted in the same modular ring that sum toℒ□(0).
+In such a case, the result isℒ□(0) and can be interpreted inℤ. Otherwise, the
+operatorrmMod is used to remove modulo operators in both translations of the
+arguments. It yields abstract expressions which can be interpreted inℤ, but may
+ized in the following four inference rules (we recall that by convention𝛼modℤ
+is equal to𝛼 for every integer𝛼∈ℤ).
+𝛼1∈ℤ∶(ℒ□(𝛼1),𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝛼2∈ℤ∶(ℒ□(𝛼2),𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+⦅𝑒1+𝑒2⦆𝑅♯≝(ℒ□(𝛼1mod𝑚1+𝛼2mod𝑚2),ℤ,Ω𝑖∪Ω𝑗)
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚𝑖,Ω𝑖)≝⦅𝑒𝑖⦆𝑅♯
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+(𝑒♯𝑗,[𝑙𝑗,𝑢𝑗[,Ω𝑗)≝⦅𝑒𝑗⦆𝑅♯
+𝑒♯𝑗∉ Const♯
+𝛼′≝𝛼mod𝑚𝑖
+⦅𝑒1+𝑒2⦆𝑅♯≝(reduce(ℒ□(𝛼′)⊞𝑒♯𝑗)𝑅♯,[𝑙𝑗+𝛼′,𝑢𝑗+𝛼′[,Ω𝑖∪Ω𝑗)
+(𝑒♯1,[𝑙1,𝑢1[,Ω1)≝⦅𝑒1⦆𝑅♯
+(𝑒♯2,[𝑙2,𝑢2[,Ω2)≝⦅𝑒2⦆𝑅♯
+reduce(𝑒♯1⊞𝑒♯2)𝑅♯=ℒ□(0)
+𝑒♯2∉ Const♯
+𝑒♯1∉ Const♯
+𝑙2=−𝑢1+1
+𝑢2=−𝑙1+1
+⦅𝑒1+𝑒2⦆𝑅♯≝(ℒ□(0),ℤ,Ω1∪Ω2)
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑒′♯2≝rmMod(𝑒♯2,𝑚2)𝑅♯
+𝑒′♯1≝rmMod(𝑒♯1,𝑚1)𝑅♯
+⦅𝑒1+𝑒2⦆𝑅♯≝(reduce(𝑒′♯1⊞𝑒′♯2)𝑅♯,ℤ,Ω1∪Ω2)
+
+neither the rule Plus2Const nor PlusConst nor PlusEqZero can be applied
+
+into an abstract expression interpreted inℤ, then applying thermMod operator
+
+Note that in case one argument is translated into a constant and the other one
+
+produces no loss of information. Thus, the rule PlusNoMod is enough.
+
+Plus2Const
+
+PlusConst
+
+PlusEqZero
+
+PlusNoMod
+
+
+18
+
+J. Boillot, J. Feret.
+
+Multiplication. The translation of a multiplication between two expressions
+works similarly.
+
+In the case both operands are translated into constants, the potential appli-
+cation of the modulo operation can be directly applied on the constant values.
+
+The result can then be interpreted inℤ. Whenever exactly one operand is trans-
+constant is positive, zero, or negative. In all other cases, thermMod operator
+
+lated into a constant and the other abstract expression must be interpreted in
+modular arithmetic, the potential modulo operator of the constant expression
+can be directly applied on the constant value. The resulting abstract expres-
+sion is multiplied by the constant and then potentially simplified by the reduce
+operator. The update of the modular interval depends on the sign of the con-
+stant, which splits the inference rule into three ones, depending on whether the
+
+is used to suppress the modulo computations in both arguments translations.
+Once again, the resulting abstract expression can be potentially simplified by
+the means of the reduce parametric operator.
+
+In all cases, the computation yields no additional error alarms. This is for-
+
+malized in the following five inference rules.
+
+MultZeroConst
+
+MultNegConst
+
+MultNoMod
+
+Mult2Const
+
+MultPosConst
+
+𝛼1∈ℤ∶(ℒ□(𝛼1),𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝛼2∈ℤ∶(ℒ□(𝛼2),𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+
+𝛼′≝𝛼mod𝑚𝑖
+
+⦅𝑒1×𝑒2⦆𝑅♯≝(ℒ□((𝛼1mod𝑚1)×(𝛼2mod𝑚2)),ℤ,Ω𝑖∪Ω𝑗)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+(𝑒♯𝑗,[𝑙𝑗,𝑢𝑗[,Ω𝑗)≝⦅𝑒𝑗⦆𝑅♯
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚𝑖,Ω𝑖)≝⦅𝑒𝑖⦆𝑅♯
+𝛼′>0
+𝑒♯𝑗∉ Const♯
+⦅𝑒1×𝑒2⦆𝑅♯≝(reduce(𝑒♯𝑗⊠ℒ□(𝛼′))𝑅♯,[𝑙𝑗×𝛼′,𝑢𝑗×𝛼′[,Ω𝑖∪Ω𝑗)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+(𝑒♯𝑗,𝑚𝑗,Ω𝑗)≝⦅𝑒𝑗⦆𝑅♯
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚𝑖,Ω𝑖)≝⦅𝑒𝑖⦆𝑅♯
+𝛼′≝𝛼mod𝑚𝑖
+𝑒♯𝑗∉ Const♯
+𝛼′=0
+⦅𝑒1×𝑒2⦆𝑅♯≝(ℒ□(0),ℤ,Ω𝑖∪Ω𝑗)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+(𝑒♯𝑗,[𝑙𝑗,𝑢𝑗[,Ω𝑗)≝⦅𝑒𝑗⦆𝑅♯
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚𝑖,Ω𝑖)≝⦅𝑒𝑖⦆𝑅♯
+𝛼′≝𝛼mod𝑚𝑖
+𝑒♯𝑗∉ Const♯
+𝛼′<0
+⦅𝑒1×𝑒2⦆𝑅♯≝(reduce(𝑒♯𝑗⊠ℒ□(𝛼′))𝑅♯,[𝑢𝑗𝛼′+1,𝑙𝑗𝛼′+1[,Ω𝑖∪Ω𝑗)
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑒′♯1≝rmMod(𝑒♯1,𝑚1)𝑅♯
+𝑒′♯2≝rmMod(𝑒♯2,𝑚2)𝑅♯
+⦅𝑒1×𝑒2⦆𝑅♯≝(reduce(𝑒′♯1⊠𝑒′♯2)𝑅♯,ℤ,Ω1∪Ω2)
+
+nor MultZeroConst nor MultNegConst can be applied
+
+neither the rule Mult2Const nor MultPosConst
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+19
+
+operator is used to suppress the modulo computations in both translations of
+
+possible loss of information. The resulting abstract expression can be potentially
+simplified by the means of the reduce parametric operator. Such computation
+
+two inference rules are provided, depending on the sign of both the denominator
+and the elements of the modulo interval. In such a case, the abstract expression
+
+translation of its operands, thanks to the reduce primitive. This expression can
+be evaluated in modular arithmetic: the resulting modular ring is obtained by
+dividing by the constant both bounds of the modular ring of the numerator (or
+
+Division. Propagating modular computations across divisions is quite tricky.
+Indeed, it can be done precisely only when the following conditions are met.
+First, the numerator has to be positive. We then consider the modulo interval
+of the numerator. The denominator has to be a nonzero constant that divides
+both bounds of this interval (or the bounds of the interval that contains the
+opposite values when the constant is negative). In addition, this interval must
+
+not include both negative (i.e.,<0) and positive (i.e.,>0) values. That is why
+is obtained by reducing the result of the application of the⧄ operator to the
+its opposite when the constant is negative). Because the constant is not0, the
+computation does not yield additional error alarms. In all other cases, thermMod
+its arguments, and its result can be directly interpreted inℤ, at the cost of a
+also has to collect the potential error alarm𝜔𝑑 when the primitive𝜄 is unable to
+prove that the value of the denominator cannot be0.
+𝛼′∈ℤ∶(𝑒♯1,[𝛼′𝑙1,𝛼′𝑢1[,Ω1)≝⦅𝑒1⦆𝑅♯
+𝛼′≝𝛼mod𝑚2
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑙1≥0
+𝛼′>0
+𝜄(toExpr(𝑒♯1))𝑅♯⊆[0,+∞[
+⦅𝑒1∕𝑒2⦆𝑅♯≝(reduce(𝑒♯1⧄ℒ□(𝛼′))𝑅♯,[𝑙1,𝑢1[,Ω1∪Ω2)
+𝛼′∈ℤ∶(𝑒♯1,[𝛼′(𝑢1−1),𝛼′(𝑙1−1)[,Ω1)≝⦅𝑒1⦆𝑅♯
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝛼′≝𝛼mod𝑚2
+𝑢1≤1
+𝜄(toExpr(𝑒♯1))𝑅♯⊆[0,+∞[
+𝛼′<0
+⦅𝑒1∕𝑒2⦆𝑅♯≝(reduce(𝑒♯1⧄ℒ□(𝛼′))𝑅♯,[𝑙1,𝑢1[,Ω1∪Ω2)
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝑒′♯1≝rmMod(𝑒′1,𝑚1)𝑅♯
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+Ω3≝{{𝜔𝑑}
+if0∈𝜄(toExpr(𝑒′♯2))𝑅♯
+𝑒′♯2≝rmMod(𝑒′2,𝑚2)𝑅♯
+∅
+⦅𝑒1∕𝑒2⦆𝑅♯≝(reduce(𝑒′♯1⧄𝑒′♯2)𝑅♯,ℤ,Ω1∪Ω2∪Ω3)
+
+neither the rule DivPosConst nor DivNegConst can be applied
+
+otherwise
+
+DivNoMod
+
+Bound check. Bound check expressions may warn about potential overflows
+and underflows. First, the expression in the argument of the bound check is
+translated. Then, if its potential values can be proven to be necessarily within the
+
+This is formalized in the following three inference rules.
+
+DivPosConst
+
+DivNegConst
+
+
+20
+
+J. Boillot, J. Feret.
+
+bounds checked, no additional alarm has to be collected. Otherwise, a potential
+
+error𝜔𝑜 is collected.
+additional alarm to record. Otherwise, the primitivermMod is used to eliminate
+the outermost modulo applied to the abstract expression. Then, the𝜄 primitive is
+
+Different methods can be used to compute the range of possible values of
+the translated expression. Whenever the interval of the outermost modulo of
+the inner expression is included in the interval of the bound check, there is no
+
+used to collect the range of the result. This range is checked against the bounds
+of the bound check.
+
+This is formalized in the following two inference rules.
+
+BoundCheckMod
+
+𝑚⊆[𝑙,𝑢[
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+⦅ bound_check(𝑒,[𝑙,𝑢[)⦆𝑅♯≝(𝑒♯,𝑚,Ω𝑒)
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+𝑚⊈[𝑙,𝑢[
+Ω1≝{{𝜔𝑜}
+if𝜄(toExpr(rmMod(𝑒♯,𝑚)𝑅♯))𝑅♯⊈[𝑙,𝑢[
+∅
+⦅ bound_check(𝑒,[𝑙,𝑢[)⦆𝑅♯≝(𝑒♯,𝑚,Ω𝑒∪Ω1)
+
+otherwise
+
+BoundCheckNoMod
+
+computation in expressions of the form𝑒 mod[𝑙,𝑢[ into the sub-expression𝑒.
+
+Modulo. The latest inference rules aim to propagate the outermost modulo
+
+The premises of these conditions are not mutually exclusive. They are displayed
+according to their levels of priority. That is, only the first inference rule that can
+be applied is applied. In all following rules, any alarms encountered during the
+translation of sub-expressions are propagated, but no extra alarms are forwarded.
+We begin with the case of a sum of two expressions such that the modulo
+specifications of the two abstract translations of the operands are compatible
+with the outermost modulo computation of the main expression. This compati-
+
+bility is checked thanks to the notion of𝑘-splittability. If they are compatible, the
+
+modulo specifications of the translations of both sub-expressions are discarded.
+Then, the abstract counterpart of the sum is used. Lastly, the resulting abstract
+expression is simplified by the means of the reduce parametric operator. This
+is formalized in the following inference rule.
+
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝑚1∈𝕊(𝑢3−𝑙3)
+
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑚2∈𝕊(𝑢3−𝑙3)
+⦅(𝑒1+𝑒2) mod[𝑙3,𝑢3[⦆𝑅♯≝(reduce(𝑒♯1⊞𝑒♯2)𝑅♯,[𝑙3,𝑢3[,Ω1∪Ω2)
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑚2∈𝕊(𝑢3−𝑙3)
+⦅(𝑒1×𝑒2) mod[𝑙3,𝑢3[⦆𝑅♯≝(reduce(𝑒♯1⊠𝑒♯2)𝑅♯,[𝑙3,𝑢3[,Ω1∪Ω2)
+
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝑚1∈𝕊(𝑢3−𝑙3)
+
+ModPlusExpr
+
+ModMultExpr
+
+The case of a product between two sub-expressions works exactly the same
+
+way. This is formalized in the following inference rule.
+
+
+21
+
+Symbolic transformation of expressions in modular arithmetic
+
+For any other expression, or when the modulo computations are not com-
+
+patible, the sub-expression𝑒 of the modulo computation is translated, which
+provides the specifications of a potential inner modulo computation𝑚. Then,
+the application of the modulo𝑚 is followed by the application of the initial
+modulo[𝑙,𝑢[. We now introduce three cases, according to specific properties of
+𝑚 and[𝑙,𝑢[ to simplify these modulo computations.
+of𝑘-splittability. This is formalized in the following inference rule.
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+𝑚∈𝕊(𝑢−𝑙)
+⦅𝑒 mod[𝑙,𝑢[⦆𝑅♯≝(𝑒♯,[𝑙,𝑢[,Ω𝑒)
+
+As seen in Prop.1, when one modulo computation follows another, the inner
+one can be discarded provided that the outer one is compatible with it. The com-
+patibility between those modulo computations is checked thanks to the notion
+
+ModIdentity
+
+As seen in Prop. 3, in some cases, the outermost modulo interval is large
+enough and compatible with the modular ring of the translated sub-expression.
+This happens when elements of the second interval are only translated when
+applying the modulo on the first interval. In such a case, we return the sub-
+expression without forgetting to translate the bounds of its modular ring. We
+can then discard the outermost modulo of the main expression. This is formalized
+in the following inference rule.
+
+When no other rules can be applied the primitivermMod is used to eliminate
+
+⦅𝑒 mod[𝑙,𝑢[⦆𝑅♯≝(𝑒♯,[𝛼,𝛼+𝑢′−𝑙′[,Ω𝑒)
+
+ModTranslation
+
+the modulo specifications from the translated sub-expression, and the result
+is returned along the outermost modulo from the main expression as modular
+specifications. This is formalized in the following inference rule.
+
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+
+⦅𝑒 mod[𝑙,𝑢[⦆𝑅♯≝(rmMod(𝑒♯,𝑚)𝑅♯,[𝑙,𝑢[,Ω𝑒)
+
+𝛼≝𝑙′mod[𝑙,𝑢[
+
+(𝑒♯,[𝑙′,𝑢′[,Ω𝑒)≝⦅𝑒⦆𝑅♯
+𝛼+𝑢′−𝑙′≤𝑢
+
+(𝑢′−𝑙′)|(𝛼−𝑙′)
+
+ModIdentityNoMod
+
+The following theorem states that the evaluation of a translated expression
+keeps all the possible values of the evaluation of the original expression. More-
+over, the set of potential error alarms returned by the translation contains at
+least all the potential error alarms of the evaluation of the original expression.
+This is a stronger statement than the one needed to rewrite expressions, that
+corresponds to the corollary below, because the error alarms that may be yield
+by the evaluation of the abstract expression are discarded.
+
+Theorem 4. For all abstract element𝑅♯ and every expression𝑒∈ expr, with
+⟨𝑅0,Ω0⟩≝𝛾(𝑅♯) and(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯, then
+∀𝜌∈𝑅0,⟦𝑒⟧Ω𝜌⊆Ω𝑒 ∧ ⟦𝑒⟧𝑉𝜌⊆{⟦toExpr(𝑒♯)⟧𝑉𝜌
+if𝑚=ℤ,
+⟦toExpr(𝑒♯) mod[𝑙,𝑢[⟧𝑉𝜌 if𝑚=[𝑙,𝑢[.
+By abuse of notation, we allow the syntactic sugar𝑒 modℤ that represents𝑒.
+
+
+22
+
+J. Boillot, J. Feret.
+
+property holds:
+
+The soundness of these rewritings comes from Theorems. 1 and 3, as well as
+
+Corollary. 1.
+
+⟨𝑅0,Ω0⟩⊨𝑒≼Ω𝑒toExpr(𝑒♯) mod𝑚.
+
+6.3 Integration with a Numerical Abstract Domain
+We introduce a new numerical abstract domain with expression abstraction,
+
+Corollary 1 (of theorem 4). For all abstract element𝑅♯ and expression𝑒∈
+expr, with⟨𝑅0,Ω0⟩≝𝛾(𝑅♯), and(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯, the following rewriting
+noted𝒟♯ℒ, that is identical to𝒟♯ except for the assignment and guard statements.
+For any expression𝑒∈ expr and any abstract element𝑅♯∈𝒟♯, let us denote
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯. Then,
+assign♯ℒ(𝑋,𝑒)𝑅♯≝⟨∅,Ω𝑒⟩⊔ assign♯(𝑋,toExpr(rmMod(𝑒♯,𝑚)𝑅♯))𝑅♯
+guard♯ℒ(𝑒,⋈)𝑅♯≝⟨∅,Ω𝑒⟩⊔ guard♯(toExpr(rmMod(𝑒♯,𝑚)𝑅♯),⋈)𝑅♯
+In this section, we provide more explicit definitions for the𝜄 and reduce prim-
+During the expression abstraction, the𝜄 primitive is used multiple times, either
+by intervals overℤ as presented in [4]. However, this method lacks the ability to
+to check that𝑋≥𝑌 holds. Thus, a domain able to represent the range of vari-
+abstract domain [20] that handles inequalities of the form±𝑋±𝑌≤𝑐 with𝑋,𝑌
+variables and𝑐 a constant, or the polyhedron abstract domain [8] that keeps
+
+ables and the inequalities between pairs of variable, as the pentagon domain [17],
+is enough for our current study cases. However, it would be possible to use more
+precise abstract domains such as the difference bound matrices domain [19] that
+detects upper-bounds of the difference between pairs of variables, the octagon
+
+represent relations between variables, which can be necessary to simplify modulo
+computations. For instance, in the program example introduced at the beginning
+of the paper Fig. 1, in order to suppress the modulo computations it is necessary
+
+to verify that modulo computations and bound checks can be safely suppressed,
+or to check that simplifications can be performed, as in the DivPosConst in-
+ference rule. Thus, it appears that the more this primitive is precise, the more
+translations of expression will be precise.
+
+A first possibility would be to represent the possible values of every expression
+
+trace of linear inequality properties. Although using relational domains might
+be costly, it is possible to limit it by restraining the number of variables involved
+in the numerical constraints by a method named packing [2].
+
+7
+
+Instantiation of the generic framework
+
+itives of our parametric abstraction. The other components are supposed to be
+defined in an underlying domain.
+
+7.1 Intervalization
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+23
+
+7.2 Simplification of abstract expressions
+
+heuristic which attempts to simplify abstract expressions without concealing
+potential error alarms. The purpose of this function is to achieve maximum
+expression canonization by using linear forms whenever possible.
+
+We now introduce a reduce implementation, denoted as reduce0, that is a
+The reduction reduce0(𝑒♯)𝑅♯ of an abstract expression𝑒♯, in the context of
+an abstract element𝑅♯, is defined inductively and by cases, by the means of
+Addition. Whenℒ□(0) (that is the translation of0cst) is summed with another
+0cst is a neutral element of(expr,+). Also, when linear forms are summed, we
+
+a set of inference rules. Their premises are mutually exclusive, except for the
+NoReduce rule that is used only when no other rule can be applied.
+
+abstract expression, the latter abstract expression is returned. This is because
+
+return the canonical linear form of their sum. Lastly, when a linear form is added
+to a convex join expression, the addition is distributed over the operands of the
+convex join. In such case, it is possible to reduce both the new additions and
+the resulting abstract expression in order to simplify them. Those behaviors are
+formalized in the three following inference rules. If neither of the three can be
+applied, no reduction is performed.
+
+PlusZero
+
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+𝑒♯𝑖=ℒ□(0)
+reduce0(𝑒♯1⊞𝑒♯2)𝑅♯≝𝑒♯𝑗
+𝑒♯1=ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+𝑒♯1≠ℒ□(0)
+𝑒♯2=ℒ□(𝑏0+∑𝑋𝑖∈𝒱𝑏𝑖𝑋𝑖)
+𝑒♯2≠ℒ□(0)
+reduce0(𝑒♯1⊞𝑒♯2)𝑅♯≝ℒ□((𝑎0+𝑏0)+∑𝑋𝑖∈𝒱(𝑎𝑖+𝑏𝑖)𝑋𝑖)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+𝑒♯𝑗=ℒ□(𝛼0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+𝑒♯𝑗≠ℒ□(0)
+𝑒♯𝑖=𝑒♯𝑖,1⋓□𝑒♯𝑖,2
+𝑒′♯1≝ reduce0(𝑒♯𝑖,1⊞𝑒♯𝑗)𝑅♯
+𝑒′♯2≝ reduce0(𝑒♯𝑖,2⊞𝑒♯𝑗)𝑅♯
+reduce0(𝑒♯1⊞𝑒♯2)𝑅♯≝ reduce0(𝑒′♯1 ⋓□𝑒′♯2)𝑅♯
+
+PlusLinearForms
+
+PlusConvexJoin
+
+Multiplication. Multiplying a linear form by a constant is the same thing as
+multiplying the linear form component-wise to its coefficients. One could think
+this reduction could hide potential errors when the multiplication is performed
+
+with0. However, this is not possible because evaluation of linear forms does not
+
+trigger errors. Also, when a linear form is multiplied by a convex join expression,
+the multiplication is distributed over the operands of the convex join. In such
+case, it is possible to reduce both the new products and the resulting abstract
+expression in order to simplify them. Those reductions are formalized in the two
+
+
+24
+
+J. Boillot, J. Feret.
+
+following inference rules. If neither of the two can be applied, no reduction is
+performed.
+
+𝑒♯𝑖=ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+𝑒♯𝑗=ℒ□(𝑏0)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+reduce0(𝑒♯1⊠𝑒♯2)𝑅♯≝ℒ□((𝑎0×𝑏0)+∑𝑋𝑖∈𝒱(𝑎𝑖×𝑏0)𝑋𝑖)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+𝑒♯𝑗=ℒ□(𝛼0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+𝑒♯𝑖=𝑒♯𝑖,1⋓□𝑒♯𝑖,2
+𝑒′♯1≝ reduce0(𝑒♯𝑖,1⊠𝑒♯𝑗)𝑅♯
+𝑒′♯2≝ reduce0(𝑒♯𝑖,2⊠𝑒♯𝑗)𝑅♯
+reduce0(𝑒♯1⊠𝑒♯2)𝑅♯≝ reduce0(𝑒′♯1 ⋓□𝑒′♯2)𝑅♯
+
+MultConst
+
+MultConvexJoin
+
+Division. The only rule introduced for specific reduction of abstract division
+expressions is the division of a linear form by a nonzero constant that divides all
+the coefficients of the linear form. In such a case, the resulting linear form is the
+original one divided component-wise by the coefficient. Like for the reduction
+rules of multiplication expressions, no errors can be hidden during this process
+because evaluation of linear forms does not trigger errors. If it cannot be applied,
+no reduction is performed.
+
+𝑒♯2=ℒ□(𝑏0)
+
+𝑒♯1=ℒ□((𝑎0×𝑏0)+∑𝑋𝑖∈𝒱(𝑎𝑖×𝑏0)𝑋𝑖)
+
+𝑏≠0
+reduce0(𝑒♯1⧄𝑒♯2)𝑅♯≝ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+
+DivConst
+
+Convex Join. The convex join operator abstracts an idempotent, associative,
+and commutative operator. This can be exploited in the three following rules. If
+none of the three can be applied, no reduction is performed.
+
+ConvexJoinIdem1
+
+𝑒♯1=𝑒♯2
+reduce0(𝑒♯1⋓□𝑒♯2)𝑅♯≝𝑒♯1
+𝑒♯𝑖=𝑒♯𝑖,1⋓□𝑒♯𝑖,2
+reduce0(𝑒♯1⋓□𝑒♯2)𝑅♯≝𝑒♯𝑖
+𝑒♯1=𝑒♯1,1⋓□𝑒♯1,2
+
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+𝑒♯𝑗=𝑒♯𝑖,1∨𝑒♯𝑗=𝑒♯𝑖,2
+𝑒♯1≠𝑒♯2
+𝑒♯2=𝑒♯2,1⋓□𝑒♯2,2
+𝑒♯1,𝑖=𝑒♯2,1∨𝑒♯1,𝑖=𝑒♯2,2
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+reduce0(𝑒♯1⋓□𝑒♯2)𝑅♯≝ reduce0(𝑒♯1,𝑗⋓□𝑒♯2)𝑅♯
+
+ConvexJoinIdem2
+
+ConvexJoinIdem3
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+25
+
+1
+2
+3
+4
+5
+6
+
+unsigned int x, a;
+int16_t b;
+if (a <= x && x-a <= 256 && b >= 0) {
+
+int16_t r = ((x - a) * b) >> 8;
+assert(0 <= r && r <= b);
+
+}
+
+1
+2
+3
+4
+5
+6
+7
+8
+
+if𝑋+−𝐴≥0 then
+if𝑋+−𝐴≤28 then
+if𝐵≥0 then
+𝑅←((𝑋+−𝐴)×𝐵)∕28⨾
+//0≤𝑅≤𝐵
+
+endif
+
+endif
+
+endif
+
+(a) C language
+Fig. 10: Second example of linear interpolation computation.
+
+(b) Article’s language (simplified)
+
+Default rule. As described earlier, if no other reduction rule can be applied, the
+abstract expression is returned unmodified. This is formalized in the following
+inference rule that has no premises.
+
+NoReduce
+
+The soundness of the reduction rules of reduce0 is stated in the following
+Theorem 5. The reduce0 operator we introduced is a reduce operator as de-
+
+theorem.
+
+reduce0(𝑒♯)𝑅♯≝𝑒♯
+
+scribed in Def. 5.8.
+
+7.3 Linear Interpolation
+
+One advantage of handling abstract expressions in the reduce function is that
+they are potentially simpler than the original expressions (e.g., without modulo
+computations). Moreover, this function is applied during several stages of the
+reduction. Thus, it is possible to introduce new reduction rules that try to match
+patterns in order to simplify the matched abstract expressions.
+
+We illustrate this method with the interpolation detection step that aims at
+finding and simplifying linear interpolation patterns. This step consists in the
+
+product of a linear formℒ□(𝑋−𝐴) and an abstract expression𝑒♯𝑧, quotient by a
+introduction of two new inference rules in reduce0. The first one matches a
+linear formℒ□(𝐵−𝐴) with𝐴,𝐵,𝑋∈𝒱. It claims the quotient can be reduced
+toℒ□(0)⋓□𝑒♯𝑧 (or more precisely its reduction) when the denominator is nonzero
+and𝑋 is between𝐴 and𝐵. This is the rule that can be used in the program
+Under the condition that𝑋−𝐴 is between0 and𝑘𝑑, with𝑘 the maximum nonzero
+integer that verifies the property (that exists becauseℕ∗ is well-founded), the
+reduction rule returnsℒ□(0)⋓□(𝑒♯𝑧⊠ℒ□(𝑘)) (modulo two reductions). This rule
+can, for example, be used to prove that, in Fig. 10,0≤𝑅≤𝐵 holds if𝑅
+
+example given at the beginning of the paper in Fig. 3. The second inductive rule
+introduced is quite similar, but the denominator is a strictly positive constant.
+
+is assigned. If these induction rules cannot be applied, the usual default rule
+NoReduce is used.
+
+
+26
+
+J. Boillot, J. Feret.
+
+𝑦,𝑧∈{1,2}∶𝑦≠𝑧
+𝜄(𝐵−𝐴)𝑅♯⊆[1,+∞[
+𝑋,𝐴,𝐵∈𝒱
+𝑒♯𝑦≝ℒ□(𝑋−𝐴)
+𝜄(𝐵−𝑋)𝑅♯⊆[0,+∞[
+𝜄(𝑋−𝐴)𝑅♯⊆[0,+∞[
+reduce0((𝑒♯1⊠𝑒♯2)⧄ℒ□(𝐵−𝐴))𝑅♯≝ reduce0(ℒ□(0)⋓□𝑒♯𝑧)𝑅♯
+𝑦,𝑧∈{1,2}∶𝑦≠𝑧
+𝑋,𝐴∈𝒱
+𝑑∈ℕ∗
+𝑘≝min{𝑘∈ℕ∗∣𝜄(𝑋−𝐴)𝑅♯⊆[0,𝑘𝑑]}
+𝑒♯𝑦=ℒ□(𝑋−𝐴)
+𝑒′♯𝑧 ≝ reduce0(𝑒♯𝑧⊠ℒ□(𝑘))𝑅♯
+reduce0((𝑒♯1⊠𝑒♯2)⧄ℒ□(𝑑))𝑅♯≝ reduce0(ℒ□(0)⋓□𝑒′♯𝑧)𝑅♯
+
+Interp1
+
+Interp2
+
+In this section, we have introduced a reduction heuristic over abstract ex-
+pressions. We have then presented that we can take advantage of the simplified
+form of the abstract expressions to recognize patterns, such as linear interpola-
+tions. Even if they allow some flexibility (e.g., commutation of the operands in
+multiplications), the capability to recognize all linear interpolations can cause
+the number of rules to explode. It can then be interesting to memoize the result
+of pattern recognition so that further iterations would explore fewer cases.
+
+Implementation presentation
+
+8
+All the methods we have described have been implemented in the Astrée [1,2]
+static analyzer but also in an extra toy abstract interpreter of C code [3] we
+submitted along this article to emphasize our work. Some implementation details
+and results of our artifact are detailed in this section.
+
+The approach we have presented in this paper is sensitive to program trans-
+formations, and particularly to the usage of temporary variables, as in Fig. 2
+In the implementations we also use adopted the Symbolic Constant Propagation
+methods [21] to eliminate them by propagating and simplifying the expressions
+assigned to them. A strategy has to be provided to the symbolic constant prop-
+agation domain to decide which variable substitute by its expression. The one
+we currently use consists in propagating the expressions as soon as they still
+contain variables.
+
+The artifact has been evaluated on several code excerpts from industrial
+code. The improvement of both the analysis time and the number of false-alarms
+returned by the analyzer when adding the rewriting abstract domain that we
+presented is summarized in Fig. 11. The comparison has been made using three
+different underlying abstract domains implemented in the library Apron [15]:
+
+intervals (boxes), octagons, and polyhedra. If the analysis times out (after5
+
+seconds), the corresponding bars are hatched and the bar height is set to the
+height of the graph, so other bars are not flattened.
+
+The C code excerpts that have been tested are the following ones:
+
+– fig1.c, fig2.c, fig3.c and fig10.c respectively correspond to Figs. 1, 2,
+
+3, and 10,
+
+– fig1_promo.c and fig2_promo.c respectively correspond to Figs. 1 and 2
+
+with the extra usage of integer promotion instead of unsigned data type,
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+27
+
+– fig3+mod.c corresponds to Fig. 3 with the extra usage of variable differences
+
+– promo{1,2,3}.c present different counter-intuitive effects of integer promo-
+
+as introduced in Fig. 1,
+
+tion in C code,
+
+– div0.c is a demonstration that rewritings do not hide potential errors, in
+
+– bilinear.c computes a bilinear interpolation that consists in8 nested linear
+
+particular divisions by zero that are discarded during the rewriting,
+
+interpolations. Its exact range then has to be proven.
+The results of our artifact 11 show that, as soon as the underlying abstract
+domain is able to prove obligation inequalities, the symbolic domain is able
+to eliminate inner modulo computations and discover more precise numerical
+properties. In general, the overhead cost is compensated by the fact that, due
+to the increase of accuracy, the time spent in the other domains is reduced.
+
+9 Conclusion
+
+We have proposed in this article a method to safely rewrite arithmetic expres-
+sions into simpler ones. In particular, modulo computations, that are frequent
+in the semantics of real-world programming languages, are safely discarded ;
+either by proving that they can be precisely described, or by replacing them
+conservatively. Then, a reduction operator has been introduced to achieve maxi-
+mum expression canonization by using linear forms to the fullest extent possible.
+Those reductions allow us to match and simplify expression patterns, such as
+linear interpolations, for a low cost. Nevertheless, this technique remains gen-
+eral and could be used with other patterns. This method has been implemented
+within the Astrée static analyzer, and a toy abstract interpreter that is avail-
+able. An evaluation of the accuracy and the overhead cost induced by the new
+abstract domain has been presented and supports its effectiveness in the pres-
+ence of modulo computations. The cost is generally compensated by the fact
+that, due to the increase of accuracy, the time spent in the other domains is
+reduced.
+
+The reduction operator can be easily tuned to adapt to a wider class of
+interpolation scheme or other application domains. We would like to investigate
+further the accuracy of our analysis in a wider context and develop further
+refinement of the reduction operator.
+
+Acknowledgements We thank the anonymous referees for their constructive
+comments and suggestions. Furthermore, we extend our gratitude to Josselin
+Giet, Marc Chevalier and Antoine Miné for granting us permission to publish
+a toy abstract interpreter they created, which served as the foundation for our
+artifact.
+
+
+28
+
+J. Boillot, J. Feret.
+
+(a) Analysis time comparison.
+
+(b) Number of false alarms comparison.
+Fig. 11: Comparison of the analysis of C files with and without the usage of the
+rewriting abstract domain, respectively with the interval, octagon, and polyhe-
+dron abstract domain as the underlying one.
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+29
+
+References
+
+1. Blanchet, B., Cousot, P., Cousot, R., Feret, J., Mauborgne, L., Miné, A., Mon-
+niaux, D., Rival, X.: Design and implementation of a special-purpose static pro-
+gram analyzer for safety-critical real-time embedded software. In: The Essence
+of Computation, Complexity, Analysis, Transformation. Springer (2002). https:
+//doi.org/10.1007/3-540-36377-7_5
+
+2. Blanchet, B., Cousot, P., Cousot, R., Feret, J., Mauborgne, L., Miné, A., Mon-
+niaux, D., Rival, X.: A static analyzer for large safety-critical software. In: Pro-
+gramming Language Design and Implementation. ACM (2003). https://doi.org/
+10.1145/781131.781153
+
+3. Boillot, J., Feret, J.: Artifact for "symbolic transformation of expressions in mod-
+
+ular arithmetic" (2023). https://doi.org/10.5281/zenodo.8186873
+
+4. Cousot, P., Cousot, R.: Static determination of dynamic properties of programs.
+In: International Symposium on Programming. Dunod (1976). https://doi.org/10.
+1145/390019.808314
+
+5. Cousot, P., Cousot, R.: Abstract interpretation: A unified lattice model for static
+analysis of programs by construction or approximation of fixpoints. In: Principles
+of Programming Languages. ACM (1977). https://doi.org/10.1145/512950.512973
+6. Cousot, P., Cousot, R.: Abstract interpretation and application to logic programs.
+Journal of Logic Programming (1992). https://doi.org/10.1016/0743-1066(92)
+90030-7
+
+7. Cousot, P., Cousot, R.: Comparing the Galois connection and widening/narrowing
+approaches to abstract interpretation, invited paper. In: Programming Language
+Implementation and Logic Programming. Springer (1992). https://doi.org/10.
+1007/3-540-55844-6_142
+
+8. Cousot, P., Halbwachs, N.: Automatic discovery of linear restraints among variables
+of a program. In: Principles of Programming Languages. ACM (1978). https://doi.
+org/10.1145/512760.512770
+
+9. Cytron, R., Ferrante, J., Rosen, B.K., Wegman, M.N., Zadeck, F.K.: Efficiently
+computing static single assignment form and the control dependence graph. Trans-
+actions on Programming Languages and Systems (1991). https://doi.org/10.1145/
+115372.115320
+
+10. Gallois-Wong, D.: Formalisation en Coq des algorithmes de filtre numérique cal-
+culés en précision finie. (Coq formalization of digital filter algorithms computed
+using finite precision arithmetic). Ph.D. thesis, University of Paris-Saclay, France
+(2021), https://tel.archives-ouvertes.fr/tel-03202580
+
+11. Granger, P.: Static analysis of arithmetical congruences. International Journal of
+
+Computer Mathematics (1989). https://doi.org/10.1080/00207168908803778
+
+12. Granger, P.: Static analysis of linear congruence equalities among variables of a pro-
+gram. In: International Joint Conference on Theory and Practice of Software De-
+velopment on Colloquium on Trees in Algebra and Programming. Springer (1991).
+https://doi.org/10.1007/3-540-53982-4_10
+
+13. Halbwachs, N., Péron, M.: Discovering properties about arrays in simple programs.
+In: Programming Language Design and Implementation. ACM (2008). https://doi.
+org/10.1145/1375581.1375623
+
+14. ISO: International Standard ISO/IEC 9899:1999. International Organization for
+Standardization (2007), http://www.open-std.org/jtc1/sc22/wg14/www/docs/
+n1256.pdf
+
+
+30
+
+J. Boillot, J. Feret.
+
+15. Jeannet, B., Miné, A.: Apron: A library of numerical abstract domains for static
+analysis. In: Computer Aided Verification. Springer (2009). https://doi.org/10.
+1007/978-3-642-02658-4_52
+
+16. Journault, M., Miné, A., Monat, R., Ouadjaout, A.: Combinations of reusable
+abstract domains for a multilingual static analyzer.
+In: Verified Software.
+Theories, Tools, and Experiments. Springer (2020). https://doi.org/10.1007/
+978-3-030-41600-3_1
+
+17. Logozzo, F., Fähndrich, M.: Pentagons: A weakly relational abstract domain for
+the efficient validation of array accesses. In: Symposium on Applied Computing.
+ACM (2008). https://doi.org/10.1016/j.scico.2009.04.004
+
+18. Masdupuy, F.: Array abstractions using semantic analysis of trapezoid congru-
+ences. In: International Conference on Supercomputing. ACM (1992). https://doi.
+org/10.1145/143369.143414
+
+19. Miné, A.: A new numerical abstract domain based on difference-bound matri-
+ces. In: Programs as Data Objects. Springer (2001). https://doi.org/10.1007/
+3-540-44978-7_10
+
+20. Mine, A.: The octagon abstract domain. In: Proceedings Eighth Working Confer-
+ence on Reverse Engineering. IEEE Computer Society (2001). https://doi.org/10.
+1109/WCRE.2001.957836
+
+21. Miné, A.: Symbolic methods to enhance the precision of numerical abstract do-
+mains. In: Verification, Model Checking, and Abstract Interpretation. Springer
+(2006). https://doi.org/10.1007/11609773_23
+
+22. Müller-Olm, M., Seidl, H.: Analysis of modular arithmetic.
+
+In: Program-
+(2005). https://doi.org/10.1007/
+
+ming Languages
+978-3-540-31987-0_5
+
+and Systems. Springer
+
+23. Simon, A., King, A.: Taming the wrapping of integer arithmetic. In: Static Analysis
+
+Symposium. Springer (2007). https://doi.org/10.1007/978-3-540-74061-2_8
+
+24. Venet, A.: The gauge domain: Scalable analysis of
+
+linear inequality invari-
+ants. In: Computer Aided Verification. Springer (2012). https://doi.org/10.1007/
+978-3-642-31424-7_15
+
+

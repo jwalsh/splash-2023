@@ -1,0 +1,3 @@
+
+
+This section discusses the use of Algorithm 1 to compute 2-normal forms for 2-decomposable and 2-projective relational domains. It provides an example of the Pairs domain, which is 2-decomposable but not 2-projective, and an example of the rational and integer octagons, which are both 2-decomposable and 2-projective. It then discusses the use of the Floyd-Warshall algorithm to incrementally compute 2-normal forms when clusters with two variables have potentially received new values. Finally, it states Theorem 2, which states that if a 2-normal collection of values of some 2-decomposable and 2-projective relational domain is given, then normalization can be computed incrementally.

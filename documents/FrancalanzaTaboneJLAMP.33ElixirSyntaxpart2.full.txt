@@ -1,0 +1,193 @@
+3.3. Elixir Syntax
+Elixir programs are organised as modules, i.e., defmodule m do (cid:101)P (cid:101)D end. Modules are
+defined by their name, m, and contain two sets of public (cid:101)D and private(cid:101)P functions, declared as
+sequences. Public functions, def f (y,(cid:101)x) do t end, are defined by the def keyword, and can
+be called from any module. In contrast, private functions, defp f (y,(cid:101)x) do t end, can only be
+t, and parametrised by a sequence of distinct variables, y,(cid:101)x, the length of which, |y,(cid:101)x|, is called
+
+called from within the defining module. Functions are defined by their name, f , and their body,
+
+the arity. The first parameter (y), is reserved for the pid of the dual process. Although a module
+may contain functions with the same name, their arity must be different, so we refer to a function
+with name f and arity n as f/n.
+
+notation, f ((cid:101)T) :: T, describing the parameter types,(cid:101)T, and the return type, T. This information
+
+In Elixir, function parameters and return values can be assigned a type using the @spec an-
+
+is then used by the Dialyzer to perform static checking using success typing [11]. In our for-
+malisation, we require that functions are annotated by their type specification, denoted by B in
+
+7
+
+i∈I
+
+i∈I
+
+i∈I
+
+i∈I
+
+
+Modules
+Public functions
+Private functions
+Type annotations
+Session annotations
+
+M (cid:70) defmodule m do(cid:101)P (cid:101)D end
+D (cid:70) K B def f (y, (cid:101)x) do t end
+P (cid:70) B defp f (y, (cid:101)x) do t end
+B (cid:70) @spec f(cid:0)(cid:101)T(cid:1) :: T
+K (cid:70) @session “X = S ” | @dual “X”
+
+Expressions
+Operators
+Basic values
+Values
+Identifiers
+Patterns
+Terms
+
+e (cid:70) w | not e | e1 ⋄ e2 | [ e1 | e2 ] | {e1, . . . , en}
+⋄ (cid:70) < | > | <= | >= | == | ! = | + | − | ∗ | /| and| or
+b (cid:70) boolean | number | atom | pid | [ ]
+v (cid:70) b | [ v1 | v2 ] | {v1, . . . , vn}
+w (cid:70) b | x
+p (cid:70) w | [ w1 | w2 ] | {w1, . . . , wn}
+t (cid:70) e
+
+(cid:16)(cid:110)
+
+| x = t1; t2
+| send (w,{:l, e1, . . . , en})
+| receive do
+|
+f (w, e1, . . . , en)
+| case e do (pi → ti)i∈Iend
+
+:li, p1
+
+i , . . . , pn
+i
+
+(cid:111) → ti
+
+(cid:17)
+
+end
+
+i∈I
+
+Figure 3: Elixir syntax
+
+Figure 3. In addition to this, we decorate public functions with session types, defined in Sec-
+tion 3.2, to describe their side-effect protocol. Public functions can be annotated directly using
+@session “X = S ”, or indirectly using the dual session type, @dual “X”, where X = S is
+shorthand for rec X . S .
+
+In the case of the let construct, x = t1;
+
+The body of a function consists of a term, t, which can take the form of an expression,
+a let statement, a send or receive construct, a case statement or a function call; see Fig-
+t2, the variable x is a binder for the vari-
+ure 3.
+ables in t2, acting as a placeholder for the value that the subterm t1 evaluates to. We write
+t1; t2, as syntactic sugar for x = t1;
+t2 whenever x is not used in t2. The send statement,
+send (x,{:l, e1, . . . , en}), allows a process to send a message to the pid stored in the vari-
+able x, containing a message {:l, e1, . . . , en}, where :l is the label. The receive construct,
+end, allows a process to receive a message tagged with a
+receive do
+i , . . . , pn
+label that matches one of the labels :li and a list of payloads that match the patterns p1
+i ,
+branching to continue executing as ti. Patterns, p, defined in Figure 3, can take the form of a
+
+variable, a basic value, a tuple or a list (e.g. (cid:2) x | y(cid:3), where x is the head and y is the tail of the
+
+(cid:111) → ti
+
+i , . . . , pn
+i
+
+:li, p1
+
+(cid:17)
+
+i∈I
+
+list). The remaining constructs are fairly standard. Variables in patterns p1
+i employed
+i ,
+by the receive and case statements are binders for the respective continuation branches ti. In
+our formalisation, the case construct is assumed to have a catch-all pattern which acts as a fail-
+
+. . . , pn
+
+(cid:16)(cid:110)
+
+8
+
+
+safe mechanism for unmatchable values. This provides stronger static guarantees, however, it
+is more conservative when compared to Elixir’s common let it crash philosophy, which allows
+unmatched values to crash the whole process.
+
+Terms can also take the form of an expression, e. An expression can be a variable, basic
+value (e.g. boolean), list, tuple, or other operations (e.g. +, <, and). Note that in the original
+Elixir syntax, there is no separation between terms (t) and expressions (e). However, with this
+distinction we are able to keep the type system in Section 3.4 more manageable and concise. We
+assume standard notions of open (i.e., fv(t) (cid:44) ∅) and closed (i.e., fv(t) = ∅) terms and work up to
+alpha-conversion of bound variables.
+
+3.4. Type System
+Our session type system statically verifies that public functions within a module observe the
+
+communication protocols ascribed to them. It uses three environments:
+
+Variable binding env.
+Session typing env.
+
+Function information env.
+
+Γ (cid:70) ∅ | Γ, x : T
+∆ (cid:70) ∅ | ∆,
+f/n : S
+Σ (cid:
+
+3.4. Type System
+ ∅ | Σ,
+
+f/n :
+
+params =(cid:101)x, param types =(cid:101)T,
+
+body = t, return type = T, dual =
+
+3.4. Type System
+
+
+
+The variable binding environment, Γ, maps (data) variables to basic types (
+
+3.4. Type System
+ T). We write
+Γ, x : T to extend Γ with the new mapping x : T, where x
+
+3.4. Type System
+id:60) dom(Γ). The session typing envi-
+ronment, ∆, maps function names and arity pairs to their session type ( f/n : S ); this will be used
+when recursing (i.e., function calls) to check whether a function is already mapped to a
+
+3.4. Type System
+type. If a function
+
+3.4. Type System
+n has a known session type, then it can be found in ∆, i.e., ∆( f/n) = S.
+Each module has a static function information environment, Σ, that holds information related
+to the function definitions
+
+3.4. Type System
+ a function f, with arity n, Σ( f/n) returns the tail list of param-
+eters (params) and their types (param types),

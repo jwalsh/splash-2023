@@ -1,0 +1,89 @@
+Title-Abstract. Section intro
+alus project, Airbus also asked for a modeling of their system
+controller. So far, all WCET research had concentrated on processors. However,
+a system controller contributes heavily to overall system timing and therefore
+needs an accurate model and precise analysis [59].
+
+The Micro-architectural analysis was applied to basic blocks, i.e. maximally
+long straight-line code sequences that can only be entered at the beginning and
+only be left at the end. The control flow, which had been extracted from the
+binary executable [57], was translated into an Integer Linear Program (ILP)
+[58]. The solution of this ILP presented a longest path through the program and
+the associated execution time. This approach, termed Implicit Path Enumeration
+Technique (IPET), had been adopted from [40].
+
+At EMSOFT 2001 we presented our breakthrough paper [11]. In summary,
+
+a generic tool architecture has emerged which consists of the following stages:
+
+
+4
+
+D. Kästner et al.
+
+Decoding: The instruction decoder identifies the machine instructions and re-
+
+constructs the call and control-flow graph.
+
+Value analysis: Value analysis aims at statically determining enclosing inter-
+vals for the contents of the registers and memory cells at each program point
+and for each execution context. The results of the value analysis are used
+to predict the addresses of data accesses, the targets of computed calls and
+branches, and to find infeasible paths.
+
+Micro-architectural analysis: The execution of a program is statically sim-
+ulated by feeding instruction sequences from the control-flow graph to a
+micro-architectural timing model which is centered around the cache and
+pipeline architecture. It computes the system state changes induced by the
+ sequence at cycle granularity and keeps track of the elapsing
+clock cycles.
+
+Path analysis: Based on the results of the combined cache/pipeline analysis
+the worst-case path of the analyzed code is computed with respect to the
+execution timing. The execution time of the computed worst-case path is the
+worst-case execution time for the task.
+
+We had shown that our sound WCET-analysis method not only solved the single-
+core WCET-analysis problem, but was even more accurate than the unsound,
+measurement-based method Airbus had previously used. This meant that their
+worst-case execution times they had presented in certification had been reliable.
+Consequently we collaborated with Airbus to satisfy their needs for a sound,
+industrially viable WCET analysis.
+
+Improvements
+
+2.3
+Although the results of our our analysis were already quite accurate, over-
+estimating the ever observed worst-case execution times by roughly 25%, Airbus
+wanted more accurate results. Also the integration into industrial development
+processes needed consideration and some effort.
+
+Increasing Precision Programs are known to spend most of their time in
+(recursive) procedures and in loops. The IPET approach using worst-case ex-
+ecution times of basic blocks as input was theoretically pleasing, but lost too
+much accuracy at the border between basic block and between loop iterations.
+Controlled loop unrolling increased the accuracy by the necessary extent. How-
+ever today we competition by using the IPET approach in our
+explanations.
+
+Often software developers knew what they were doing, i.e., they knew
+properties of their software that influenced execution time, but which were not
+explicit in the software. Our tool offered to be instructed by adding annotations
+to the software. Some annotations were even absolutely necessary, like loop and
+recursion bounds if those could not be automatically derived by our Value Anal-
+ysis, essentially an interval analysis [9], modified to work on binary programs.
+We will later see that annotations could be automatically inserted if the WCET-
+analysis tool had been integrated with a model-based design tool.
+
+
+Abstract Interpretation in Industry – Experience and Lessons Learned
+
+5
+
+Integration with Model-Based Design and Schedulability Tools Much
+of the safety-critical embedded software is developed using Model-based Design
+(MBD) tools. These automatically generate code from models specified by the
+software developer. When our WCET tool ai integrated with such a MBD
+tool, model information can be automatically inserted as annotations. Also ap-
+proximate timing information can be provided on the model level to the devel-
+oper by

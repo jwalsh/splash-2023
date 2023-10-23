@@ -1,0 +1,3 @@
+
+
+This section discusses the implementation of the proof search strategies for contextual reﬁnement and logical atomicity. It explains how the rules of these strategies can be categorized into four types: (1) Rules of the form Δ ⊢  ′ =⇒ (Δ ⊢ ), and  ′ ⊢  is provable; (2) Rules of the form Δ \  ⊢  ′ =⇒ (Δ ⊢ ) for some  ∈ Δ, and  ∗  ′ ⊢  is provable; (3) Rules of the form (Δ′ ⊢  ′) =⇒ (Δ ⊢ ), where Δ′ and  ′ can be calculated from Δ and  by just inspecting their head symbols; (4) Rules of the form (Δ ⊢  ′) =⇒ (Δ ⊢ ), where  ′ mentions the entire context Δ. The section then explains how these rules can be implemented in the extensible proof automation strategy of Diaframe 2.0, using abduction hints and transformer hints.

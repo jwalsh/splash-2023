@@ -1,0 +1,130 @@
+Title-Abstract. Section intro
+ r{d,d})(cid:12)(cid:12){∅}
+i,j=1 (r{d,yi} ∧ r{d,yj}id)(:Y{yi,yj}
+= r(cid:48) ∧(cid:86)k
+
+= {b + c ≤ 5}∧
+
+and the domain thus is not 2-projective.
+
+(cid:117)(cid:116)
+
+
+Bibliography
+
+URL
+
+[1] Bagnara, R., Hill, P.M., Zaﬀanella, E.: An improved tight closure algorithm
+for integer octagonal constraints. In: Logozzo, Fed, D.A., Zuck, L.D.
+(eds.) Veriﬁcation, Model Checking, and Abstract Interpretation, pp. 8–
+21, Springer Berlin Heidelberg, Berlin, Heidelberg (2008), ISBN 978-3-540-
+78163-9
+
+[2] Bagnara, R., Hill, P.M., Zaﬀanella, E.: Weakly-relational shapes for numeric
+ab: improved algorithms and proofs of correctness. Formal Meth-
+ods Syst. Des. 35(3), 279–323 (2009), doi: 10.1007/s10703-009-0073-1,
+URL https://doi.org/10.1007/s10703-009-0073-1
+
+[3] Blanchet, B., Cousot, P., Cousot, R., Feret, J., Mauborgne, L., Miné, A.,
+Monniaux, D., Rival, X.: A static analyzer for large safety-critical software.
+In: Proceedings of the ACM SIGPLAN 2003 Conference on Programming
+Language Design and Implementation, p. 196–207, PLDI ’03, Association
+for Computing Machinery, New York, NY, USA (2003), ISBN 1581136625,
+doi: 10.1145/781131.781153, URL https://doi.org/10.1145/781131.
+781153
+
+[4] Chawdhary, A., Robbins, E., King, A.:
+
+Incrementally closing oc-
+tagons. Formal Methods Syst. Des. 54(2), 232–277 (2019), doi:
+10.1007/s10703-017-0314-7,
+https://doi.org/10.1007/
+s10703-017-0314-7
+
+[5] Chen, L., Liu, J., Miné, A., Kapur, D., Wang, J.: An abstract domain
+to infer octagonal constraints with absolute value. In: Müller-Olm, M.,
+Seidl, H. (eds.) Static Analysis - 21st International Symposium, SAS
+2014, Munich, Germany, September 11-13, 2014. Proceedings, Lecture
+Notes in Computer Science, vol. 8723, pp.117, Springer (2014),
+doi: 10.1007/978-3-319-10936-7_7, URL https://doi.org/10.1007/
+978-3-319-10936-7_7
+
+[6] Cormen, T.H., Leiserson, C.E., Rivest, R.L., Stein, C.: Introduction to Al-
+
+gorithms. MIT Press, Cambridge (2009)
+
+[7] Cousot, P., Cousot, R., Feret, J., Mauborgne, L., Miné, A., Rival, X.: Why
+does astrée scale up? Form. Methods Syst. Des. 35(3), 229–264 (dec 2009),
+ISSN 0925-9856, doi: 10.1007/s10703-009-0089- URL https://doi.
+org/10.1007/s10703-009-0089-6
+
+[8] Cousot, P., Halbwachs, N.: Automatic discovery of linear restraints among
+variables of a program. In: Aho, A.V., Zilles, S.N., Szymanski, T.G. (eds.)
+Conference Record of the Fifth Annual ACM Symposium on Principles of
+Programming Languages, Tucson, Arizona, USA, January 1978, pp. 84–
+96, ACM Press (1978), doi: 10.1145/512760.512770, URL https://doi.
+org/10.1145/512760.512770
+
+[9] Cousot, P., Halbwachs, N.: Automatic discovery of linear restraints among
+variables of a program. In: Proceedings of the 5th ACM SIGACT-SIGPLAN
+Symposium on Principles of Programming Languages, p. 84–96, POPL
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+23
+
+’78, Association for Computing Machinery, New York, NY,1978),
+ISBN 9781450373487, doi: 10.1145/512760.512770,://doi.
+org/10.1145/512760.512770
+
+[10] ELINA: El Eth library for numerical analysis. http://elina.ethz.ch/
+
+(2018)
+
+] Fulara, J., Durnoga, K., Jakubczyk, K., Schubert.: Relational abstract
+domain of weighted hexagons. Electron. Notes Theor. Comput. 267(1),
+59–2010), doi: 10.1016/jcs.006 https://doi.
+org/10/j.entcs.2010.006
+
+[12] Gange, G., Ma, Z., Navas, J., Schachte, P., Søndergaard, H., Stuckey, P.J.:
+A fresh look at zones and octagonsM Trans. Program. Lang. Syst.
+43(3) (sep 2021), ISSN 0164-, doi: 10.1145/885, URL https:
+//doi.org/1045/3457885
+
+[13] Howe, J. King, A.: Logahedra: A new weakly relational domain. In: Liu,
+Z., Ravn, A.P. (eds.) Automated Technology for Veriﬁcation and Analysis,
+7th International Symposium, ATVA 2009, Macao, China, October 14-16,
+2009. Proceedings, Lecture Notes in Computer Science, vol. 5799, pp. 306–
+320, Springer (2009), doi: 10.1007/978-3-642-04761-9_23, URL https:
+//doi.org/10.1007/3-642-04761-9_23
+
+[14] Jeannet, B., Miné, Aon: A library of numerical abstract domains for
+static analysis. In: Bouajjani, A., Maler, O. ( Computer Aided Veriﬁca-
+tion, 21st International Conference, CAV 2009, Grenoble, France,
+- July 2, 2009. Proceedings, LNCS, vol. 5643, pp. 661–667, Springer (2009),
+doi.1007/978-3-642-02658_52, URL https://doi.org/10.1007/
+978-3-642--4_52
+
+[15] Karmarkar, N.: A new polynomial-time algorithm programming.
+In: Proceedings of the sixteenth annual ACM symposium on Theory of
+computing, pp.311 (1984)
+
+[16] Karr, M.: A�ne relationships among variables of a program. Acta Infor-
+matica 6, 133–151 (1976), doi: 10.1007/BF00, URL https://doi.
+org/10.1007/BF00268497
+
+[17] Klee, V., Minty, G.: How good is the simplex algorithm. Inequalities 3(3),
+
+159–175 (1972)
+
+[18] Logozzo, F., Fähndrich, M.: Pentagons: A weakly relational abstract do-
+main for the eﬃcient validation of array accesses. In: Proceedings of the
+2008 ACM Symposium on Applied Computing, p. 184–188, SAC ’08, As-
+sociation for Computing Machinery, New York, NY, USA (2008), ISBN
+9781595937537, doi: 10.1145/1363686.1363736, URL https://doi.org/
+10.1145/13636863736
+
+[19] Miné, A.: A new numerical abstract domain based on��erence-bound ma-
+trices: Danvy, O., Filinski, A. (eds.) Programs as Data Objects, Sec-
+ond Symposium, PADO 2001, Aar

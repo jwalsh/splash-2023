@@ -1,0 +1,29 @@
+8. Conclusion
+In this work we established a correspondence between the ElixirST type system [7] and the
+runtime behaviour of a client handler running an Elixir module function that has been type-
+checked w.r.t.
+its session type protocol. In particular, we showed that this session-based type
+system observes the standard session fidelity property, meaning that processes executing a typed
+function always follow their ascribed protocols at runtime. This property provides the neces-
+sary underlying guarantees to attain various forms of communication safety, whereby should two
+processes following mutually compatible protocols (e.g. S and its dual S ), they avoid certain
+communication errors (e.g., a send statement without a corresponding receive construct).
+
+Future work. There are a number of avenues we intend to pursue. One line of investigation is
+the augmentation of protocols that talk about multiple entry points to a module perhaps from
+the point of view of a client that is engaged in multiple sessions at one time, possibly involving
+
+30
+
+
+multiple modules. The obvious starting points to look at here are the well-established notions of
+multiparty session types [16, 38] or the body of work on intuitionistic session types organising
+processes hierarchically [51, 18]. Another natural extension to our work would be to augment
+our session type protocol in such a way to account for process failure and supervisors, which
+is a core part of the Elixir programming model. For this, we will look at previous work on
+process/session type extensions that account for failure [52, 53, 39, 54, 55, 56, 57]. We also
+plan to augment our session typed protocols to account for resource usage and cost, along the
+lines of [58, 59]. It should also be relatively straightforward to integrate the elaborate expression
+typechecking mechanisms developed by Castagna et al. [60] to replace our (limited) expression
+typing in Figure 5. This would considerably enhance the expressivity of our framework to handle
+a wider range of Elixir programs.

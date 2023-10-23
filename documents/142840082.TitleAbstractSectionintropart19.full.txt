@@ -1,0 +1,28 @@
+Title-Abstract. Section intro
+ to a wider class of
+interpolation scheme or other application domains. We would like to investigate
+further the accuracy of our analysis in a wider context and develop further
+refinement of the reduction operator.
+
+Acknowledgements We thank the anonymous referees for their constructive
+comments and suggestions. Furthermore, we extend our gratitude to Josselin
+Giet, Marc Chevalier and Antoine Miné for granting us permission to publish
+a toy abstract interpreter they created, which served as the foundation for our
+artifact.
+
+
+28
+
+J. Boillot, J. Feret.
+
+(a) Analysis time comparison.
+
+(b) Number of false alarms comparison.
+Fig. 11: Comparison of the analysis of C files with and without the usage of the
+ing abstract domain, respectively with the interval, octagon, and polyhe-
+dron abstract domain as the underlying one.
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+29

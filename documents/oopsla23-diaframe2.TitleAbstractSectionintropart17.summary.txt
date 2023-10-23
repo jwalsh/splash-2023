@@ -1,0 +1,3 @@
+
+
+This section discusses how transformer hints can be combined with abduction hints to support rules in Category 4, like au-intro and Löb. It explains how an intermediate AUpre construct is used to add a combination of transformer and abduction hints to support au-intro. It also explains how two intermediate goals löbpre and löbpost are used to support Löb induction, and how the procedure can be reused for reﬁnement judgments. Finally, it provides a more formal description of the proof search strategy that underpins Diaframe 2.0, which acts on goals of the form Δ ⊢ , and proceeds by case analysis on .

@@ -1,0 +1,133 @@
+Title-Abstract. Section intro
+
+of the expression rewriting technique can be done soundly. Then, in Sect. 5 we
+introduce an abstract representation of expressions that can be tuned by the
+parameters of a generic numerical abstract domain described in Sect. 6. Such a
+generic abstract domain is then instantiated in Sect. 7, by making explicit the
+heuristics used to symbolically simplify expressions. Finally, Sect. 8 describes
+some aspects of our implementations and an evaluation of the introduced ab-
+stract domain over several code excerpts from industrial code.
+
+2 Preliminary Results on Modular Integer Arithmetic
+
+modular arithmetic. First, we introduce the set of modulo specifications𝕄 that
+
+In this section, we give basic properties to reason on Euclidean division and
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+5
+
+denotes arithmetic operations without modulo. This is formalized in the follow-
+ing definition:
+
+is defined as follows: 𝕄≝{[𝑙,𝑢[∣𝑙,𝑢∈ℤ,𝑙<𝑢}∪{ℤ}.
+The set𝕄 contains two kinds of elements. Intervals of the form[𝑙,𝑢[ denote
+operations modulo𝑢−𝑙 with result in the interval[𝑙,𝑢[, whereas the elementℤ
+Definition 1. We define the modulo of𝑘∈ℤ by an element of𝕄 as
+𝑘mod[𝑙,𝑢[≝𝑙+irem(𝑘−𝑙,𝑢−𝑙)
+𝑘modℤ
+whereirem(𝑚,𝑛) denotes the remainder of the Euclidean division of the integer
+𝑚 by the strictly positive integer𝑛, that is to say the unique integer𝑟 such that
+0≤𝑟<𝑛 and𝑛 divides𝑚−𝑟.
+In particular, when the integer𝑘 belongs to the interval[𝑙,𝑢[ we have𝑘mod
+[𝑙,𝑢[=𝑘.
+Definition 2. An element𝑚∈𝕄 is said to be𝑘-splittable, with𝑘 a strictly
+positive integer, if𝑚 can be split in𝑘 sets of same cardinality. We define𝕊∶
+ℕ∗→℘(𝕄) such that𝕊(𝑘) is the set of elements of𝕄 that are𝑘-splittable. More
+Example 1. The intervals[0,216[ and[−215,215[ both are216-splittable and28-
+We use the notion of𝑘-splittability to reason about the application of consec-
+Property 1. Let𝑛∈ℤ be an integer. Let[𝑙,𝑢[ and𝑚 be two elements of𝕄.
+If𝑚 is(𝑢−𝑙)-splittable (i.e., if𝑚∈𝕊(𝑢−𝑙)), then(𝑛mod𝑚)mod[𝑙,𝑢[=
+𝑛mod[𝑙,𝑢[.
+Property 2. Let𝑛∈ℤ be an integer. Let[𝑙1,𝑢1[ and[𝑙2,𝑢2[ be two elements of𝕄
+such that[𝑙1,𝑢1[⊆[𝑙2,𝑢2[. Then,(𝑛mod[𝑙1,𝑢1[)mod[𝑙2,𝑢2[=𝑛mod[𝑙1,𝑢1[.
+Property 3. Let𝑛∈ℤ be an integer. Let[𝑙1,𝑢1[ and[𝑙2,𝑢2[ be two elements of
+𝕄. We consider𝛼≝𝑙1mod[𝑙2,𝑢2[. If𝛼+𝑢1−𝑙1≤𝑢2 and(𝑢1−𝑙1)|(𝛼−𝑙1), then
+we have(𝑛mod[𝑙1,𝑢1[)mod[𝑙2,𝑢2[=𝑛mod[𝛼,𝛼+𝑢1−𝑙1[. This is pictured in
+
+utive modulo computations. In particular, when two modulo operations follow
+each other, the inner one can be ignored under some specific conditions. This is
+formalized in the following property.
+
+∀𝑘>0,𝕊(𝑘)≝{[𝑙,𝑢[∈𝕄∣(𝑘|(𝑢−𝑙))}∪{ℤ}.
+
+formally,
+
+splittable.
+
+≝𝑘
+
+We now give two other properties to simplify consecutive modulo computa-
+
+tions under some conditions.
+
+Fig. 4.
+
+
+6
+
+J. Boillot, J. Feret.
+
+𝑙1
+
+[
+
+𝑢1
+
+]
+
+mod[𝑙2,𝑢2[
+
+[
+
+𝑙2
+mod[𝑙2,𝑢2[
+
+𝛼
+
+[
+
+𝛼+𝑢1−𝑙1
+
+]
+
+𝑢2
+
+]
+
+Fig. 4: Translation when applying consecutive modulos.
+
+expr⩴𝑋
+| [𝑎,𝑏]
+| −expr
+| expr⋄ expr
+| expr⋓ expr
+| expr mod[𝑙,𝑢[
+| bound_check(expr,[𝑙,𝑢[)
+stmt⩴𝑋← expr
+|
+if expr⋈0 then stmt⨾ endif ⋈∈{=,≠,<,≤,≥,>}
+| while expr⋈0 do stmt⨾ done ⋈∈{=,≠,<,≤,≥,>}
+| stmt⨾ stmt
+
+𝑋∈𝒱
+𝑎,𝑏∈ℤ,𝑎≤𝑏
+⋄∈{+,×,∕}
+𝑙,𝑢∈ℤ,𝑙<𝑢
+𝑙,𝑢∈ℤ,𝑙<𝑢
+𝑋∈𝒱
+
+Fig. 5: Syntax of our extended language.
+
+Note that Prop. 2 is a particular case of Prop. 3. Indeed, with the notations of
+
+Prop. 3, if[𝑙1,𝑢1[⊆[𝑙𝑢2[ we have𝛼=𝑙1. Then,𝛼+𝑢1−𝑙1=𝑢1 and𝛼−𝑙1=0.
+So,𝛼+𝑢1−𝑙1≤𝑢2 and(𝑢1−𝑙1)|(𝛼−𝑙1). We can conclude, thanks to Prop. 3,
+that(𝑛mod[𝑙1,𝑢1[)mod[𝑙2,𝑢2[=𝑛mod[𝑙1,𝑢1[
+Example 2. Let𝑛 be an integer inℤ. Then,
+– by Prop. 1,(𝑛mod[−215,215[)mod[0,28[=𝑛mod[0,28[,
+– because23∈[0,28[,23mod[0,28[=23,
+– by Prop. 2𝑛mod[0,28[)mod[0,216[=𝑛mod[0,28[,
+– by Prop. 3,(𝑛mod[2,4[)mod[10,20[=𝑛mod[12,14[ (with𝛼=12

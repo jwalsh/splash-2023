@@ -1,0 +1,129 @@
+6.2. Bridging between Elixir and Our Model
+Every construct in Figure 3 maps directly to a corresponding construct in the actual Elixir
+language. The @spec annotation which decorates functions with types is already present in the
+latest distribution of the language. It is typically used for code documentation and to statically
+analyse programs using the Dialyzer [11], a tool that detects potential (type) errors in Core
+Erlang programs using success typing [9]. We use the @spec information to specify the types
+for the parameters and the return type of the functions, supplementing our session typechecking
+analysis. A similar approach to ours was adopted by Cassola et al. [13] for a gradual static type
+system for Elixir.
+
+receive do
+
+{:A} -> send(p, {:C})
+{:B} -> send(p, {:C})
+
+:ok
+
+:ok
+
+end
+
+receive do
+
+{:A} ->
+
+{:B} ->
+
+:ok
+
+:ok
+
+end
+
+send(p, {:C})
+
+.
+
+.
+
+The typing rules of Section 3 are also designed in a way to minimally alter common coding
+patterns in the language. For instance, branches in session types might have common contin-
+
+uations, such as !C().end in the type &(cid:8)?A().!C().end, ?B().!C().end(cid:9). Many type systems force
+
+programs to structure their code as shown in the left-hand side code snippet above (which per-
+forms the same send action twice). However, in Elixir it is common to express this as a fork-join
+pattern, with a single continuation performing the common action once as shown in the right-
+hand side code snippet. Our type system can typecheck both code snippets.
+
+The only aspect left to discuss is the mechanism used by our implementation to guarantee an
+interaction between the two processes implementing the respective endpoints of binary session
+type. To achieve this end, we implemented a bespoke spawning function (refer to Section 3.6)
+that takes the code of the respective endpoints and returns a tuple with the pids of the two pro-
+cesses that are already linked. The implementation of our session initiation is given below:
+
+1
+2
+3
+4
+5
+
+def session(serverFn, server_args, clientFn, client_args)
+
+when is_function(serverFn) and is_function(clientFn) do
+server_pid = spawn(fn ->
+
+receive do
+
+{:pid, client_pid} ->
+
+3https://erlang.org/doc/man/leex.html
+4https://erlang.org/doc/man/yecc.html
+
+24
+
+
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+
+apply(serverFn, [client_pid | server_args])
+
+end
+
+end)
+
+client_pid = spawn(fn ->
+
+send(server_pid, {:pid, self()})
+apply(clientFn, [server_pid | client_args])
+
+end)
+
+{server_pid, client_pid}
+
+end
+
+This modified session/4 function takes two pairs of arguments: two references of function
+names (that should be spawned) and their list of arguments. The code implements the initial-
+isation protocol depicted in Figure 7.
+It first spawns one process (pre-server in Figure 7 for
+line 3) and passes its pid to the second spawned process (pre-client in Figure 7, as the variable
+server pid on lines 11 and 12). Then, the pre-client process sends its pid to the pre-server pro-
+cess (line 11 and lines 4 and 5). At this point, both processes execute their respective functions
+to transform into the actual first and second processes participating in the session, passing the
+respective pids as the first argument of the executing functions (lines 6 and 12).
+
+The current implementation of the session/4 function can only launch two processes at a
+time, in line with the binary sessions. This can however, be extended to handle more than two
+processes in the case of hierarchical processes, where a process may interact in several separate
+binary sessions, similar to the notion of intuitionistic session types [18].
+
+Our implementation still allows spawned processes to receive messages from any other pro-
+cess. Unfortunately, unsolicited messages can interfere with a session-typed process, since the
+receiver is not able to distinguish where the message is originating from in the present implemen-
+tation. An improvement would be exploiting Elixir’s ability to cherry-pick messages out-of-order
+from the queue using pattern matching. As soon as a session is launched, a unique session ID
+would be shared with the two parties, and each message exchanged between them would use this
+ID to identify the source (and destination). This would enable selective reads to filter unsolicited
+messages. Mostrous and Vasconcelos [19] created a similar system to distinguish messages by
+attaching a unique reference to each message.

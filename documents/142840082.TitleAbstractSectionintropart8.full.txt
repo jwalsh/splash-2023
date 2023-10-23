@@ -1,0 +1,84 @@
+Title-Abstract. Section intro
+��𝑉←𝑒⦄⟨𝑅0,Ω0⟩⊑⟨∅,Ω1⟩⊔(⦃𝑉←𝑒′⦄⟨𝑅0,Ω0⟩),
+–⦃𝑒⋈0?⦄⟨𝑅0,Ω0⟩⊑⟨∅,Ω1⟩⊔(⦃𝑒′⋈0?⦄⟨𝑅0,Ω0⟩).
+
+This way, when an expression is replaced by another one in an assignment or a
+guard, while following the rewriting order, all the possible memory states and
+error alarms are kept in the result. Note that the approximation may lead to the
+introduction of additional memory states or false-negative error alarms.
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+expr♯⩴ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖) ∀𝑖,𝑎𝑖∈ℤ
+| expr♯⊞ expr♯
+| expr♯⊠ expr♯
+| expr♯⧄ expr♯
+| expr♯⋓□ expr♯
+
+11
+
+Fig. 8: Syntax of abstract expressions.
+
+5 Abstract Representation of Expressions
+
+As far as it is possible to totally order their variables, linear expressions have a
+canonical representation. It is obtained by factorizing occurrences of each vari-
+able and ordering their terms increasingly, with respect to the order on the
+variables. We introduce in this section an abstract syntax for expressions, in
+which some linear expressions are described canonically. The main goal is to
+highlight the patterns that can be simplified symbolically.
+
+5.1 Abstract Syntax of Expression
+
+has to occur in the expression, would it be with a zero coefficient. This eases the
+definition of operations over linear forms. Constants are specific linear combina-
+
+The abstract syntax of expressions is given in Fig. 8. Apart from linear com-
+binations, abstract expressions are defined using the same operators as in the
+language syntax. For the sake of rigor, and to distinguish them from their con-
+crete counterparts, all the abstract operators are enclosed within a box.
+
+Linear combinations are written asℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+with𝑎0∈ℤ and
+∀𝑖,𝑎𝑖∈ℤ. In particular, we use the convention that every variable in the set𝒱
+tions, where all coefficients, except potentially the first one, are equal to0. We
+writeℒ□(𝛼) the constant whose first coefficient is equal to𝛼∈ℤ. The set of all
+such abstract expressions is denoted Const♯. A variable is a linear combination
+of which all the coefficients are fixed at0, except that of the variable, which is
+equal to1. It is denotedℒ□(𝑋). Lastly, variable differences are linear combina-
+tions of which all the coefficients are fixed to0, except for two variables. One of
+them has the coefficient1 and the other−1. The variable difference between𝑋
+and𝑌, two variables of𝒱, is writtenℒ□(𝑋−𝑌).
+Intervals are introduced by the means of the convex join operator⋓□. Lastly,
+of𝕄. Inner modulo computations are assumed to have been resolved, either by
+
+bound checks and modulo computations are not described. Indeed, bound checks
+are assumed to have been eliminated while reporting the potential error alarms.
+About modulo computations, abstract expressions are given with an evaluation
+context. This context takes the form of a modular ring specified by an element
+
+proving that they leave the value of the expression unchanged, or by replacing
+them conservatively by an interval.
+
+
+6 Generic Abstraction
+
+are mapped to the least upper bound of the semantics states which satisfy them
+
+to lift the execution of assignments and guards on properties. It also contains
+
+12J. Boillot, J. Feret.
+
+set expr.
+
+The translation of classical expressions into abstract ones is parametric, with re-
+spect to the choice of an abstract domain, to reason about semantics states. The
+ meaning of an abstract expression is defined thanks to a functiontoExpr
+which translates abstract expressions in the set expr♯ back to expressions in the
+Definition 4. The functiontoExpr∶ expr♯→ expr is defined inductively as
+follows:toExpr(ℒ□(𝑎0+∑𝑋𝑖𝒱𝑎𝑖𝑋𝑖))≝𝑎0cst+(𝑎1cst𝑋1+(⋯+(𝑎𝑛cst𝑋𝑛)))
+toExpr(𝑒♯1⊞𝑒♯2)�Expr(𝑒♯1)+toExpr(𝑒♯2)
+toExpr(𝑒♯1⊠𝑒♯2)≝toExpr(𝑒♯1)×toExpr(��)
+toExpr(𝑒♯1⧄𝑒♯2)≝toExpr(𝑒♯1)∕toExpr(𝑒♯2)
+toExpr(𝑒♯1⋓□𝑒♯2)≝toExpr(𝑒♯1)⋓toExpr(𝑒�

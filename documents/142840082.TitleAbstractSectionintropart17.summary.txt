@@ -1,0 +1,3 @@
+
+
+This section discusses the use of reduce0, a reduce operator, to simplify abstract expressions. It introduces several inference rules for specific reduction of abstract multiplication, division, and convex join expressions. These rules are designed to reduce the complexity of the expressions and to avoid potential errors. The soundness of the reduction rules is stated in Theorem 5. The section also provides an example of linear interpolation computation to illustrate the method.

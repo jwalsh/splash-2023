@@ -1,0 +1,13 @@
+Title-Abstract. Section intro
+91
+ Automation for Linearizability in Separation Logic
+
+IKE MULDER, Radboud University Nijmegen, The Netherlands
+ROBBERT KREBBERS, Radboud University Nijmegen, The Netherlands
+
+Recent advances in concurrent enabled the formal veriﬁcation of increasingly sophisticated
+ﬁne-grained (i.e., lock-free) concurrent programs. For such programs, the golden standard of correctness is
+linearizability, which expresses that concurrent executions always behave as some valid sequence of sequential
+executions. Compositional approaches to linearizability (such as contextual reﬁnement and logical atomicity)
+make it possible to prove linearizability of whole programs or compound data structures (e.g., a ticket lock)
+using proofs of linearizability of

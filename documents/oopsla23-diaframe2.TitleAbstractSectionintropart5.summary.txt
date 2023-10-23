@@ -1,0 +1,3 @@
+
+
+This section introduces the main ideas for automating contextual refinement proofs in the Iris-based logic ReLoC. It starts with an example verification of an incrementer, providing intuition for ReLoC. After providing some formal background for ReLoC's proof rules, it describes the proof automation strategy. The example verification considers two implementations of an incrementer, one fine-grained and one coarse-grained. The goal is to prove a contextual refinement that expresses that any behavior of the fine-grained version is a behavior of the coarse-grained version.

@@ -1,0 +1,82 @@
+Title-Abstract. Section intro
+
+
+For each pair yi, yj of variables from Y ∪ {z}, the
+
+(cid:0)r{yi,z} ∧ r{yj,z}(cid:1)(cid:12)(cid:12)Y ∩{yi,yj}
+
+(11)
+
+can be obtained by means of Fourier-Motzkin elimination of z, applied to the
+closed conjunctions of octagon constraints representing r{yi,z}, and r{yj,z}, re-
+spectively. In order to see this, we note that all occurring non-zero coeﬃcients
+of z in the constraints of r{yi,z} as well as r{yj,z} are from {−1, 1}. Consider a
+constraint (cid:96) ≤ b of the resulting conjunction. Three cases may occur.
+– (cid:96) may contain occurrences of both variables yi and yj – each with coeﬃcients
+
+in {−1, 1}.
+– (cid:96) may contain a single occurrence of one variable, w.l.o.g., yi, whose coeﬃ-
+cient now is in {−2,−1, 1, 2}. In case the coeﬃcient of yi is in {−2, 2}, (cid:96) is
+still equivalent to an octagon constraint for yi only. If the constraint, e.g., is
+2 · yi ≤ 7 it is equivalent to yi ≤ 3.5 over rationals, and to yi ≤ 3 over
+the integers.
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+7
+
+– (cid:96) does not contain any occurrences of variables. In this case, it is either
+equivalent to true and can be abandoned, or equivalent to false – implying
+that (11) equals ⊥.
+
+We conclude that the expression (11), when satisﬁable, can be represented by
+a conjunction of octagon constraints using variables yi and yj. Thus, the right-
+hand side of equation (9) for rational as well as integer octagons is equivalent to
+the result of Fourier-Motzkin elimination of z. This implies2).
+Example 3. Assume an integer octagon r = r(cid:48) ∧ r{y1,z} ∧ r{y2,z} where
+
+= y1 + y2 ≤ 7
+
+r(cid:48)
+r1} = (y1 + z ≤ −1) ∧ (y1 ≤ 3) ∧ (−z ≤ 4)
+r{y2,z} = (y2 − z ≤ 5) ∧ (−y2 ≤ 1)
+
+Fourier-Motzkin elimination of z adds the additional constraint
+
+y1 + y2 ≤ 4
+
+Projection onto the subset Y = {y1, y2} according to (9) therefore results in the
+conjunction of constraints
+
+(y1 + y2 ≤ 7) ∧ (y1 ≤ 3) ∧ (y1 + y2 ≤ 4) ∧ (−y2 ≤ 1)
+
+which can be further simpliﬁed to (y1 ≤ 3) ∧ (y1 + y2 ≤ 4) ∧ (−y2 ≤ 1).
+Example 4. The following 2-decomposable domains are not 2-projective:
+
+(cid:117)(cid:116)
+
+1. Finite sets of 2-variable maps;
+(cid:117)(cid:116)
+2. Implications between interval constraints.
+Proof. For (1), let X = {a, x, y, z} where variables range over values from the
+set {1, 2, 3} and maps from variables to such sets are used as the abstraction.
+Consider now:
+
+r{a,x} = {a (c55)→ {1, 2}}
+
+r{a,y} = {a (cid:55)→ {2, 3}}
+where all other rp, p ∈ [X ]2 have the value (cid:62). Then,
+
+(cid:0)r{a,x} (cid:117) r{a,ycid: r{a} (cid:117) (cid:62id:1)(cid:12)(cid:12){x,y, = ⊥
+
+r{a,z} = {a (cid:55)→ {3, 1}}
+
+but, in violation of property (9),
+
+(cid:62) (cid:117) (r{a,x} (cid:117) r{a,x})(cid:12)(cid:12){x} (cid:117) (r{a,y} (cid:117) r{a,y})(cid:12)(cid:12){y} (cid:117) (r{a,z} (cid:117) r{a,z})(cid:12)(cid:12){z}
+(cid:117)(r{a,x} (cid:117) r{a,y})(cid:12)(cid:12){x,y} (cid:117) (r{a,x} (cid:117) r{a,z})(cid:12)(cid:12){x,z} (cid:117) (r{a,y} (cid:117) r{a,z})(cid:12)(cid:12){y,z}
+
+({a (cid:55)→ {1, 2}} (cid) {a (cid:55)→ {3, 1}})|{x,z} (cid:117) ({a (cid:55)→ {2, 3}} (cid:117) {a (c55)→ {3, 1}})|{y,z}
+
+= (cid:62) (cid:117) (cid:62) (cid:117) (cid:62) (cid:117) (cid:62) (cid:117) ({a (cid:55)→ {1, 2}} (c117) {a (cid:55)→ {2, 3}})|{x,y}(cid

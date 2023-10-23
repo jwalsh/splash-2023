@@ -1,0 +1,38 @@
+Title-Abstract. Section intro
+Lifting On-Demand Analysis to Higher-Order
+
+Languages
+
+Daniel Schoepe1[0009−0006−1187−9569], David Seekatz2[0000−0004562−5074], Ilina
+kovska1[0009−0003−3683−6301], Sandro Stucki1[0000−0001−5608−8273], Daniel
+Tattersall1, Pauline Bolignano1, Franco Raimondi1,3[0000−0002−9508−7713], and
+
+Bor-Yuh Evan Chang1,4[0000−0002−1954−0774]
+
+1 Amazon,{schoeped,ilinas,satucki,dtatters,pln,frai,byec}@amazon.com
+
+2 Unaffiliated, dseekatz@gmail.com
+
+3 Middlesex University
+
+4 University of Colorado Boulder
+
+Abstract. In this paper, we present an approach to lift on-demand anal-
+ysis to higher-order languages. Specifically, our approach bootstraps an
+on-demand call graph construction by leveraging a pair of on-demand
+data flow analyses. Static analysis is increasingly applied to find subtle
+bugs or prove deep properties in large, industrial code bases. To effec-
+tively do this, analyzers need to both resolve function calls in a
+precise manner (i.e., construct a precise call graph) and examine only the
+relevant portion of the program (i.e., bedemand). A strawman strat-
+egy to this problem is to use fast, approximate, whole-program call graph
+construction algorithms. However, this strategy is generally not adequate
+for modern languages like JavaScript that rely heavily on higher-order
+features, such as callbacks and closures, where scalable approximations
+often imprecision. This strategy also limits in-
+creasingly sophisticated on-demand analyses, which scale by analyzing
+only parts of a program as needed: the advantages of an on-
+demand analysis may be thwarted by the need to construct a whole-
+program call The key insight of this paper is that existing on-
+demand data flow analyses can themselves be applied in a black-box
+manner to construct call graphs

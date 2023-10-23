@@ -1,0 +1,131 @@
+Title-Abstract. Section intro
+𝑚2)𝑅♯
+∅
+⦅𝑒1∕𝑒2⦆𝑅♯≝(reduce(𝑒′♯1⧄𝑒′♯2)𝑅♯,ℤ,Ω1∪Ω2∪Ω3)
+
+neither the rule DivPosConst nor DivNegConst can be applied
+
+otherwise
+
+DivNoMod
+
+Bound check. Bound check expressions may warn about potential overflows
+and underflows. First, the expression in the argument of the bound check is
+translated. Then, if its potential values can be proven to be necessarily within the
+
+This is formalized in the following three inference rules.
+
+DivPosConst
+
+DivNegConst
+
+
+20
+
+J. Boillot, J. Feret.
+
+bounds checked, no additional alarm has to be collected. Otherwise, a potential
+
+error𝜔𝑜 is collected.
+additional alarm to record. Otherwise, the primitivermMod is used to eliminate
+the outermost modulo applied to the abstract expression. Then, the𝜄 primitive is
+
+Different methods can be used to compute the range of possible values of
+the translated expression. Whenever the interval of the outermost modulo of
+the inner expression is included in the interval of the bound check, there is no
+
+used to collect the range of the result. This range is checked against the bounds
+of the bound check.
+
+This is formalized in the following two inference rules.
+
+BoundCheckMod
+
+𝑚⊆[𝑙,𝑢[
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+⦅ bound_check(𝑒,[𝑙,𝑢[)⦆𝑅♯≝(𝑒♯,𝑚,Ω𝑒)
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+𝑚⊈[𝑙,𝑢[
+Ω1≝{{𝜔𝑜}
+if𝜄(toExpr(rmMod(𝑒♯,𝑚)𝑅♯))𝑅♯⊈[𝑙,�
+∅
+⦅ bound_check(𝑒,[𝑙,𝑢[)⦆𝑅♯≝(𝑒♯,𝑚,Ω𝑒∪Ω1)
+
+otherwise
+
+BoundCheckNoMod
+
+computation in expressions of the form𝑒 mod[𝑙,𝑢[ into the sub-expression𝑒.
+
+Modulo. The latest inference rules aim to propagate the outermost modulo
+
+The premises of these conditions are not mutually exclusive. They are displayed
+according to their levels of priority. That is, only the first inference rule that can
+be applied is applied. In all following rules, any alarms encountered during the
+translation of sub-expressions are propagated, but no extra alarms are forwarded.
+We begin with the case of a sum of two expressions such that the modulo
+specifications of the two abstract translations of the operands are compatible
+with the outermost modulo computation of the main expression. This comp
+
+bility is checked thanks to the notion of𝑘-splittability. If they are compatible, the
+
+modulo specifications of the translations of both sub-expressions are discarded.
+Then, the abstract counterpart of the sum is used. Lastly, the resulting abstract
+expression is simplified by the means of the reduce parametric operator. This
+is formal the following inference rule.
+
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝑚1∈𝕊(𝑢3−𝑙3)
+
+(𝑒♯2��2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑚2∈𝕊(𝑢3−𝑙3)
+⦅(𝑒1+𝑒2) mod[𝑙3,𝑢3[⦆𝑅♯≝(reduce(𝑒♯1⊞𝑒♯2)𝑅♯,[𝑙3,𝑢3[,Ω1∪Ω2)
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑚2∈𝕊(𝑢3−𝑙3)
+⦅(𝑒1×𝑒2) mod[𝑙3,𝑢3[⦆𝑅♯≝(reduce(𝑒♯1⊠𝑒♯2)𝑅♯,[𝑙3,𝑢3[,Ω1∪Ω2)
+
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝑚1∈𝕊(𝑢3−𝑙3)
+
+ModPlusExpr
+
+ModMultExpr
+
+The case of a product between two sub-expressions works exactly the same
+
+way. This is formalized in the following inference rule.
+
+
+21
+
+Symbolic transformation of expressions in modular arithmetic
+
+For any other expression, or when the modulo computations are not com-
+
+patible, the sub-expression𝑒 of the modulo computation is translated, which
+provides the specifications of a potential inner modulo computation𝑚. Then,
+the application of the modulo𝑚 is followed by the application of the initial
+modulo[𝑙,𝑢[. We now introduce three cases, according to specific properties of
+𝑚 and[𝑙,𝑢[ to simplify these modulo computations.
+of𝑘-splittability. This is formalized in the following inference rule.
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯
+𝑚∈𝕊(𝑢−𝑙)
+⦅𝑒 mod[𝑙,𝑢[⦆𝑅♯≝(𝑒♯,[𝑙,𝑢[,Ω𝑒)
+
+As seen in Prop.1, when one modulo computation follows another, the inner
+one can be discarded provided that the outer one is compatible with it. The com-
+patibility between those modulo computations is checked thanks to the notion
+
+ModIdentity
+
+As seen in Prop. 3, in some cases, the outermost modulo interval is large
+enough and compatible with the modular ring of the translated sub-expression.
+This happens when elements of the second interval are only translated when
+applying the modulo on the first interval. In such a case, we return the sub-
+expression without forgetting to translate the bounds of its modular ring. We
+can the outermost modulo of the main expression. This is formalized
+in the following inference rule.
+
+When no other rules can be applied the primitivermMod is used to eliminate
+
+⦅𝑒

@@ -1,0 +1,103 @@
+Title-Abstract. Section intro
+ components (e.g., a counter). While powerful, these approaches
+are also laborious—state-of-the-art tools such as Iris, FCSL, and Voila all require a form of interactive proof.
+This paper develops proof automation for contextual reﬁnement and logical atomicity in Iris. The key
+ingredient of our proof automation is a collection of proof rules whose application is directed by both the
+program and the logical state. This gives rise to eﬀective proof search strategies that can prove linearizability of
+simple examples fully automatically. For more complex examples, we ensure the proof automation cooperates
+well with interactive proof tactics by minimizing the use of backtracking.
+
+We implement our proof automation in Coq by extending and generalizing Diaframe, a proof automation
+extension for Iris. While the old version (Diaframe 1.0) was limited to ordinary Hoare triples, the new version
+(Diaframe 2.0) is extensible in its support for program veriﬁcation styles: our proof search strategies for
+contextual reﬁnement and logical atomicity are implemented as modules for Diaframe 2.0. We evaluate our
+proof automation on a set of existing benchmarks and novel proofs, showing that it provides signiﬁcant
+reduction of proof work for both approaches to linearizability.
+
+CCS Concepts: • Theory of computation → Separation logic; Automated reasoning; Program veriﬁ-
+cation.
+
+Additional Key Words and Phrases: Separation logic, linearizability, ﬁne-grained concurrency, reﬁnement,
+logical atomicity, proof automation, Iris, Coq
+
+ACM Reference Format:
+Ike Mulder and Robbert Krebbers. 2023. Proof Automation for Linearizability in Separation Logic. Proc. ACM
+Program. Lang. 7, OOPSLA1, Article 91 (April 2023), 30 pages. https://doi.org/10.1145/3586043
+
+1 INTRODUCTION
+
+Concurrent algorithms and data structures play an increasingly important role in modern comput-
+ers. For eﬃciency, such algorithms and data structures often rely on ﬁne-grained concurrency—they
+use low-level operations such as Compare And Swap (CAS) instead of high-level synchronization
+primitives such as locks. The “golden standard” of correctness for such data structures is lineariz-
+ability [Herlihy and Wing 1990]. An operation on a concurrent data structure is linearizable if its
+eﬀect appears to take place instantaneously, and if the eﬀects of concurrently running operations
+always constitute a valid sequential history. This can be formalized by requiring that somewhere
+during every operation on the concurrent data structure, there exists a single atomic step which
+
+Authors’ addresses: Ike Mulder, Radboud University Nijmegen, The Netherlands, me@ikemulder.nl; Robbert Krebbers,
+Radboud University Nijmegen, The Netherlands, mail@robbertkrebbers.nl.
+
+This work is licensed under a Creative Commons Attribution 4.0 International License.
+
+© 2023 Copyright held by the owner/author(s).
+2475-1421/2023/4-ART91
+https://doi.org/10.1145/3586043
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:2
+
+Ike Mulder and Robbert Krebbers
+
+logically performs the operation on the data structure. This point is called the linearization point,
+and the eﬀects of concurrent operations must then match the eﬀects of the corresponding sequential
+operations, when ordered by linearization point.
+
+Linearizability has originally been formulated as a property on program traces by Herlihy and
+Wing [1990]. This formulation is a good ﬁt for automated proofs, as witnessed by fully automated
+methods based on shape analysis [Henzinger et al. 2013; Vafeiadis 2010; Zhu et al. 2015] and model
+checking [Burckhardt et al. 2010]—see Dongol and Derrick [2015] for a detailed survey. However,
+Dongol and Derrick [2015] classify these methods as not compositional: they are unable to abstractly
+capture the behavior of the environment. Accordingly, there has been an avalanche of research on
+formulations and proof methods for linearizability that enable compositional veriﬁcation: proving
+linearizability of compound data structures (e.g., a ticket lock) using proofs of linearizability of their
+individual components (e.g., a counter). Unfortunately, proof automation for these compositional
+approaches to linearizability is still lacking.
+
+Compositional approaches to linearizability. Notable examples of compositional approaches
+to linearizability are contextual reﬁnement [Filipović et al. 2010; Liang and Feng 2013; Turon et al.
+2013], logical atomicity [Birkedal et al. 2021; da Rocha Pinto et al. 2014; Jung et al. 2015], and
+resource morphisms [Nanevski et al. 2019]. We focus on the ﬁrst two: they are both available in the
+Iris framework for separation logic in Coq [Jung et al. 2016, 2018b, 2015; Krebbers et al. 2017a,b],
+and recent work by Mulder et al. [2022] provides a starting point for proof automation in Iris.
+
+Linearizability follows from contextual reﬁnement  ⪯ctx  � where  is the ﬁne-grained concur-
+rent program, and  ′ is a coarse-grained (i.e., lock-based) version of . A program  contextually
+reﬁnes  ′, if for all well-typed contexts , if  [] terminates with value , then there exists an
+execution so that  [ ′] also terminates with value . The quantiﬁcation over all contexts  makes
+reﬁnements compositional, but also diﬃcult to prove. Turon et al. [2013] pioneered an approach
+based on separation logic that made it feasible to prove reﬁnements of sophisticated concurrent
+algorithms on paper. Krebbers et al. [2017b] incorporated this work into Iris to enable interactive
+proofs using Coq. The state of the art for reﬁnement proofs in Iris is the ReLoC framework [Frumin
+et al. 2018, 2021b], which has been applied to sophisticated examples such as the Michael-Scott
+queue [Vindum and Birkedal 2021] and a queue from Meta’s Folly library [Vindum et al. 2022].
+
+Linearizability also follows from a logically atomic triple ⟨⟩  ⟨⟩. Intuitively, such a triple
+gives a speciﬁcation for the linearization point of the program . Even though  itself may not be
+physically atomic,  will atomically update the resources in  to the resources in , somewhere
+during its execution. Logically atomic triples can be composed inside the logic, i.e., the triple for one
+data structure (say, a counter) can be used to verify to another (say, a ticket lock). Logical atomicity
+has been pioneered in the TaDA logic by da Rocha Pinto et al. [2014], and was embedded in Iris
+and extended with support for higher-order programs and programs with “helping” (delegation of
+the linearization point to another thread) by Jung et al. [2015]. Logical atomicity in Iris has been
+used to verify challenging examples such as the Herlihy-Wing queue and RDCSS [Jung et al. 2020],
+and by engineers at Meta to verify a high-performance queue [Carbonneaux et al. 2022]. GoJournal
+[Chajed et al. 2021] uses logical atomicity in Iris to verify a concurrent, crash-safe journaling system
+of signiﬁc (∼1.300 lines of Go code, ∼25.000 lines of Coq proofs). Compositionality is crucial
+in GoJournal’s veriﬁcation: the implementation consists of four layers, and the veriﬁcation of each
+layer uses the logically atomic speciﬁcation of the previous layer.
+
+State of the art on proving linearizability compositionally. The state of the art for compo-
+sitional approaches

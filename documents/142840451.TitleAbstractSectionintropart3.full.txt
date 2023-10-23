@@ -1,0 +1,123 @@
+Title-Abstract. Section intro
+
+↰⟨8, process,→⟩
+
+0
+∅
+
+1
+∅
+∅
+
+2
+∅
+∅
+∅
+
+3
+∅
+∅
+
+{process@8}
+
+Step
+
+4
+∅
+
+{handler@10}
+{process@8}
+
+Step
+
+6
+∅
+
+Query
+⟨2, arg,←⟩
+↰⟨1, writeToLog,→⟩ {handler@10} {handler@10}
+↰⟨13, process,←⟩ {process@8} {process@8}
+↰⟨9, getData,←⟩
+↰⟨8, process,→⟩
+{process@13}
+
+7
+∅
+
+∅
+∅
+
+∅
+
+8
+∅
+
+{handler@10}
+{process@8}
+{process@13}
+
+5
+∅
+
+∅
+
+{handler@10}
+{process@8}
+
+9
+
+{private@6}
+{handler@10}
+{process@8}
+{process@13}
+
+{readUserData@4} {readUserData@4}
+
+Fig. Step-by-step on-demand call graph construction
+
+determine whether arg on line 2 might contain sensitive information, an analysis
+needs to identify all possible calls to writeToLog, including indirect ones, such as
+the call to handler on line 10. Constructing a call graph for programs involving
+callbacks is challenging, particularly for large code bases.
+
+We now describe a construction that lazily computes only those parts of the
+call graph that are required by a client analysis. This construction relies on two
+components: (1) a backward data flow analysis that can track which values flow
+to a given expression, and (2) a forward data flow analysis that determines to
+which expressions a given value may flow to. Each data flow analysis is only
+assumed to handle interprocedural flows soundly up to a given call graph. Start-
+ing from an empty call graph, we can lazily compute call edges requested by
+a client analysis by repeatedly issuing queries to the two data flow analyses.
+We show how this technique applies to the example from Fig. 1; the resulting
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+5
+
+call graph is shown in Fig. 2. Note that the approach is not limited to tracking
+information leaks but can be applied to any client analysis requiring call graph
+information. Furthermore, two different analyses can be used for forward and
+backward queries as they only communicate through the call graph.
+
+The table in Fig. 3 details the individual steps (1–9) needed to construct the
+call graph in Fig. 2: each edge in the call graph is labeled by the step number at
+which it is introduced. The table also tracks the queries issued to the underlying
+analysis during the process: backward queries of the form ⟨ℓ, c,←⟩ to determine
+which functions can flow to expression c on line ℓ, and forward queries of the
+form ⟨ℓ, f,→⟩ to determine which expressions a function f may flow to. An
+empty cell in the table indicates that a query has not been issued yet, while ∅
+indicates that a query has been issued but has not yet produced any results. For
+each step, the table shows how the data flow analyses can make progress given
+the call graph computed up to this point. This call graph is derived in each step
+from the answers to queries found so far.
+
+In addition, the table in Fig. 3 also shows the dependency between queries:
+the “↰” symbol before a query indicates that its result is required to solve an
+earlier query (i.e., one higher up in the dependency tree). For readability, the
+table is split into two segments, and should be read following the Step number.
+Starting from the call to log inside function writeToLog (on line 2), the client
+annalysis wants to determine whether arg may contain sensitive data. Hence,
+it issues a backward query ⟨2, arg,←⟩ to determine which values flow to arg
+(step 0). Because arg is an argument to writeToLog, this in turn requires identi-
+fying call sites of writeToLog, for which a forward query �

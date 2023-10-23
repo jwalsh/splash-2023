@@ -1,0 +1,53 @@
+Title-Abstract. Section intro
+ symbolic constant propagation domain. In addition, in our latest exam-
+
+present is able to compute such invari to the interpolation detection
+step in the reduction heuristic.
+
+Related Work. The problem of analyzing programs with modular computations
+has already been addressed in the literature. Acc are especially im-
+portant when inferring properties about pointer alignments and arrays lookup
+parallelization algorithms. The domains of congruences [11], linear congruences
+[12,22], trapezoidal congruences [18] have been used in that context. They of-
+
+
+4
+
+J. Boillot, J. Feret.
+
+fer several trade-offs for describing modular properties on intervals, linear in-
+equalities, and rational linear inequalities. Modular arithmetic usually involves
+non-convex properties. A generic domain functor has been introduced in [23] to
+adapt abstract domains, so they can deal with modular properties.
+
+The granularity of expression assignments is also important. For instance,
+while the single step assignment [9] method helps static analysis by decompos-
+ing the evaluation of expressions and by distinguishing multiple usages of each
+variable, it may also make more difficult symbolic simplifications of expressions.
+In contrast, symbolic constant propagation [21] allows composite assignments to
+be recombined to form composite expressions that can be simplified more easily.
+In the static analyzer Mopsa [16], abstract domains can rewrite expressions by
+resolving some aspects (such as pointers, floating point arithmetic), and simplify
+them symbolically. Lastly, some work has been done on fixed point arithmetic
+in the context of deductive methods [10].
+
+Adapting symbolic simplification approaches in the context of modular arith-
+metic is different from detecting modular numerical properties. This is the issue
+we address in the present paper. Note that, while we focus on the simplification
+of expressions, the analysis of interpolation algorithms also requires precise han-
+dling of array lookup procedures. Analyzing array lookup loops and expressions
+involved in interpolation algorithms are orthogonal issues. The literature already
+describes some methods to address the former one [13,24].
+
+In this work, we use an intermediate language inspired by the one used in [21].
+We focus on integer arithmetic rather than floating-point computations, and we
+have introduced modulo computations and bound check operators. Moreover, we
+have adapted our rewriting relation from the one that is given in [21] by adding
+an explicit treatment of error alarms.
+
+Outline. The paper is organized as follows. In Sect. 2, we present some prelimi-
+nary results on modular integer arithmetic, which suggest it should be possible
+to effectively simplify expressions evaluated over modular rings. In Sect. 3, we in-
+troduce a toy arithmetic language that allows modulo computations and bound
+checks. The semantics of this language describes two kinds of error alarms: divi-
+sions by zero and failed bound checks. In Sect. 4 we explain how

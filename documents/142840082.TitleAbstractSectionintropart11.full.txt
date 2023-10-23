@@ -1,0 +1,114 @@
+Title-Abstract. Section intro
+
+rule.
+
+16
+
+J. Boillot, J. Feret.
+
+𝑋∈𝒱
+
+Such a replacement hides no error alarms, and the abstract expression obtained
+
+this way can be interpreted inℤ. This is formalized in the following inference
+Interval. An interval is encoded by the means of the convex join operator⋓□.
+result can be interpreted inℤ. This is formalized in the following inference rule.
+
+The bounds of the interval are given as operands (their order has been chosen
+arbitrarily). Then, the reduce operator is applied to potentially simplify the
+resulting abstract expression. This translation yields no potential errors and its
+
+⦅𝑋⦆𝑅♯≝(ℒ□(𝑋),ℤ,∅)
+
+Variable
+
+𝑎,𝑏∈ℤ
+
+𝑎≤𝑏
+
+⦅[𝑎,𝑏]⦆𝑅♯(reduce(ℒ□(𝑎)⋓□ℒ□(𝑏))𝑅♯,ℤ,∅)
+
+Interval
+
+Unary minus. The translation of an expression starting with a unary minus is
+defined inductively. First, the argument is translated, which provides an abstract
+expression, a modulo specification, and a set of potential errors. The primitive
+
+opposite is then applied to the abstract expression, which yields no additional
+inℤ, or in a modular ring.
+
+error alarms. Furthermore, when the abstract expression is evaluated over a
+modular ring, the ring is kept the same, but the elements of the potential modular
+interval are also negated.
+
+This is formalized in the two following inference rules, which distinguish two
+cases according to whether the translation of the argument can be interpreted
+
+OppositeNoMod
+
+(𝑒♯,ℤ,Ω𝑒)≝⦅𝑒⦆𝑅♯
+(𝑒♯,[𝑙,𝑢[,Ω𝑒)≝⦅𝑒⦆𝑅♯
+
+⦅−𝑒⦆𝑅♯≝(reduce(opposite(𝑒♯))𝑅♯,ℤ,Ω𝑒)
+⦅−𝑒⦆𝑅♯≝(reduce(opposite(𝑒♯))𝑅♯,[−𝑢+1,−𝑙+1[,Ω𝑒)
+
+OppositeMod
+
+Convex join. An expression of the form𝑒1⋓𝑒2 is translated thanks to its
+abstract counterpart⋓□. First, the sub-expressions are translated, which provides
+outermost modulo computations are conservatively suppressed using thermMod
+primitive before the results are passed to the ⋓□ abstract operator. The final
+interpreted inℤ. No additional potential errors are collected. This is formalized
+
+result may be simplified by the means of the reduce operator before being
+
+abstract expressions, modulo specifications, and sets of potential errors. The
+
+in the following inference rule.
+
+(𝑒♯1,𝑚1,Ω1)⦅𝑒1⦆𝑅♯
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑒′♯1≝rmMod(𝑒♯1,𝑚1)𝑅♯
+𝑒′♯2≝rmMod(𝑒♯2,𝑚2)𝑅♯
+⦅𝑒1⋓𝑒2⦆𝑅♯≝(reduce(𝑒′♯1 ⋓□𝑒′♯2)𝑅♯,ℤ,Ω1∪Ω2)
+
+ConvexJoin
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+17
+
+Addition. According to the result of the translation of its arguments, more or
+less precise inference rules can be used to translate a sum expressions.
+
+result in loss of information. The resulting abstract expression can be potentially
+simplified by the means of the reduce parametric operator.
+
+In all cases, the computation yields no additional error alarms. This is formal-
+
+take advantage of the algebraic simplifications of our abstract domain and rewrite
+e1 == e2 into e1 - e2 == 0. We then need a rule that simplifies addition of
+
+Whenever both operands are translated into constants, whether they need
+to be respectively interpreted in modular rings or not, the potential application
+of the modulo operations can be directly applied on the constant values. The
+
+a constant, and the other one must be interpreted in modular arithmetic, the
+potential modulo operator of the constant expression can be directly applied.
+Then, the added to the other abstract expression and to the bounds
+of its modular ring. The resulting abstract expression may be simplified by the
+means of the reduce operator. In the context of real programming languages,
+
+result can be interpreted inℤ. Whenever exactly one operand is translated into
+branching is generally not limited to comparisons to0. we would like to
+abstract expressions interpreted in the same modular ring that sum toℒ□(0).
+In such a case, the result isℒ□(0) and can be interpreted inℤ. Otherwise, the
+operatorrmMod is used to remove modulo operators in both translations of the
+arguments. It yields abstract expressions which can be interpreted inℤ, but may
+ized in the following four inference rules (we recall that by convention𝛼modℤ
+is equal to𝛼 for every integer𝛼∈ℤ).
+𝛼1∈ℤ∶(ℒ□(𝛼1),𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝛼2∈ℤ∶(ℒ□(𝛼2),𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+⦅𝑒1+𝑒2⦆𝑅♯≝(ℒ□(𝛼1mod𝑚1+𝛼2mod𝑚2),ℤ,Ω𝑖∪Ω𝑗)
+𝛼∈ℤ∶(ℒ□(𝛼),𝑚𝑖,Ω𝑖)≝⦅𝑒�

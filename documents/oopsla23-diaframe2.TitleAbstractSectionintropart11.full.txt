@@ -1,0 +1,135 @@
+Title-Abstract. Section intro
+order functions):
+
+(1) If 1 and 2 are values, apply rules similar to val-z and val-fun, depending on the type .
+(2) If 1 is a value and 2 is not, apply exec-r.
+(3) If 1 is not a value and E = ⊤, try the following:
+
+(a) Find  with 1 =  [] for which exec-l is applicable, otherwise
+(b) Try to ﬁnd an induction hypothesis to apply with reloc-apply, otherwise
+(c) If 1 := (rec   := ) , apply Löb induction with Löb, followed by unfold-rec-l.
+
+(4) If 1 is not a value and E ≠ ⊤, but 2 ís a value, apply refines-fupd.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:13
+
+(5) If 1 is not a value and E ≠ ⊤ and 2 is not a value, there are two valid ways to proceed: either
+restore the invariant with refines-fupd, or perform symbolic execution on the right with
+exec-r. Depending on the user’s preference, the proof automation will backtrack on these
+choices, or stop and let the user choose how to proceed.
+
+Additionally, for other goals Δ ⊢ :
+
+(6)  = (cid:31)  ′: Apply iris-(cid:31)-intro, but only if all hypotheses in Δ are persistent. Stop otherwise.
+(7)  = ⊲  ′: Apply rule ⊲-intro to introduce the later and strip laters from the context.
+(8)  =
+
+E2 ∃®.  ∗  ′: Use proof automation from Diaframe 1.0 to make progress.
+
+|⇛E1
+
+Veriﬁcation of the example in Fig. 2. The strategy above is available using the iStepsS tactic
+in Coq. In the veriﬁcation of the example in Fig. 2, the iStepsS tactic stops at line 24 after applying
+val-fun for the second time. Item 6 ((cid:31) introduction) would be applicable, except that the proof
+context Δ is not persistent. Iris allows one to weaken the context before introducing the (cid:31) modality,
+but our automation refrains from doing so—it often leads to improvable goals down the line. Our
+automation thus stops and allows the user to allocate an invariant before proceeding. To allocate
+the invariant, we use the iAssert tactic from the Iris Proof Mode.
+
+Why these rules? Let us motivate our proof strategy and indicate how it reﬂects the design
+goals described in § 1. After the invariant is established, the reﬁnement of the two closures is
+established completely automatically, as is Design goal #1. Automatically inferring invariants is
+outside Diaframe 2.0’s scope. The strategy as a whole makes explicit the pattern followed in most
+interactive proofs, although the details diﬀer. To be precise, the pattern is: symbolically execute
+the left-hand side, until you reach an expression that may be subject to interference from the
+environment (i.e., for which an invariant must be opened). The right-hand side expression may
+need to be symbolically executed some number of times at these points.
+
+Design goal #2 is to enable assistance with interactive tactics for diﬃcult reﬁnements. To do so,
+it is crucial that the proof automation does not perform backtracking, unless requested. None of the
+steps of our strategy perform backtracking, except for Item 5. This step needs to choose between
+restoring the invariant, and symbolically executing the right-hand expression. For linearizability,
+this corresponds to deferring or identifying the linearization point, which is known to be hard.
+The iSmash tactic will backtrack on this choice, and is used in Fig. 2 to ﬁnish the proof. The
+sequence iStepsS; iApply refines-fupd; iStepsS also constitutes a valid proof: iStepsS will
+not backtrack, and instead stop the proof automation. In that case, Iris’s iApply refines-fupd can
+be used to instruct the proof automation to restore the invariant (defer linearization), after which
+the proof can be ﬁnished with a second call to iStepsS.
+
+Finally, Design goal # 3 is declarative and modular proof automation. In the implementation,
+Items 7 and 8 are part of the core proof automation module. Item 6 comes in a separate module for
+handling (cid:31)  ′ goals, that of independent use for other goals. Items 1 to 5 are all part of
+the reﬁnement module. We achieve foundational proofs (Design goal #4) by establishing that all
+rules used in our proof strategy can be derived from the primitive rules of ReLoC and Iris (i.e., they
+are not axiomatic). These derivations have been mechanized in Coq. Combined with the existing
+soundness proof of ReLoC and Iris, this makes sure that our automation constructs closed Coq
+proofs w.r.t. the operational semantics of the programming language involved.
+
+3 PROOF AUTOMATION FOR LOGICAL ATOMICITY
+
+This section considers logically atomic triples to establish linearizability. We start by giving intuition
+about the need and meaning of such triples (§3.1). After discussing the formal proof rules in Iris
+(§3.2), we show our strategy for proof automation of these triples (§3.3).
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:14
+
+Ike Mulder and Robbert Krebbers
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+Definition inc : val :=
+
+rec: "f" "l" :=
+
+let: "n" :=! "l" in
+if: CAS "l" "n" ("n" + #1) then
+
+"n"
+
+else
+
+"f" "l".
+
+Global Instance inc spec (l : loc) :
+
+SPEC (z : Z), << l ↦→ #z >> inc #l << RET #z; l ↦→ #(z + 1) >>.
+
+10
+
+Proof. iSmash. Qed.
+
+Fig. 5. Verification of a logically atomic triple for a fine-grained concurrent incrementer in Diaframe 2.0.
+
+3.1 Logical Atomicity in Iris
+
+Consider the inc function deﬁned in lines 1-7 of Fig. 5. The pattern of recursively trying to CAS
+occurs in various concurrent programs: we have seen it in fg incrementer in §2, and it also occurs
+in the implementation of e.g., a ticket lock. To enable modular veriﬁcation, we would like to give
+inc a useful speciﬁcation that can be used in the veriﬁcation of other concurrent algorithms.
+
+Let us try to specify inc using a regular Hoare triple { }  {Φ}, where  is an Iris assertion and
+Φ is an Iris predicate on

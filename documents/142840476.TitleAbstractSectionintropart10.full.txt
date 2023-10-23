@@ -1,0 +1,142 @@
+Title-Abstract. Section intro
+ linear combinations z and z + y for z, y ∈ V and z (cid:54)= y.
+Proof. The proof of the proposition is obtained by means of the dual
+program:
+
+linear
+
+minimize (cid:80)
+subject to ((cid:80)
+
+(cid:96)∈LV
+
+y(cid:96) · b(cid:96)
+
+z in (cid:96) y(cid:96)) − ((cid:80)−z in (cid:96) y(cid:96)) = az
+
+y(cid:96) ≥ 0
+
+(z ∈ V )
+((cid:96) ∈ LV )
+
+(14)
+
+the minimal gain b is attained, i.e.,(cid:80)
+
+If the original program is unbounded, then so is the program with the restricted
+set of constraints. Therefore, assume that the original linear program is bounded.
+Then the dual optimization problem has a feasible solution y(cid:96), (cid:96) ∈ LV, where
+y(cid:96) · b(cid:96) = b. It remains to prove that
+b can be attained by a feasible solution y(cid:96), (cid:96) ∈ L, where y(cid:96) = 0 for all octagon
+combinations (cid:96) which contain negations. We proceed by induction on the number
+of octagon combinations (cid:96) with negative occurrences of variables from V. Assume
+that there are octagon combinations (cid:96) with negated occurrences of z and y(cid:96) > 0.
+Consider the linear constraint in (13) for z
+
+(cid:96)∈LV
+
+(cid:16)(cid:80)r
+
+(cid:17) −(cid:16)(cid:80)r(cid:48)
+
+(cid:17)
+
+j=1 y(cid:96)
+
+j(cid:48)=1 y(cid:96)(cid:48)
+j(cid:48)
+
+= az
+
+where (cid:96)j enumerates all octagon combinations with positive and (cid:96)(cid:48)
+j(cid:48) enumerates
+all octagon combinations with negative occurrences of z. Since r(cid:48) > 0 and az > 0also r > 0. If y(cid)r ≥ y(cid:96id:48)
+r(cid:48 we proceed to eliminate the octagon combination (cid:96)(cid:48)
+r(cid:48)
+with a negative occurrence of z and proceed to eliminate also all other negative
+(cid:96) with the same gain b where y(cid:48)
+occurrences of z by constructing a solution y(cid:48)
+r(cid:48) =
+(cid:96)(cid:48)Octagons Revisited - E Proofs and Simpli�ed Algorithms
+
+15
+
+Now assume that (cid:96)r + (cid:96)(cid:48)
+
+r(cid:48) = 0, then either no further variable is contained in (cid:96)r, (cid:96)(cid:48)
+
+0. If (cid:96)r + (cid:96)(cid:48)
+same variable z(cid:48) occurs with opposite signs. Then we set y(cid:48)
+y(cid:48)
+pp otherwise.
+r(cid:48 a linear combination diﬀerent from 0. Then it
+either is equivalent to an octagon combination not involving variable z, or 2z(cid:48)
+or 2 · (−z(cid:48)) for some variable z(c48) diﬀ z. In order to deal with all these
+cases consistently, we introduce a correction factor c as 1 if the sum is an octagon
+linear combination, and 2 otherwise. Let q denote the octagon combination with
+c·q = (cid:96)r +(cid:96)(cid:48)
+(cid:96), (cid:96) ∈ LV,
+be deﬁned by
+
+r(cid:48). Since the octagon r is closed, c·bq ≤ b(cid:96)r +b(cid:96)(cid:48)
+
+r(cid:48) or the
+= y(cid:48)
+r(cid:48) = 0 and
+(cid:96)(cid:48)
+
+r(cid:48) holds. Let y(cid:48)
+
+(cid:96)r
+
+
+
+y(cid:48)
+(cid:96) =
+
+y(cid:96)r − y(cid:96)(cid:48)
+y(cid:96) + c · y(cid:96)(cid:48)
+
+r(cid:48) if (cid:96) = (cid:96)r
+0 if (cid:96) = (cid:96)(cid:48)
+r(cid:
+r(cid:48) if c · (cid:96) = q
+y(cid:96) otherwise
+
+(cid:96), (cid:96) ∈ L, is again a feasible solution, i.e., satisﬁes all constraints,
+ claim that y(cid:48)
+where the same gain b is attained. Concerning the gain, we have
+r(cid:48) · (b(cid:96)r + b(cid:96)(cid:48)
+
+cid:48 yq · bq = (y(cid:96)r − y(cid:96)(cid:48)
+
+r(cid:48) ) · b(cid:96)r + y(cid:96)(cid:48)
+
+y(cid:96)r · b(cid:96)r + y(cid:96)(cid:48)
+
+r(cid:48) ) + yq · bq
+
+r(cid:48) · b(cid:96)(cid:48)
+
+≥ y(cid:48)
+
+(cid:96)r
+
+· b(cid:96)r + y(cid:48)
+
+q · bq
+
+As the gain b was already minimal, we conclude that the gain for the y(cid:48)
+(cid:96) has not
+changed. It remains to show that the y(cid:48)
+(cid:96) form a feasible solution of the constraints
+in (13). By construction, the equation for z is satisﬁed (we reduce y(cid:96)r with a
+r(cid:48) with a negative occurrence).
+positive occurrence of z by the same amount as y(cid:96)(cid:48)
+If q contains a variable z(cid:48) which is then diﬀerent from z, then this variable must
+occur in (cid:96)r, (cid:96)(cid:48)
+r(cid:48) or both and if so, with the same sign. If it is contained only in (cid:96)(cid:48)
+r(cid:48),
+r(cid:48) in the left-hand side of the constraint for z(cid:48) is replaced with 0, while
+then y(cid:96)(cid:48)
+at the same time yq is increased with y(cid:96)r. If it is contained only in (cid:96)r, then y(cid:96)r

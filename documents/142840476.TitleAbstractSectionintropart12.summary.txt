@@ -1,0 +1,3 @@
+
+
+This section provides an overview of the weakly relational numerical domain of Octagons and related work. It presents an algorithm for normalizing octagon abstract relations over rationals and integers, introducing the notion of 2-decomposability for relational domains and providing a cubic-time algorithm based on Floyd-Warshall which overapproximates normalization. It also provides a quadratic algorithm for incremental normalization and reconsiders the construction of best abstract transformers for affine assignments by means of linear programming. Over the rationals, it is observed that only those constraints need to be taken into account where the sign of each occurring variable z agrees with the sign of the occurrence of z in the respective objective functions.

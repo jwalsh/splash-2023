@@ -1,0 +1,3 @@
+
+
+This section describes how the type system of Section 3 is implemented as the session type checker tool called ElixirST. ElixirST is integrated into Elixir with minimal changes to the syntax of the surface language and is written in Elixir and is open-source. The compilation process of Elixir source code is outlined in Figure 11, with the session type implementation (in red) integrated seamlessly. Annotations are used to set up the rules of the session types, which are parsed and computed using the Erlang modules leex and yecc. The after compile hook is used to run ElixirST after the BEAM code is produced, which is able to traverse the AST and verify its concurrent parts using session types.

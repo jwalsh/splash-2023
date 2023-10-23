@@ -1,0 +1,98 @@
+Title-Abstract. Section intro
+ Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+11
+Proof. Let p ∈ [X ]2. By Proposition 1, ¯s|p (cid:118) tp holds, since the right-hand
+sides of the constraint system (8) are all monotonic, and starting from the initial
+values provided in the ﬁrst loop, each update to some t{x,y} in the second loop,
+corresponds to one update performed by the evaluation of some right-hand side
+of (8). Therefore, the ﬁrst assertion follows.
+Now assume that the 2-decomposable relational domain R additionally is 2-
+projective. Let t(r)
+p denote the value of tp attained after the iteration of the second
+loop for the variable. By induction on r, we verify by means of Proposition 3
+that for all p ∈ [X ]2, t(r)
+p holds for all r = 0,..., n. In particular, tp =
+p (cid:118) ¯s|p, and the second assertion of the theorem follows.
+(cid:117)(cid:116)
+t(n)
+Example Given a (ﬁnite) set of constants, the Pairs domain consists of false
+of conjunctions of atomic propositions x = c, x ∈ p. It is ordered by logical
+implication. Consider, e.g., r = φ{x,y} ∧ φ{y,z} with φ{x,y} ≡ (x = a) ∨ (
+b∧ y = c) and φ{y,z} ≡ (y = d∧ z = b). Then r|{x,y} = (x = a∧ y = d). Likewise,
+r|{y,z} = (y = d z = b) and r|{x,z} = (x = a ∧ z = b).
+
+or conjunctions(cid:86){φp | p ∈ [X ]2} where for p ∈ [X ]2, φp is true or a disjunction
+Assume each r ∈ R is represented by r =(cid:86){r|p | p ∈ [X ]2}, and deﬁne for
+p ∈ [X ]2, φp as the least upper bound of formulas r|p, r ∈ Then ¯r =(cid:86){φp |
+
+p (cid:118) s(r)
+
+p ∈ [X ]2} is an upper bound of R and, in fact, the least upper bound. For some
+p ∈ [X ]2, then by deﬁnition, ¯r|p ⇒ φp. By monotonicity of the restriction, on the
+other hand, r|p ⇒ ¯r| all r ∈ R. Therefore, φp ⇒ ¯r|p as well, and the claim
+follow While being 2-decomposable, the Pairs domain is not 2-projective. Let,
+e.g.,
+
+s{w,x} = (w = "fun1" ∧ x = &f1) ∨ (w =3" ∧ x = &f2)
+s{w,y} = (w = "fun2") ∨ (w = "fun3")
+s{w,z} = (w = "fun1" ∧ z = &f1) ∨ (w = "fun2" ∧ z = &f1)
+
+and all other sp = true. Then, Algorithm 1 computes
+
+t{y} = true
+t{y,z} = t{z} = (z = &f1)
+
+t{w} = t{w,x} = t{w,y} = t{w,z} = false
+t{x} = t{x,y} = (x = &f1) ∨ (x = &f2)
+t{x,z} = (x = &f1 ∧ z = &f1) ∨ (x = &f2 ∧ z = &f1)
+which is an overapproximation of the normalization given by ¯s|p = false for
+p ∈ [X ]2. Here, the normalization happens to coincide with the greatest solution
+(cid:117)(cid:116)
+of constraint system (8).
+Example 6. According to Proposition 2, the domains of rational as well as integer
+octagons are 2-decomposable and 2-projective. Therefore, Algorithm 1 computes
+the exact 2-normal form, and thus provides us with cubic time closure algorithms
+(cid:117)(cid:116)
+for these.
+
+Incremental Normalization
+
+5
+If the condition c of a guard can be abstracted by some abstract relation rc ∈
+
+R, then the transfer function (cid:74)?c(cid:75)(cid:93) can be chosen as (cid:74)?c(cid:75)(cid:93)r = r (cid:117) rc. Assume
+
+
+12
+
+Michael Schwarz and Helmut Seidl
+
+Algorithm 2: Incremental version of the Floyd-Warshall algorithm
+to incrementally compute (an overapproximation of) 2-normal forms
+when clusters tp, p ⊆ V, with |p| = 2 have potentially received new
+values.
+for z ∈ V do
+
+for x, y ∈ X do
+
+t{x,y} := t{x,y} (cid)(cid:0)t{x,z} (cid:117) t{z,y}(cid:1)(cid:12)(cid:12){x,y}
+
+return (cid:104)tp(cid:105)p∈[X ]2
+
+that the relational domain R is 2-decomposable as well as 2-projective, and
+that rc is represented as the meet rp1 (cid:117)... (cid:117) rpk for pj ∈ ]2. Then,normalization of r (cid:117) rc can be computed incrementally. For the octagon domain
+over integers, Chawdhary et al. [4] give quadratic incremental closure algorithms.
+Just like theirs, our algorithm for incremental normalization is based on the
+Floyd-Warsh, i. Algorithm 1.
+In our setting, adding new constraints amounts to improving some clusters
+r{a,b} where a and b are from some set V ⊆ X. For simplicity, we require that
+only clusters r{a,b} with a (cid:54)= b are improved. This allows us inaption of
+Algorithm 1 to avoid the initialization loop. Whenever X contains more than
+one variable, this extra requirement is no limitation, though, as a constraint
+involving only the variable z may just be added to any 2-variable cluster p
+with z ∈ p. (When X contains only one variable, no normalization is required.)
+Normalization then is computed by the modiﬁed version of Algorithm 1 given
+in Algorithm 2.
+
+Theorem 2. Assume a 2-normal collection of values of some 2-decomposable

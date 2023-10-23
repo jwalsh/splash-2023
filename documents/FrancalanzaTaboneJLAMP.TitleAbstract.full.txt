@@ -1,0 +1,18 @@
+Title-Abstract
+ElixirST: A Session-Based Type System for Elixir Modules⋆
+
+Adrian Francalanzaa, Gerard Tabonea,∗
+
+aDept. of Computer Science, University of Malta, Msida, Malta
+
+Abstract
+This paper investigates the adaptation of session types to provide behavioural information about
+Elixir modules. We devise a type system, called ElixirST, which statically determines whether
+functions in an Elixir module observe their endpoint specifications, expressed as session types;
+a corresponding tool automating this typechecking has also been constructed. In this paper we
+also formally validate this type system. An LTS-based operational semantics for the language
+fragment supported by the type system is developed, modelling its runtime behaviour when inter-
+acting with the module client. This operational semantics is then used to prove a form of session
+fidelity and progress for ElixirST.
+
+Keywords: session types, type systems, Elixir, functional programming

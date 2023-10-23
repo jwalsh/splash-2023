@@ -1,0 +1,55 @@
+6. Section intro
+This section describes how the type system of Section 3 is implemented as the session type
+checker tool called ElixirST. This tool is integrated in Elixir with minimal changes to the syntax
+of the surface language. The source code is written in Elixir and is available open-source.
+
+6.1. Elixir Compilation with Session Types
+Elixir Source Code +
+
+Session Type Annotations
+
+Elixir AST
+
+ElixirST
+
+Macros Expanded
+
+BEAM Code
+
+Core Erlang
+
+Erlang
+
+Figure 11: Stages of Elixir compilation along with the session type implementation (in red)
+
+The Elixir source code is compiled in several steps (see Figure 11). The original Elixir
+source code is initially parsed into an Abstract Syntax Tree (AST). Then, Elixir’s powerful macro
+system expands all non-special form2 into special form macros (e.g., if/unless statements are
+converted into case constructs) [17]. Afterwords, the expanded Elixir AST is converted into
+Erlang abstract format and Core Erlang. Finally, it is compiled into BEAM code which can be
+executed on the Erlang Virtual Machine (BEAM).
+
+Our implementation integrates seamlessly within this compilation pipeline (see Figure 11,
+red). Inside the Elixir source code, processes are described with a specific session type using
+annotations (starting with @). Annotations are able to hold information about a module during
+compile-time. We provide normal labelled session types (@session) and their dual (@dual,
+referenced by a label):
+
+@session "X = !ping().?pong().X"
+# ...
+@dual "X" # Equivalent to X’ = ?ping().!pong().X’
+
+2Special form macros cannot be expanded further, forming the basic building blocks of the Elixir language.
+
+23
+
+
+The annotations set up the rules of the session types, which need to be enforced later on in the
+compilation process. Elixir provides several compile-time hooks which provide a way to alter or
+append to the compilation pipeline. In this implementation, we initially use the on definition
+hook to parse the session type (from the annotations) and compute the dual type where required;
+this is done using the Erlang modules leex3 and yecc4, which create a lexer and a parser,
+respectively, based on the session type syntax rules shown in Figure 3. Then, the after compile
+hook is used to run ElixirST right after the BEAM code is produced. Since the BEAM code stores
+directly the expanded Elixir AST, ElixirST is able to traverse this AST and verify its concurrent
+parts using session types.

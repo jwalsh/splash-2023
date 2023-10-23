@@ -1,0 +1,7 @@
+
+
+This section discusses the use of abduction and transformer hints in Diaframe 2.0, a proof automation system for separation logic. Abduction hints directly represent hints of Category 2, while Category 1 is encoded by performing a technical trick relying on the fact that  ′ ⊢  implies True ∗ ′ ⊢ . To account for the case where a priority of rules is desired, two syntactical markers 0 ≜ True and 1 ≜ True are defined. Abduction hints serve two purposes: they both implement the proof search strategy and prove it sound. 
+
+Near-applicability is also discussed, where Diaframe 2.0 can apply abduction hints when the logical state or current goal nearly matches a rule. An example is given of the rule rec-apply from §3.3 to apply Löb induction hypotheses, which is decomposed into separate hints for each task. 
+
+Transformer hints are also discussed, which capture rules in Category 3. Examples are given of the introduction rules for the later (⊲) and persistence ((cid:31)) modalities. Transformer hints come in two flavors—hypothesis and context transformer hints. If we are proving a goal of shape Δ ⊢ T, the proof search strategy takes the following steps: (1) Find  ∈ Δ and T ′ such that , T →∼hyp [T ′]. Continue with goal Δ′ ⊢ T ′, where Δ′ is the context Δ in which  is removed. (2) Otherwise, ﬁnd  such that Δ, T →∼ctx []. Continue with goal Δ ⊢ . The transformer hints for the later modality ﬁrst ‘revert’ and strip the later oﬀ of all hypotheses with a later, and only then introduce the later modality.

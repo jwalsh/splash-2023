@@ -1,0 +1,142 @@
+1. Introduction
+Modern programming languages offer a variety of abstractions for the construction of concur-
+rent programs. In the case of message-passing functional programs, concurrency manifests itself
+as spawned computation that exhibits communication as a side-effect, potentially influencing the
+execution of other (concurrent) computation. Such side-effects inevitably increase the complex-
+ity of the programs produced and lead to new sources of errors. As a consequence, correctness
+becomes harder to verify and language support for detecting errors statically, can substantially
+decrease the number of concurrency errors.
+
+Elixir [1] is one such example of a functional programming language which supports con-
+currency based on the actor model [2, 3]. As depicted in Figure 1, Elixir programs are structured
+as a collection of modules that contain functions, the basic unit of code decomposition in the
+language. A module only exposes a subset of these functions to external invocations by defining
+them as public; these functions act as the only entry points to the functionality encapsulated by a
+module. Internally, the bodies of these public functions may then invoke other functions, which
+can either be the public ones already exposed or the private functions that can only be invoked
+from within the same module. For instance, Figure 1 depicts a module m which contains several
+
+⋆This work has been supported by the MoVeMnt project (No: 217987) of the Icelandic Research Fund and the BehAPI
+project funded by the EU H2020 RISE of the Marie Skłodowska-Curie action (No: 778233). This work is also supported
+by the Security Behavioural APIs project (No: I22LU01-01) funded by the UM Research Excellence Funds 2021 and the
+Tertiary Education Scholarships Scheme (Malta).
+
+∗Corresponding author
+Email addresses: adrian.francalanza@um.edu.mt (Adrian Francalanza), gerard.tabone@um.edu.mt
+
+(Gerard Tabone)
+Preprint submitted to JLAMP
+
+July 4, 2023
+
+
+Module m
+
+g1
+
+g2
+
+...
+
+g j
+
+f1
+
+...
+
+fn
+
+S 1
+
+S 1
+
+client1
+
+...
+
+S n
+
+S n
+
+clientk
+
+private
+
+public
+
+Figure 1: An Elixir module consisting of public and private functions, interacting with client processes
+
+public functions (i.e., f1, . . . , fn) and private functions (i.e., g1, . . . , g j). The public function f1
+delegates part of its computation by calling the private functions g1 and g j, whereas the body of
+the public function fn invokes the other public function f1 when executed. Internally, the body of
+the private function g1 calls the other private function g2, which in turn can call g1 again, whereas
+the private function g j can recursively call itself.
+
+A prevalent Elixir design pattern is that of a server listening for client requests, which we refer
+to as the service handler design pattern.1 For each request, the server spawns a (public) function
+to execute independently and act as a dedicated client handler: after the respective process IDs
+of the client and the spawned handler are made known to each other, a session of interaction
+commences between the two concurrent entities (via message-passing). For instance, in Figure 1,
+a handler process running public function f1 is assigned to the session with client client1 whereas
+the request from clientk is assigned a dedicated handler running function fn. Although traditional
+interface elements such as function parameters (used to instantiate the executing function body
+with values such as the client process ID) and the function return value (reporting the eventual
+outcome of handled request) are important, the messages exchanged between the two concurrent
+parties within a session are equally or more important for software correctness. More specifically,
+communication incompatibilities between the interacting parties could lead to various runtime
+errors. For example, if in a session a message is sent with an unexpected payload, it could cause
+the receiver’s subsequent computation depending on it to crash (e.g. multiplying by a string when
+a number should have been received instead). Also, if messages are exchanged in an incorrect
+
+1Some projects which build on this service handler design pattern include etorrent [4] and cowboy [5]. The latter is
+an HTTP server which spawns a handler process for each new request; this is scalable since spawning (and maintaining)
+actors is extremely efficient in Elixir. In literature, this pattern is also called thread-per-session [6].
+
+2
+
+
+order, they may cause deadlocks, e.g. Elixir uses blocking receive constructs that wait until a
+suitable message arrives, so if a process sends an invalid message, then the other process ends up
+waiting forever for a proper message to arrive.
+
+In many cases, the expected protocol of interactions within a session can be statically deter-
+mined from the respective endpoint implementations, namely the function bodies; for simplicity,
+our discussion assumes that endpoint interaction protocols are dual, e.g. S 1 and S 1 in Figure 1.
+Although Elixir provides mechanisms for specifying (and checking) the parameters and return
+values of a function within a module, it does not provide any further static guarantees for pro-
+grams that adhere to this design pattern due to two major obstacles. Firstly, Elixir does not
+provide any support for describing (and verifying) the interaction protocol of a function in terms
+of its communication side-effects. Secondly, in open settings, it is often the case that only one
+side of the code is available, so it is difficult to obtain static guarantees without the full codebase.
+
+Contribution. We present a type checker to assist Elixir module construction (following the
+service handler pattern) in two ways: (a) it allows module designers to formalise the session
+endpoint protocol as a session type, and ascribe it to a public function; (b) it statically verifies
+whether the body of a function respects the ascribed session type protocol specification. The
+type-checker analyses one side of an interaction, i.e., the module side, without requiring access
+to the code invoking the module public functions. This analysis assumes that the invoking code is
+well-behaved (even though it may or may not have been verified against the session type protocol
+specification), e.g. client1 follows S 1 throughout the whole session in Figure 1. The code for the
+type-checker, called ElixirST, is available at:
+
+https://github.com/gertab/ElixirST
+
+In this paper we present the underlying type system (Section 3) on which the ElixirST type-
+checker is built and discuss its implementation details (Section 6). We also validate the type
+system; more concretely, in Section 4 we formalise the runtime semantics of the Elixir language
+fragment supported by ElixirST as a labelled transition system (LTS), modelling the execution of
+a spawned handler interacting with a client within a session (left implicit). This operational se-
+mantics then allows us to prove a conditional form of the session fidelity and progress properties
+for the ElixirST type system (Section 5). Intuitively they state that, if the interacting processes
+(that are left implicit) follow the prescribed protocol correctly, then the module code being type-
+checked is guaranteed to behave correctly w.r.t. the protocol (expressed in terms of the adapted
+session fidelity and progress properties).
+
+In this paper we merge and extend the work presented in [7, 8].
+
+In addition to [8], we
+include the full typing rules which were originally relegated to the appendix. We also present
+two additional sections (adapted from [7]): (a) Section 2 introduces a motivating example; and
+(b) Section 6 describes the implementation details of the ElixirST tool, along with a case study.
+The validation part of the paper is also expanded, by including all proofs. We also add a new
+result, showing that ElixirST observes a form of the progress property.

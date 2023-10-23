@@ -1,0 +1,119 @@
+# ...
+# ...
+
+As the process evaluates, the initial term t transitions to t′, where it sends a message as a side-
+
+effect. This side-effect is denoted as an action α, where α = ιserver!(cid:8)
+
+(cid:9). By the After Function
+
+stop
+
+Definition, counter evolves to a new session type X:
+
+X = after(counter, α) = ?value(number).end
+
+For t′ to remain well-typed, it must now match with the evolved session type X, where it
+has to be able to receive a message labelled value, before terminating. As a result, by the
+session fidelity property, we know that each step of execution will be in line with the original
+■
+protocol.
+
+We will also show that ElixirST observes a conditional form of the progress property, which
+describes how well-typed terms transition within the aforementioned analysis context. However,
+we consider the most problematic scenario first, where a process depends on external factors
+to progress. When a process executes a term that is following the branching session type, the
+process has to be able to handle (and pattern match) any valid incoming message. Concretely,
+
+a term t following the session type &(cid:8) . . .(cid:9) has to be able to accept incoming messages, by
+
+(successfully) pattern matching them to one of the branches. This holds due to the [tBranch]
+rule (from Section 3.4) where we restrict all branching patterns to simple ones. In Proposition 3
+we show that valid messages can always be matched to one of the branches.
+Proposition 3. Any well-typed term (∆ · Γ ⊢w
+type is able to process any valid incoming message, i.e.,
+
+(cid:111) → ti
+
+Σ S ▷ t : T ◁ S ′) following the branching session
+(cid:17)
+(cid:1).S i
+
+ =⇒ match(p j
+
+k, v j)i∈1..n is defined
+
+end
+
+i , . . . , pn
+i
+
+(cid:0)T 1
+
+(cid:9)
+i∈I
+) = S k for some k ∈ I
+
+i , . . . , T n
+i
+
+i∈I
+
+(cid:16)(cid:110)
+S = &(cid:8)?li
+lk, v1, . . . , vn(cid:111)
+
+:li, p1
+
+t = receive do
+
+after(S , ?
+
+(cid:110)
+
+(cid:16)(cid:110)
+
+(cid:111) → ti
+
+(cid:17)
+
+:li, p1
+
+i , . . . , pn
+i
+
+end
+
+i∈I
+
+Proof. Note that ∆ · Γ ⊢w
+imply simplepat(p j
+
+i , T j
+
+Σ S ▷ t : T ◁ S ′ and t = receive do
+i )i∈I, j∈1..n. Refer to Appendix B.3.
+
+By Proposition 3 we know that if a process depends on external factors (i.e., a term expects
+an incoming message), then it should not have a problem to be able to handle these messages.
+
+22
+
+
+From this, we can infer that a well-typed receive construct is able to transition to a new term,
+when a message is received. If we extend this to all terms, we can form the Progress Theorem,
+where we establish that a process can always transition from one form to another. If no further
+transitions are possible (see Figure 10), then the process must be itself a (final) value. In this
+theorem we also establish that the action produced during the transition is always allowed by the
+protocol; this is checked using the after function.
+Theorem 4 (Progress). If ∆·∅ ⊢w
+term t′ and action α such that t α−→
+Proof. By induction on the typing derivation ∆·∅ ⊢w
+
+Σ S ▷ t : T ◁ S ′, then either t is a value, or else there exists some
+
+Σ S ▷ t : T ◁ S ′. Refer to Appendix B.3.
+
+t′ and after(S , α) is defined
+
+Σ

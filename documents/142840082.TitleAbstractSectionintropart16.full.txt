@@ -1,0 +1,116 @@
+Title-Abstract. Section intro
+�𝜌⊆Ω𝑒 ∧ ⟦𝑒⟧𝑉𝜌⊆{⟦toExpr(𝑒♯)⟧𝑉𝜌
+if𝑚=ℤ,
+⟦toExpr(𝑒♯) mod[𝑙,𝑢[⟧𝑉𝜌 if𝑚=[𝑙,𝑢[.
+By abuse of notation, we allow the syntactic sugar𝑒 modℤ that represents𝑒.
+
+
+22
+
+J. Boillot, J. Feret.
+
+property holds:
+
+The soundness of these rewritings comes from Theorems. 1 and 3, as well as
+
+Corollary. 1.
+
+⟨𝑅0,Ω0⟩⊨𝑒≼Ω𝑒toExpr(𝑒♯) mod𝑚.
+
+6.3 Integration with a Numerical Abstract Domain
+We introduce a new numerical abstract domain with expression abstraction,
+
+Corollary 1 (of theorem 4). For all abstract element𝑅♯ and expression𝑒∈
+expr, with⟨𝑅0,Ω0⟩≝𝛾(𝑅♯), and(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯, the following rewriting
+noted𝒟♯ℒ, that is identical to𝒟♯ except for the assignment and guard statements.
+For any expression𝑒∈ expr and any abstract element𝑅♯∈𝒟♯, let us denote
+(𝑒♯,𝑚,Ω𝑒)≝⦅𝑒⦆𝑅♯. Then,
+assign♯ℒ(𝑋,𝑒)𝑅♯≝⟨∅,Ω𝑒⟩⊔ assign♯(𝑋,toExpr(rmMod(𝑒♯,𝑚)𝑅♯))𝑅♯
+guard♯ℒ(𝑒,⋈)𝑅♯≝⟨∅,Ω𝑒⟩⊔ guard♯(toExpr(rmMod(𝑒♯,𝑚)𝑅♯),⋈)𝑅♯
+In this section, we provide more explicit definitions for the𝜄 and reduce prim-
+During the expression abstraction, the𝜄 primitive is used multiple times, either
+by intervals overℤ as presented in [4]. However, this method lacks the ability to
+to check that𝑋≥𝑌 holds. Thus, a domain able to represent the range of vari-
+abstract domain [20] that handles inequalities of the form±𝑋±𝑌≤𝑐 with𝑋,𝑌
+variables and𝑐 a constant, or the polyhedron abstract domain [8] that keeps
+
+ables and the inequalities between pairs of variable, as the pentagon domain [17],
+is enough for our current study cases. However, it would be possible to use more
+precise abstract domains such as the difference bound matrices domain [19] that
+detects upper-bounds of the difference between pairs of variables, the octagon
+
+represent relations between variables, which can be necessary to simplify modulo
+computations. For instance, in the program example introduced at the beginning
+of the paper Fig. 1, in order to suppress the modulo computations it is necessary
+
+to verify that modulo computations and bound checks can be safely suppressed,
+or to check that simplifications can be performed, as in the DivPosConst in-
+ference rule. Thus, it appears that the more this primitive is precise, the more
+translations of expression will be precise.
+
+A first possibility would be to represent the possible values of every expression
+
+trace of linear inequality properties. Although using relational domains might
+be costly, it is possible to limit it by restraining the number of variables involved
+in the numerical constraints by a method named packing [2].
+
+7
+
+Instantiation of the generic framework
+
+itives of our parametric abstraction. The other components are supposed to be
+defined in an underlying domain.
+
+7.1 Intervalization
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+23
+
+7.2 Simplification of abstract expressions
+
+heuristic which attempts to simplify abstract expressions without concealing
+potential error alarms. The purpose of this function is to achieve maximum
+expression canonization by using linear forms whenever possible.
+
+We now introduce a reduce implementation, denoted as reduce0, that is a
+The reduction reduce0(𝑒♯)𝑅♯ of an abstract expression𝑒♯, in the context of
+an abstract element𝑅♯, is defined inductively and by cases, by the means of
+Addition. Whenℒ□(0) (that is the translation of0cst) is summed with another
+0cst is a neutral element of(expr,+). Also, when linear forms are summed, we
+
+a set of inference rules. Their premises are mutually exclusive, except for the
+NoReduce rule that is used only when no other rule can be applied.
+
+abstract expression, the latter abstract expression is returned. This is because
+
+return the canonical linear form of their sum. Lastly, when a linear form is added
+to a convex join expression, the addition is distributed over the operands of the
+convex join. In such case, it is possible to reduce both the new additions and
+the resulting abstract expression in order to simplify them. Those behaviors are
+formalized in the three following inference rules. If neither of the three can be
+applied reduction is performed.
+
+PlusZero
+
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+𝑒♯𝑖=ℒ□(0)
+reduce0(𝑒♯1⊞𝑒♯2)𝑅♯≝𝑒♯𝑗
+𝑒♯1=ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+𝑒♯1≠ℒ□(0)
+𝑒♯2=ℒ□(𝑏0+∑𝑋𝑖∈𝒱𝑏𝑖𝑋𝑖)
+�♯2≠ℒ□(0)
+reduce0(𝑒♯1⊞𝑒♯2)𝑅♯≝ℒ□((𝑎0+𝑏0)+∑𝑋𝑖∈𝒱(𝑎𝑖+𝑏𝑖)𝑋𝑖)
+𝑖,𝑗∈{1,2}𝑖≠𝑗
+𝑒♯𝑗=ℒ□(𝛼0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖)
+𝑒♯𝑗≠ℒ□(0��𝑖=𝑒♯𝑖,1⋓□�♯𝑖,2
+𝑒′♯1≝ reduce0(𝑒♯𝑖,1⊞𝑒♯𝑗)𝑅♯
+𝑒′♯2≝ reduce0(𝑒♯𝑖,2⊞𝑒♯𝑗)𝑅♯
+reduce0(𝑒♯1⊞𝑒♯2)𝑅♯≝ reduce0(𝑒′♯1 ⋓□𝑒′♯2)𝑅♯
+
+PlusLinearForms
+
+PlusConvexJoin
+
+Multiplication. Multiplying a linear form by a

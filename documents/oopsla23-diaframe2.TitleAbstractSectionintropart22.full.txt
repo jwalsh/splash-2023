@@ -1,0 +1,111 @@
+Title-Abstract. Section intro
+01.2021.00003
+
+Dan Frumin, Robbert Krebbers, and Lars Birkedal. 2021b. ReLoC Reloaded: A Mechanized Relational Logic for Fine-Grained
+
+Concurrency and Logical Atomicity. LMCS Volume 17, Issue 3 (2021). https://doi.org/10.46298/lmcs-17(3:9)2021
+
+Lennard Gäher, Michael Sammler, Simon Spies, Ralf Jung, Hoang-Hai Dang, Robbert Krebbers, Jeehoon Kang, and Derek
+Dreyer. 2022. Simuliris: A Separation Logic Framework for Verifying Concurrent Program Optimizations. PACMPL 6,
+POPL (2022), 28:1–28:31. https://doi.org/10.1145/3498689
+
+Aïna Linn Georges, Alix Trieu, and Lars Birkedal. 2022. Le Temps Des Cerises: Eﬃcient Temporal Stack Safety on Capability
+
+Machines Using Directed Capabilities. 6, OOPSLA (2022), 74:1–74:30. https://doi.org/10.1145/3527318
+
+Georges Gonthier, Beta Ziliani, Aleksandar Nanevski, and Derek Dreyer. 2011. How to Make Ad Hoc Proof Automation
+
+Less Ad Hoc (ICFP). 163–175. https://doi.org/10.1145/2034773.2034798
+
+Simon Oddershede Gregersen, Johan Bay, Amin Timany, and Lars Birkedal. 2021. Mechanized Logical Relations for
+
+Termination-Insensitive Noninterference. PACMPL 5, POPL (2021), 10:1–10:29. https://doi.org/10.1145/3434291
+
+Ronghui Gu, Jérémie Koenig, Tahina Ramananandro, Zhong Shao, Xiongnan (Newman) Wu, Shu-Chun Weng, Haozhong
+Zhang, and Yu Guo. 2015. Deep Speciﬁcations and Certiﬁed Abstraction Layers (POPL). 595–608. https://doi.org/10.
+1145/2676726.2676975
+
+Timothy L. Harris, Keir Fraser, and Ian A. Pratt. 2002. A Practical Multi-word Compare-and-Swap Operation. In DISC
+
+(LNCS). 265–279. https://doi.org/10.1007/3-540-36108-1_18
+
+Chris Hawblitzel, Erez Petrank, Shaz Qadeer, and Serdar Tasiran. 2015. Automated and Modular Reﬁnement Reasoning for
+
+Concurrent Programs. In CAV (LNCS). 449–465. https://doi.org/10.1007/978-3-319-21668-3_26
+
+Thomas A. Henzinger, Ali Sezgin, and Viktor Vafeiadis. 2013. Aspect-Oriented Linearizability Proofs. In CONCUR (LNCS).
+
+242–256. https://doi.org/10.1007/978-3-642-40184-8_18
+
+Maurice P. Herlihy and Jeannette M. Wing. 1990. Linearizability: A Correctness Condition for Concurrent Objects. TOPLAS
+
+12, 3 (1990), 463–492. https://doi.org/10.1145/78969.78972
+
+Bart Jacobs and Frank Piessens. 2011. Expressive Modular Fine-Grained Concurrency Speciﬁcation (POPL). 271–282.
+
+https://doi.org/10.1145/1926385.1926417
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:29
+
+Ralf Jung. 2019. Logical Atomicity in Iris: The Good, the Bad, and the Ugly. https://people.mpi-sws.org/~jung/iris/logatom-
+
+talk-2019.pdf Slides of talk given at Iris Workshop 2019.
+
+Ralf Jung, Jacques-Henri Jourdan, Robbert Krebbers, and Derek Dreyer. 2018a. RustBelt: Securing the Foundations of the
+
+Rust Programming Language. PACMPL 2, POPL (2018), 66:1–66:34. https://doi.org/10.1145/3158154
+
+Ralf Jung, Robbert Krebbers, Lars Birkedal, and Derek Dreyer. 2016. Higher-Order Ghost State (ICFP). 256–269. https:
+
+//doi.org/10.1145/2951913.2951943
+
+Ralf Jung, Robbert Krebbers, Jacques-Henri Jourdan, Aleš Bizjak, Lars Birkedal, and Derek Dreyer. 2018b. Iris from the
+Ground up: A Modular Foundation for Higher-Order Concurrent Separation Logic. JFP 28 (2018). https://doi.org/10.
+1017/S0956796818000151
+
+Ralf Jung, Rodolphe Lepigre, Gaurav Parthasarathy, Marianna Rapoport, Amin Timany, Derek Dreyer, and Bart Jacobs.
+https:
+
+2020. The Future Is Ours: Prophecy Variables in Separation Logic. PACMPL 4, (2020), 45:1–45:32.
+//doi.org/10.1145/3371113
+
+Ralf Jung, David Swasey, Filip Sieczkowski, Kasper Svendsen, Aaron Turon, Lars Birkedal, and Derek Dreyer. 2015. Iris:
+Monoids and Invariants as an Orthogonal Basis for Concurrent Reasoning (POPL). 6650. https://doi.org/10.1145/
+2676726.2676980
+
+Jieung Kim, Vilhelm Sjöberg, Ronghui Gu, and Zhong. 2017. Safety and Liveness of MCS Lock—Layer by Layer. In
+
+APLAS (LNCS). 273–297. https://doi.org/10.1007/978-3-319--14Bernhard Kragl and Shaz Qadeer. 2021. The Civl Veriﬁer. In FMCAD. 143–152. https://doi.org.3472721/isbn.978-3-
+
+85448-046-4_23
+
+Robbert Krebbers, Jacques-Henri Jourdan, Ralf Jung, Joseph Tassarotti, Jan-Oliver Kaiser, Amin Timany, Arthur Charguéraud,
+and Derek Dreyer. 2018. MoSeL: A General, Extensible Modal Framework for Interactive Proofs in Separation Logic.
+PACMPL 2, ICFP (2018), 77:1–77:30. https://doi.org/10.1145/3236772
+
+Robbert Krebbers, Ralf Jung, Aleš Bizjak, Jacques-Henri Jourdan, Derek Dreyer, and Lars Birkedal. 2017a. The Essence of
+Higher-Order Concurrent Separation Logic. In ESOP (LNCS). 696–723. https://doi.org/10.1007/978-3-662-54434-1_26
+Robbert Krebbers, Amin Timany, and Lars Birkedal. 2017b. Interactive Proofs in Higher-Order Concurrent Separation Logic
+
+(POPL). 205–217. https://doi.org/10.1145/3009837.3009855
+
+Siddharth Krishna, Nisarg Patel, Dennis Shasha, and Thomas Wies. 2020. Verifying Concurrent Search Structure Templates
+
+(PLDI). 181–196. https://doi.org/10.1145/3385412.3386029
+
+Siddharth Krishna, Nisarg Patel, Dennis Shasha, and Thomas Wies. 2021. Automated Veriﬁcation of Concurrent Search
+
+Structures. Springer. https://doi.org/10.1007/978-3-031-01806-0
+
+K Rustan M Leino and Michał Moskal. 2010. Usable Auto-Active Veriﬁcation.
+
+(2010). https://fm.csl.sri.com/UV10/
+
+submissions/uv2010_submission_20.pdf
+
+Hongjin Liang and Xinyu Feng. 2013. Modular Veriﬁcation of Linearizability with

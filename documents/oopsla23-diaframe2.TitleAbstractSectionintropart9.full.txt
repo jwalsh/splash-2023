@@ -1,0 +1,141 @@
+Title-Abstract. Section intro
+N
+with name N, if N is contained in E, then removing N from E gives us access to the resource
+
+. The original mask E can only be restored by handing back . (Note that one only obtains  under
+a later modality (⊲). This is necessary since invariants in Iris are impredicative [Jung et al. 2018b;
+Svendsen and Birkedal 2014], i.e., they may contain any resource, including invariants themselves.
+The later modality allows Iris to soundly deal with such cases, but for simple resources like ℓ ↦→ 
+(which are called timeless in Iris), the later modalities can be discarded.)
+
+Returning to load-l: with E = ⊤ \ N, we can combine inv-access, fupd-elim and fupd-intro
+to prove ∃. ℓ ↦→  with the resources from our invariant. We then receive ℓ ↦→  back, since the
+load operation does not change the state. Our new proof obligation is:
+
+N
+
+, ℓ ↦→ , ℓ ↦→s , isLock(, false),
+
+
+( ⊲  −∗
+(cid:31)(|= (rec...) () ≾ (...) () : Z)
+
+|⇛⊤\N ⊤ True),
+
+⊢ |=⊤\N (let  := ...) ≾... : Z
+
+Since we opened an invariant, the reﬁnement judgment after the turnstile has N removed from
+its mask. All symbolic execution rules for the left-hand side require the mask to be ⊤, while the
+symbolic execution rules for the right-hand side work for every mask E. This reﬂects the demonic
+and angelic nature of left-hand side and right-hand side execution: we can keep invariants open for
+multiple steps on the right, but only during a single atomic step on the left.
+
+We refrain from symbolically executing the right-hand side until the CAS succeeds. After the
+|⇛⊤\N ⊤ True). We then
+load, we restore the invariant using fupd-elim, and our hypothesis ( ⊲  −∗
+use cas-l. Like at the load, our invariant will provide us with some ′ for which ℓ ↦→ ′, and the
+CAS will succeed precisely when  = ′. Note that it is crucial to also consider the case  ≠ ′: this
+happens when another thread incremented ℓ between the load and the CAS of the current thread.
+The conjunction (∧) in cas-l means that the proof splits into two separate proof obligations. In
+the successful case, we receive the updated ℓ ↦→ ( + 1), together with the resource ⌜ = ′⌝. This
+embeds the pure fact  = ′ into Iris’s separation logic. Likewise, in the failing case we receive the
+unchanged ℓ ↦→ ′, together with the pure information ⌜ ≠ ′⌝.
+
+For case  = ′, the CAS succeeds, and the left-hand side expression will be returning . After
+
+some pure reduction, our proof obligation becomes:
+
+©(cid:173)(cid:173)«
+
+ª®®¬
+
+ª®®¬
+
+⊢ |=⊤\N  ≾ (acquire(); let  =!ℓ...) : Z
+
+N
+
+, ℓ ↦→ ( + 1), ℓ ↦→s , isLock(, false),
+
+
+( ⊲  −∗
+(cid:31)(|= (rec...) () ≾ (...) () : Z)
+
+|⇛⊤\N ⊤ True)
+
+©(cid:173)(cid:173)«
+
+At this point, we cannot restore the invariant: ℓ and ℓ point to diﬀerent values. Only after symbol-
+ically executing the right-hand side will we be able to restore the invariant, which indicates that
+the linearization point must be now. With rules like load-r and store-r, we can acquire the lock,
+execute the load and store operations,��nally release the lock. We conclude the proof of this
+case by closing the invariant, and using refines-z.
+
+For case  ≠ ′, the CAS fails, and we receive back ℓ ↦→ ′ unchanged. We restore the invariant.
+After some pure reduction our goal becomes the Löb induction hypothesis, concluding our proof:
+
+
+
+
+,id:31) (|= (rec...) () ≾ (...) () : Z) ⊢ |= (rec.) () ≾ (...) () : Z
+
+2.3 Proof Automation Strategy
+
+The above proof phases introduce diﬀerent challenges for proof automation, in rising complexity:
+
+• Proof Phase 1: Symbolic execution without preconditions, introducing the (cid:31) modality.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:12
+
+exec-l
+∀®. {} 1 { }
+
+Ike Mulder and Robbert Krebbers
+
+atomic 1
+
+1 ∉Val
+
+Δ ⊢ |⇛⊤
+
+E ∃®.  ∗ ⊲(∀.  −∗ |=E  [] ≾ 2 : )
+
+Δ ⊢ |=  [1] ≾ 2 : 
+
+exec-r
+∀®. {} 2 { }s
+
+Δ ⊢ |⇛E
+
+E ∃.  ∗ (∀.  −∗ |=E 1 ≾  [] : )
+
+Δ ⊢ |=E 1 ≾  [2] : 
+
+val-z
+Δ ⊢ |⇛E ⊤ ⌜1 = 2⌝
+Δ ⊢ |=E 1 ≾ 2 : Z
+
+val-fun
+Δ ⊢ |⇛E ⊤
+
+(cid:31) (|= 1 () ≾ 2 () : )
+
+Δ ⊢ |=E 1 ≾ 2 : () → 
+
+reloc-apply
+Δ, (cid:31)(Δ′ −∗|= 1 ≾ 2 : ) ⊢ |⇛E
+
+E Δ′ ∗ |⇛E ⊤ (∀12.  1 2 −∗|= 1 [1] ≾ 2 [2] : )
+
+Δ, (cid:31)(Δ′ −∗|= 1 ≾ 2 : ) ⊢ |=E 1 [1] ≾ 2 [2] : 
+
+Fig. 4. Derived proof rules for ReLoC suitable for proof automation.
+
+• Proof Phase 2: Not introducing the (cid:31) modality to allow the user to allocate the invariant.
+• Proof Phase 3: Automatically performing Löb induction when it is necessary.
+• Proof Phase 4: Symbolic execution where the preconditions are inside an invariant, followed
+
+by automatic application of

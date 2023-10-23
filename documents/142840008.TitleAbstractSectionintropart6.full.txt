@@ -1,0 +1,90 @@
+Title-Abstract. Section intro
+ and Lessons Learned
+
+13
+
+prevention, the efficiency in defect detection, and the degree of automation is
+crucial for user acceptance.
+
+Advanced program analysis requires significant technical insights, including
+knowledge about the programming language semantics, microprocessor design,
+and system configuration. Without the necessary understanding, program anal-
+ysis tools are hard to use. On the other hand, it is necessary for tools to expose
+the information users need to understand the results as intuitively as possible.
+Finally, users expect tools to solve real problems, e.g., the worst-case ex-
+ecution time on a particular microcontroller in the configuration given, or the
+occurrence of runtime errors in the tasks as they are deployed in the real system.
+When providing partial solutions to a problem, it is necessary to explain how to
+use them to help dealing with the full problem.
+
+5 The Role of Safety Norms
+
+Functional safety and security are aspects of dependability, in addition to relia-
+bility and availability. Functional safety is usually defined as the absence of un-
+reasonable risk to life and property caused by malfunctioning behavior of the sys-
+tem. Correspondingly, cybersecurity can be defined as absence of unreasonable
+risk caused by malicious misusage of the system. Functional safety norms aim at
+formalizing the minimal obligations for developers of safety-critical systems to
+make sure that unreasonable safety risks are avoided. In addition, advances in
+system development and verification since the publication date of a given norm
+have to be taken into account. In other words, safety norms define the mini-
+mal requirements to develop safety-relevant software with due diligence. Safety
+standards typically are domain-specific; examples DO-178B/DO-178C [47, 48]
+(aerospace), ISO 26262 [17] (automotive), CENELEC EN 50128/EN 50657 [6,
+5] (railway), IEC 61508 [15] (general electrical and/or electronic systems), IEC
+62304 (medical products), etc.
+
+The DO-178C [48] has been published with supplements focusing on techni-
+cal advances since release of the predecessor norm DO-178B, in particular the
+DO-333 (Formal Methods Supplement to DO-178C and DO-278A) [49], that ad-
+dresses the use of formal methods to complement or replace dynamic testingIt distinguishes three categories of formal analyses: deductive methods such as
+theorem proving, model checking, and abstract interpretation. The computation
+of worst-case execution time bounds and the maximal stack usage are listed as
+reference applications of abstract interpretation. However, the standard does not
+mandate the use of formal methods.
+
+Table Table 10 of ISO 26262 Part 6 [19] give a list of recommended
+methods for verification of software unit design and implementation, and inte-
+gration verification, respectively. They contain separate entries for formal verifi-
+cation, control flow analysis, data flow analysis, static code analysis, and static
+analysis by abstract interpretation. Static analysis in general is highly recommended criticality levels (ASILs), Abstract Interpretation is recommended
+
+
+14
+. Kästner et al.
+
+for all ASILs. The current versions of EN 50128 and IEC 62304 lack an explicit
+reference to Abstract Interpretation.
+
+Since for industrial system development, functional safety norms are defining
+what is considered to be (minimal) state of the art, the availability of mature
+development and verification techniques should be them. To create
+the necessary awareness, an exchange between software and safety communities
+is essential.
+
+6 Conclusion
+
+The focus of this article is to describe the application of Abstract Interpreta-
+tion different real-life problems: to compute sound worst-case execution
+time bounds, and to perform sound runtime error analysis for C/C++ programs.
+We have summarized the development history of aiT WCET Analyzer and As-
+trée, discussed design choices, and illustrated the exigencies imposed by com-
+mercial users and industrial processes. We also addressed derived research and
+applications to other topics, in particular hybrid WCET analysis and worst-case
+stack usage analysis. In summary, the tools discussed in this article provide a
+formal methods-based ecosystem for verifying resource usage in embedded soft-
+ware projects. The three main causes of software-induced memory corruption
+in safety-critical systems are runtime errors, stack overflows, and miscompila-
+tion. The absence of runtime errors and stack overflows can be proven by ab-
+stract interpretation-based static analyzers. With the formally proven compiler
+CompCert, miscompilation can be ruled out, hence all main sources of software-
+induced memory corruption are addressed. Industrial application of mathemat-
+ically rigorous verification methods strongly depends on their representation in
+industrial safety norms; the corresponding methods and tools have to become
+better known to the safety community and their advantages compared to legacy
+methods better explained.
+
+7 Acknowledgment
+
+Many people contributed to aiT and Astrée and their success. We want to thank
+them all.

@@ -1,0 +1,181 @@
+Title-Abstract. Section intro
+ Logical Atomicity Proofs in Iris
+
+To ensure Diaframe 2.0 is usable in interactive proofs of ‘complex’ programs (Design goal #2), we
+partially automate two existing interactive proofs in Iris. The results are shown in Table 2. Since
+these examples are challenging—both feature “helping”, where the linearization point is delegated to
+another thread—full proof automation is not achieved. The proof burden was reduced by a factor of
+4. We found that some intermediate lemmas were no longer necessary, as their eﬀects were applied
+automatically. Most of the ‘easier’ parts of the veriﬁcations of these programs (such as recursive
+calls on a failing CAS) could be completely discharged by Diaframe 2.0. This allowed us to focus
+on the interesting part of the veriﬁcation. In these examples, we have seen 4 patterns where the
+proof automation may need assistance: (a) linearization points for operations that do not logically
+alter the state, (b) case distinctions whose necessity requires ‘foresight’/human intuition, (c) pure
+side-conditions that are too hard for Diaframe, (d) mutation rules of recursive data structures.
+Items (c) and (d) can sometimes be overcome through in 1.0. We leave
+good proof automation for Items (a) and (b) for future work. Vafeiadis [2010] outItem (a) is very diﬃcult in the context of CAVE.
+
+5.3 Experiences Verifying Logical Atomicity of the Michael-Sco(cid:29) (cid:30)eue
+
+To evaluate the applicability of our proof automation on new proofs, we verify logical atomicity
+of the Michael-Scott queue. To our knowledge, this is a novel result. Contextual reﬁnement is
+established by Vindum and Birkedal [2021], but logical atomicity is stronger and implies contextual
+reﬁnement (we have worked this out in more detail in [Mulder and Krebbers 2023]).
+Our proof reuses some of their techniques (the persistent maps-to predicate), but represents the
+queue data structure invariant diﬀerently—in a way that is both natural, and allows suitable hints
+for mutating the queue. After establishing hints and pure automation for this data structure, most
+of the separation-logic reasoning can be dealt with automatically. The remaining proof burden
+consists of dealing with prophecy variables [Jung et al. 2020], for which our automation has partial
+support, and establishing pure facts outside of the reach of our automation—for this example,
+reasoning about lists without duplicates.
+
+5Wolf et al. [2021] report 0.8 line of proof annotation per line of code in Voila, which Diaframe 2.0 still improves on by a
+factor 2. We consider lines with explicit calls to open/close regions, and explicit uses of atomic speciﬁcations as proof work
+in Voila. It is unclear what counting metric is used by Wolf et al. [2021].
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:25
+
+Table 3. Statistics on proof automation for ReLoC. Each row contains the name of the verified example, lines
+of implementation, total amount of lines, verification time in minutes:seconds, and lines of proof burden—also
+for the original, interactively constructed version of the example.
+
+name
+
+impl
+
+total
+
+time proof
+
+bit
+cell
+coinﬂip
+counter
+lateearlychoice
+namegen
+Treiber stack ≾ stack with lock
+symbol
+ticket lock ≾ spin lock
+various
+total
+
+10
+27
+48
+19
+26
+9
+46
+28
+17
+54
+284
+
+0:04
+33
+0:31
+64
+1:56
+118
+0:25
+65
+0:22
+88
+0:11
+70
+1:02
+136
+1:38
+112
+0:59
+85
+158
+3:34
+929 10:42
+
+3
+4
+25
+5
+16
+26
+36
+27
+7
+30
+179
+
+interactive
+
+interactive
+
+total
+
+44
+128
+319
+225
+129
+112
+185
+376
+266
+582
+2366
+
+proof
+
+14
+68
+230
+63
+62
+68
+124
+234
+120
+372
+1355
+
+Challenging veriﬁcations like this will usually not be successful the ﬁrst time, and some amount
+of time must be spent ﬁguring out the reason for failure. Three typical problems occur during failed
+veriﬁcations:)ciﬁcations or invariants (b) missing or faulty hints for ghost resources or
+recursive data structures (c) the default proof search strategy is not suﬃcient. The general approach
+for debugging these problems is to let Diaframe 2.0 perform a ﬁxed number of automation steps,
+instead of letting it run until it gets stuck. This allows the user to determine when the strategy
+takes a wrong turn, and act accordingly: change invariants, add hints, or manually perform a part
+of the proof. Diaframe 2.0 provides some tools for debugging a failing type class search for hints.
+
+5.4 Comparison to Interactive Refinement Proofs in ReLoC
+
+We evaluate our automation on 10 out of the 13 concrete examples from the ReLoC repository. The
+3 remaining examples feature “helping”, which is currently unsupported by our reﬁnement proof
+automation. Statistics on the examples can be found in Table 3. The proof of ticket lock ≾ spin lock
+diﬀers slightly from the original proof: instead of relying on ReLoC’s logically atomic relational
+speciﬁcations, we use Iris’s regular logically atomic speciﬁcations (§3) for the same eﬀect.6
+
+We summarize some aggregated data from Table 3. On average, the proof size is reduced by
+a factor of 7 (179 vs 1355 lines of proof burden), coming down to 0.6 line of proof burden per
+line of implementation. For the largest reﬁnement example, which proves that the Treiber stack
+contextually reﬁnes a course grained stack, we still reduce the proof size by over a factor of 3.
+Assistance from the user is required in the same cases as those discussed in §5.2. Additionally, it
+may be necessary to manually establish an invariant like in §2, or to manually perform right-hand
+side execution. A tactic iStepR is available for this last case.
+
+6 RELATED WORK
+
+Viper. Viper [Müller et al. 2016] is a non-foundational tool for automated veriﬁcation using
+separation logic. Viper provides a common veriﬁcation language, which is used as a backend of
+veriﬁcation tools for a number of diﬀerent program speciﬁcation styles. Aside from functional
+
+6We believe it is folklore that logically atomic triples can be used in reﬁnement proofs, but have not seen it worked out. In implementation, this requires adding a slightly altered version of atomic updates, and accompanying hints.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:

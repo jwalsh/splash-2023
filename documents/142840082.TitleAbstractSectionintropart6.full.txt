@@ -1,0 +1,88 @@
+Title-Abstract. Section intro
+ no
+error either. It provides an arbitrary value in the corresponding interval. Clas-
+sical arithmetic operators and modulo consist in applying the corresponding
+operations element-wise while propagating the errors potentially raised when
+evaluating their sub-expressions. Additionally, the result of every division be-
+tween two integers is truncated, that is rounded towards zero raising the
+
+error𝜔𝑑 when the denominator can take the value0. The convex join operator
+⋓ outputs any value between the potential values of its operands and propagates
+ues while raising the error𝜔𝑜 when they do not fit in the interval given as an
+It is worth to note that division by0 and overflows are handled differently:
+executions that perform divisions by0 are halted (they produce no memory
+𝒟 collects both sets of memory states and errors. Thus is defined as follows:
+It is equipped with the component-wise join⊔ and order⊑.
+The concrete semantics of a statement,⦃ stmt⦄∶𝒟→𝒟, maps each element
+of the semantics domain𝜌∈𝒟 to another one. For a given statement, it applies
+
+states), whereas those that cause overflows are continued without modifying the
+current value. It corresponds to user-defined semantics assumptions [1], which
+are more specific than C standard which assumes the result is non-deterministic.
+
+We now define the concrete semantics of statements. The semantics domain
+
+𝒟≝℘(ℰ)×℘(Ω).
+
+
+9
+
+Fig. 7: Concrete semantics of statements.
+
+the elements of the set given as an argument.
+
+Symbolic transformation of expressions in modular arithmetic
+
+⦃𝑋←𝑒⦄⟨𝑅0,Ω0⟩≝⟨∅,Ω0⟩⊔⨆
+𝜌∈𝑅0{⟨{𝜌[𝑋↦𝑣]},⟦𝑒⟧Ω𝜌⟩||||𝑣∈⟦𝑒⟧𝑉𝜌}
+⦃𝑒⋈0?⦄⟨𝑅0,Ω0⟩≝⟨∅,Ω0⟩⊔⨆
+𝜌∈𝑅0{⟨{����⟧Ω𝜌⟩||||∃𝑣���𝑒⟧𝑉𝜌,𝑣⋈0}
+⦃𝑠1⨾𝑠2⦄≝⦃𝑠2⦄◦⦃𝑠1⦄
+⦃ if𝑒⋈0 then𝑠⨾ endif⦄⟨𝑅0,Ω0⟩≝(⦃𝑠⦄◦⦃𝑒⋈0?⦄)⟨𝑅0,Ω0⟩⊔⦃𝑒̸⋈0?⦄⟨𝑅0,Ω0⟩
+⦃ while𝑒⋈0 do𝑠⨾ done⦄⟨𝑅0,Ω0⟩≝⦃𝑒̸⋈0?⦄(⨆
+𝑛∈ℕ(⦃𝑠⦄◦⦃𝑒⋈0?⦄)𝑛⟨𝑅0,Ω0⟩)
+tial errors. It is defined by induction over the Fig. 7. The operator⨆
+refers to the iteration of the binary associative and commutative operator⊔ over
+expression𝑒∈ expr to a variable𝑋∈𝒱, is obtained by considering each potential
+𝜌[𝑋←𝑥] denotes the function equal to𝜌 on𝒱⧵{𝑋} and that maps𝑋 to𝑥. The
+
+memory state before the execution of the assignment and each potential value
+for the expression in that memory state ; for each combination, the memory
+state is updated by taking into account the potential value of the expression.
+
+the transformation over the possible memory states and accumulates the poten-
+
+Roughly speaking, the set of potential memory states, after assigning an
+
+evaluation of the expression can also yield errors, which are also collected. The
+semantics of the sequential composition of two statements is the composition of
+their semantics. Lastly, the semantics of conditional branching and loops rely on
+the handling of guarding conditions: the execution of the guard restricts the set
+of memory states to those that satisfy the corresponding condition. The potential
+errors raised when evaluating the expression are also collected. The semantics
+of conditional branching apply the semantics of the true branch on the result of
+the application of the guard, and join it to the result of the application of the
+negation of the guard. Lastly, the semantics of loops is obtained by unfolding
+the loop according to its number of iterations.
+
+4 Soundness requirements of expression rewriting
+
+by a set of error alarms. Rewriting an expression may rely on some conditions
+about the current state of the system. Additionally, it can simplify some parts
+of the initial expression, which could potentially raise some error alarms. The
+set of these error alarms are reported as side-conditions.
+
+We now introduce a rewriting order over expressions, noted≼, and parameterized
+Definition 3. The relation≼Ω1, withΩ1∈℘(Ω) a set of potential error alarms,
+⟨𝑅0,Ω0⟩⊨𝑒1≼Ω1𝑒2 ≝ ∀𝜌∈𝑅0,⟦𝑒1⟧𝑉𝜌⊆⟦𝑒2⟧𝑉𝜌 ∧⟦𝑒1⟧Ω𝜌⊆⟦𝑒2⟧Ω𝜌∪Ω1
+
+is defined as follows:
+
+
+with⟨𝑅0,Ω0⟩∈𝒟 a semantics element and𝑒1,𝑒2∈ expr two expressions.
+The definition of the rewriting relation≼Ω1 is based on the semantics of
+expressions. Given a semantics element⟨𝑅0,Ω0⟩∈𝒟, an expression𝑒1 can be
+rewritten in the expression𝑒2 if and only if, in every memory state𝜌∈𝑅0, the
+potential values of the expression𝑒1 are all potential values of the expression
+𝑒2. Yet, simplifications of the expression𝑒1 may hide error alarms, which are
+reported

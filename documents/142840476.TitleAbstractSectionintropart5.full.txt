@@ -1,0 +1,149 @@
+Title-Abstract. Section intro
+)
+= ({a (cid:55)→ {2}})|{x,y} (cid:117) ({a (cid:55)→ {1}})|{x,z} (cid:117) ({a (cid:55)→ {3}})|{x,z}(cid:117)
+= (cid:62) (cid:117) (cid:62) (cid:117) (cid:62) = (cid:62)
+
+
+8
+
+Michael Schwarz and Helmut Seidl
+
+The domain of implications between interval constraints consists of ﬁnite con-
+junctions of the form
+
+x ∈ I =⇒ y ∈ I(cid:48)
+
+for variables x and y and I, I(cid:48) either intervals or the empty set, ordered by
+implication. In particular, x ∈ ∅ may be written as False, while x ∈ [−∞,∞] is
+denoted by True.
+Now, consider the same set X = {a, x, y, z} of variables as for claim (1) and
+
+let
+
+r{a,x} = {True =⇒ a ∈ [1, 2]}
+r{a,y} = {True =⇒ a ∈ [2, 3]}
+r{a,z} = {a ∈ [2, 2] =⇒ False}
+
+where all other rp, p ∈ [X ]2 have the value (cid:62). Then,
+
+(cid:0)r{a,x} (cid:117) r{a,y} (cid:117) r{a,z} (cid:117) (cid:62)(cid:1)(cid:12)(cid:12){x,y,z} = False = ⊥
+
+but
+
+(cid:62) ∧ (r{a,x} ∧ r{a,x})(cid:12)(cid:12){x} ∧ (r{a,y} ∧ r{a,y})(cid:12)(cid:12){y} ∧ (r{a,z} ∧ r{a,z})(cid:12)(cid:12){z}
+∧(r{a,x} ∧ r{a,y})(cid:12)(cid:12){x,y} ∧ (r{a,x} ∧ r{a,z})(cid:12)(cid:12){x,z} ∧ (r{a,y} ∧ r{a,z})(cid:12)(cid:12){y,z}
+
+= (cid:62) ∧ (cid:62) ∧ (cid:62) ∧ (cid:62) ∧ ({True =⇒ a ∈ [1, 2]} ∧ {True =⇒ a ∈ [2, 3]})|{x,y}∧
+
+({True =⇒ a ∈ [1, 2]} ∧ {a ∈ [2, 2] =⇒ False})|{x,z}∧
+({True =⇒ a ∈ [2, 3]} ∧ {a ∈ [2, 2] =⇒ False})|{y,z}
+= (True =⇒ a ∈ [2, 2])|{x,y} ∧ (True =⇒ a ∈ [1, 1])|{x,z}∧
+(True =⇒ a ∈ [3, 3])|{x,z}
+= (cid:62) ∧ (cid:62) ∧ (cid:62) = (cid:62)
+
+(cid:117)(cid:116)
+which means property (9) is violated.
+Subsequently, assume that the 2-decomposable domain R is 2-projective. We
+show that under this assumption, the greatest solution of the constraint system
+(8) exists and coincides with the normal representation. Moreover, we provide
+an eﬃcient algorithm for performing the normalization.
+Assume that X = {x1... xn}, and let Xr = {x1,..., xr}, and ¯Xr = X \ Xr
+for r = 0,..., n. Assume that we are given sp ∈ Rp, (p ∈ [X ]2). For x, y ∈ X,
+we deﬁne the sequence
+
+s(0){x,y} = s{x} (cid:117) s{y} (cid:117) s{x,y}
+s(r){x,y} = s(r−1)
+
+{x,y} (cid:117)(cid:16)
+
+s(r−1)
+{x,xr} (cid:117) s(r−1)
+{xr,y}
+
+(cid:17)(cid:12)(cid:12)(cid:12){x,y}
+
+for r > 0 :
+
+Proposition 3. Let ¯s =(cid:100){sp | p ∈ [X ]2} be the abstract relation represented
+by (cid:104)sp(cid:105)p∈[X ]2. Let p ∈ [X ]2. For r = 0,..., n,
+2. ¯s| ¯Xr∪{x,y} =(cid:100)(cid:110)
+1. s(r)
+
+| p ⊆ ¯Xr ∪ {x, y}, 1 ≤ |p| ≤ 2
+
+p (cid:118) s(r){x} for each x ∈ p;
+
+(cid:111)
+
+s(r)
+p
+
+(12)
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+9
+
+Proof. For r = 0, the proposition holds by deﬁn Now assume that r > 0
+and the assertion already holds for r − 1. For p = {x, y}, we calculate{x,y} (cid:117)(cid:16)
+
+s(r){x,y} = s(r−1)
+(cid:118) s(r−1)
+
+s(r−1)
+{x,xr} (cid:117) s(r−1)
+{xr,y}
+{x} (cid:117) s(r−1)
+{x,xr}
+
+(cid:17)(cid:12)(cid:12)(cid:12){x,y}
+(cid:12)(cid:12)(cid:12){x} = s(r){x}
+
+(cid:118) s(r−1)
+
+{x} (cid:117) s(r−1)
+{x,xr}
+
+(cid:12)(cid:12)(cid:12){x,y}
+
+and the ﬁrst claim follows. For the second claim Eq. (12), consider the case
+xr (cid:54)∈ {x, y}. Then
+
+(by induction hypothesis)
+
+{z,xr} | z ∈ ¯Xr−1 ∪ {x, y}(cid:111)(cid:17)(cid:12)(cid:12)(cid:12) ¯Xr∪{x,y}
+
+s(r−1)
+
+(cid:27)
+
+| z1, z2 �Xr {x, y}
+
+(cid:117)
+
+(cid:16)
+
+(cid:17)(cid:cid:12)(cid:12) ¯Xr∪{x,y}
+
+p
+
+p
+
+=
+
+=
+
+¯s| ¯Xr∪{x,y} =
+s(r−1)
+s(r−1)
+s(r−1)
+s(r−1)
+{z1,xr} (cid:117) s(r−1)
+{xr,z2}
+s(r−1)
+{z1,xr} (cid:117) s(r−1)
+{xr}
+
+¯s| ¯−1∪{x,y}
+| p ⊆ ¯Xr−1 ∪ {x, y}, 1≤|p|

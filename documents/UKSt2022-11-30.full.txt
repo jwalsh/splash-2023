@@ -1,0 +1,392 @@
+Zag Smalltalk
+
+Dave Mason
+Toronto Metropolitan University
+
+©2022 Dave Mason
+
+
+Design Principles for a Modern Smalltalk
+
+Large memories
+64-bit and IEEE-754
+Multi-core and threading
+Fast execution
+
+
+Zag Smalltalk
+
+from-scratch implementation
+low-level is implemented in Zig
+goal is to support existing OpenSmalltalk systems
+don’t want to rewrite userland!
+
+
+Key Features
+
+64-bit immediates: double FP, 51-bit SmallInteger, true, false, nil,
+Symbols, Unicode chars, heap-object reference
+per-thread copying memory arenas, stacks
+shared non-moving arena
+fast dispatch
+easy code generation from AST
+currently threaded-code execution
+future JIT
+
+
+Immediate Values
+
+64 bit
+NaN-boxing
+double-ﬂoats, 51-bit SmallInteger, Booleans, nil, Unicode
+characters, Symbols
+room for instances of any type with single 32-bit value
+
+
+F
+S+E
+0000
+0000
+xxxx
+0000-7FEF
+0000
+7FF0
+xxxx
+7FF0-F
+8000
+0000
+8000-FFEF xxxx
+0000
+FFF0
+xxxx
+FFF0-5
+FFF6
+0001
+0002
+FFF6
+0003
+FFF6
+0004
+FFF6
+FFF6
+0005
+0006
+FFF6
+0007
+FFF6
+0008
+FFF6
+FFF7
+xxxx
+xxxx
+FFF8-F
+0000
+FFF8
+FFFC
+0000
+FFFF FFFF FFFF SmallInteger maxVal
+FFFF
+
+F
+0000
+xxxx
+0000
+xxxx
+0000
+xxxx
+0000
+xxxx
+xxxx
+xxxx
+xxxx
+0000
+0001
+0002 UndeﬁnedObject
+xxxx
+xxxx
+xxxx
+xxxx
+0000
+0000
+
+F
+0000
+xxxx
+0000
+xxxx
+0000
+xxxx
+0000
+xxxx
+xxxx
+xxxx
+xxxx
+0000
+0000
+0000
+aaxx
+00xx
+xxxx
+xxxx
+0000
+0000
+
+Type
+double +0
+double (positive)
++inf
+NaN (unused)
+double -0
+double (negative)
+-inf
+NaN (currently unused)
+reserved (tag = Object)
+reserved (tag = SmallInteger)
+reserved (tag = Double)
+False
+True
+
+Symbol
+Character
+heap object
+SmallInteger
+SmallInteger minVal
+SmallInteger 0
+
+
+Multi-core support
+
+only way to speed up applications
+minimal blocking
+computational/mutator threads - typically 1 per core
+I/O threads - one per open I/O port (“ﬁle”)
+global collector thread
+
+
+Threads and Memory Management
+
+mutator threads
+
+copying collector
+private nursery (includes stack)
+2 teen arenas - n copies before promotion
+when prompted, ﬁnds refs to global stack and marks them
+then can proceed
+
+I/O threads
+
+maintains list of current shared buffers while I/O blocked
+
+global collector thread
+
+non-moving mark/sweep arena
+periodically does mark
+
+marks known shared structures (class table, symbol table, dispatch
+tables)
+asks mutators for global roots
+processes them until all roots have been found
+
+then can proceed to sweep
+
+...
+
+
+... Memory management
+
+global collector for non-moving mark-&-sweep
+uses linked-freelist heap (similar to Mist)
+large objects (e.g. 16Kib) have separately mapped pages (allows
+mmap of large ﬁles) to minimize memory creep
+
+
+Heap objects
+
+header
+Bits What
+length
+12
+4
+age
+format
+8
+identityHash
+24
+16
+classIndex
+
+Characteristics
+number of long-words beyond the header
+0 - nursery, 1-7 teen, 8+ global
+
+LSB
+
+length of 4095 - forwarding pointer - copying, become:, promoted
+format is somewhat similar to SPUR encoding - various-sized
+non-object arrays
+separately marks iVars and indexable areas as pointer-free
+strings stored in UTF-8
+
+
+Uniﬁed dispatch
+
+single level of hashing for method dispatch
+each class dispatch table has entry for every method it has been
+sent - regardless of place in hierarchy
+near-perfect hash using Φ hashing
+standard SPUR/OpenVM optimizations don’t work well in
+multi-core environments
+
+
+High performance Inlining
+
+no special case for ifTrue, whileTrue, etc.
+references to self / super code are inlined
+methods with small number of implementations are inlined - rather
+than heuristic
+prevents creation of many blocks
+provides large compilation units for optimization
+
+
+Code Generation
+
+no interpreter, 3 code generation models
+threaded-execution
+
+method is sequence of Zig function addresses
+uses Zig tail-call-elimination - passes pc, sp, hp, thread, context
+primitives and control implementations
+
+JIT
+
+future
+driven from the threaded code
+Continuation-Passing-Style
+LLVM jitter
+seamless transitions between native and threaded execution
+
+stand-alone generator
+
+up-front version of the JIT
+generates Zig code for methods
+depends on Zig inlining and excellent code generation
+
+
+Context
+
+Filled
+1/2
+call
+*
+
+Description
+object header
+threaded PC
+Native PC - CPS
+
+created lazily - only needed if method will send a message
+incomplete objects unless moved to heap
+Name
+header
+tpc
+npc
+size
+prevCtxt
+method
+temps
+
+promote # locals+params+2
+create
+create method for debug
+create
+locals set to Nil
+
+link to previous context
+
+
+Results
+
+Running 40 fibonacci
+1 fibonacci
+2
+
+self <= 2 ifTrue: [ ↑ 1 ].
+↑ (self - 1) fibonacci + (self - 2) fibonacci
+
+3
+
+4
+
+...
+
+
+... Results
+version
+Pharo2
+ﬁbNative:
+ﬁbObject:
+ﬁbComp:
+ﬁbThread:
+ﬁbByte:
+
+AArch64
+591ms
+207ms
+243ms
+489ms
+2116ms
+14372ms
+
+x86-64
+676ms
+168ms
+342ms
+471ms
+2077ms
+20780ms
+
+RaspPi41
+3548ms
+739ms
+1296ms
+2815ms
+7301ms
+114908ms
+
+RV64g1
+106821ms
+3442ms
+8147ms
+9217ms
+34379ms
+3329575ms
+
+Native is Zig transliteration using the hardware stack and i64 values
+Object is Zig transliteration using the hardware stack and object values
+
+i.e. dynamic typing - including type-checking
+17% cost on M1, 100% cost on x86-64
+
+Comp is hand-compiled, using a separate object stack
+
+from the Thread code (what the JIT would produce)
+100% cost on M1, 37% cost on x86-64
+
+Thread is threaded execution - just over 4x slower
+Byte is a byte-coded interpreter - for comparison
+1thanks to Ken Dickey for RaspPi and RISC-V data
+2JIT (last 2 on Cuis - 30-50% slower) except RV uses bytecode interpreter
+
+
+Code Walkthrough
+
+
+Conclusions
+
+moving towards high-performance Smalltalk
+sadly, not reﬂective
+some of the ideas may make their ways to other Smalltalks
+planned to also support other languages
+https://github.com/dvmason/Zag-Smalltalk
+
+

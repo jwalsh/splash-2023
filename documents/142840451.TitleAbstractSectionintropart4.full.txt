@@ -1,0 +1,112 @@
+Title-Abstract. Section intro
+, writeToLog,→⟩ to
+identify call sites of writeToLog (step 1) is issued.
+
+To answer forward queries about calls to a function f, the algorithm starts
+by finding syntactic references to f in the code and following the flow of f
+forwards from those points; such references can be found cheaply by analyzing
+the scope of variables in the program. In this case, the only such reference occurs
+in the top-level code, where writeToLog is assigned to handler, which is passed
+to process. To proceed in identifying call sites of writeToLog, the analysis needs
+to find out how the handler argument is used inside call targets. To do so, a
+query ⟨13, process,←⟩ is issued to resolve call targets of the call to process on
+line 13 (step 2). Since this is a direct call, the underlying backward data flow
+analysis resolves the possible call targets to the function process defined on line 8
+(step 3); this also adds a call edge to our call graph and allows ⟨1, writeToLog,→⟩
+to make progress by analyzing the body of process to find invocations of its
+handler argument. The data flow analysis then finds a call to handler in the
+body of process intraprocedurally, so a call edge is added from that expression
+to writeToLog (step 4). This in turn enables further progress on ⟨2, arg,←⟩ which
+can proceed backwards from this call to resolve what values flow to variable data,
+in this case discovering that the value of getData is assigned to data. Since getData
+is invoked as a function, another query ⟨9, getData,←⟩ needs to be issued to
+resolve callees of getData (step 5).
+
+
+6
+
+Schoepe et al.
+
+obj [ ’func ’] = f;
+
+1 function storeFunc (obj, f) {
+2
+3 }
+4 function retrieveFunc ( obj ) {
+5
+6 }
+7 function f () {
+8
+9 }
+10 function g () {
+
+return obj [ ’func ’];
+
+//...
+
+//...
+
+11
+12 }
+13 var obj1 = {};
+14 storeFunc ( obj1, f);
+15 retrieveFunc ( obj1 ) () ;
+16 var obj2 = {};
+17 storeFunc ( obj2, g);
+18 retrieveFunc ( obj2 ) () ;
+
+Fig. 4. JavaScript program with heap use
+
+Because getData is passed as a parameter to process, further interprocedural
+analysis is needed to make progress and issue a forward query ⟨8, process,→⟩
+to find call sites of process (step 6). The partial call graph already contains a
+call edge for process, but since this is the first forward query for process, there
+might be additional calls not yet discovered; in this case, however, process is
+only referenced by that call and no additional edges are found (step 7).
+This call edge allows the query ⟨9, getData,←⟩ to make progress by deter-
+mining that getData points to readUserData resulting in a new call edge from
+getData() to readUserData (step 8). This in turn triggers further progress of
+⟨2, arg,←⟩ through the newly added call edge into the body of readUserData
+allowing the data flow analysis to discover that arg may contain data from a
+private source (shown as private@6 in step 9). This completes the analysis.
+
+The above process is fully on-demand without requiring an analysis of the
+entire program, aside from identifying syntactic references to functions (which
+can be determined cheaply through scoping). Additionally, the underlying data
+flow analyses are reused in a black-box fashion, as long as they allow resolv-
+ing forward and backward queries up to a given call graph. Rerunning queries
+when new call edges are added can be avoided when the data flow analyses are
+incremental and can take newly discovered call edges into account without start-
+ing from scratch. Also note that queries make progress independently based on
+newly discovered call graph edges, rather than requiring to fully resolve each
+subquery before continuing with a parent query.
+
+2.1 Precision
+
+Different data flow analyses choose different trade-offs in terms of precision
+and scalability along various dimensions such as context-sensitivity [19], path-
+sensitivity [8], and how aliasing is handled [10]. For example consider the program
+in Fig. 4 making use of the JavaScript heap.
+
+A client analysis may need to resolve the calls on lines 15 and 18. Fol-
+lowing the algorithm outlined above, this would eventually result in trying
+to resolve what parameter f points to on line 2. A simple data flow analysis
+that does not track calling contexts may not distinguish between the objects
+whose ’func’ property is being assigned to in the body of storeFunc and there-
+fore report both function f() and function g() as potential allocation sites of
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+7
+
+retrieveFunc(objN), resulting in an over-approximate call graph. However, if a
+calling-context-sensitive analysis is used to resolve call expressions to call tar-
+gets, the query ⟨15, retrieveFunc(obj1),←⟩ returns function f() as the only
+callee, and ⟨18, retrieveFunc(obj2),←⟩ is resolved to function g() only.
+To see why this is the case, consider the subqueries created during analy-
+sis: The initial query ⟨15, retrieveFunc(obj1),←⟩ starts with an empty calling
+context, the body of retrieveFunc(obj1) needs to be analyzed, leading to query
+⟨15, retrieveFunc,←⟩ to identify the callee, which immediately yields function
+retrieveFunc(). Its analysis in turn yields the fact that the query result is the
+functions that may flow to obj1[’func’

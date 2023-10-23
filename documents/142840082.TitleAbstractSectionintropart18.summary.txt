@@ -1,0 +1,3 @@
+
+
+This section presents the implementation of the approach proposed in the paper in the Astrée static analyzer and a toy abstract interpreter. It also provides an evaluation of the accuracy and overhead cost of the new abstract domain in the presence of modulo computations. The results show that the overhead cost is compensated by the increase in accuracy, reducing the time spent in other domains. The reduction operator can be easily tuned.

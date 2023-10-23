@@ -1,0 +1,3 @@
+
+
+This paper presents an approach to lift on-demand analysis to higher-order languages. The approach bootstraps an on-demand call graph construction by leveraging a pair of on-demand data flow analyses. This strategy is necessary for modern languages like JavaScript that rely heavily on higher-order features, such as callbacks and closures, where scalable approximations often lead to imprecision. The key insight of this paper is that existing on-demand data flow analyses can be applied in a black-box manner to construct call graphs.

@@ -1,0 +1,3 @@
+
+
+This section describes the proof automation strategy for the ReLoC proof system. It outlines four proof phases, each of which introduces different challenges for proof automation. The first phase involves symbolic execution without preconditions, introducing the (cid:31) modality. The second phase does not introduce the (cid:31) modality, allowing the user to allocate the invariant. The third phase involves automatically performing Löb induction when necessary. The fourth phase involves symbolic execution where the preconditions are inside an invariant, followed by automatic application of the reloc-apply proof rule. The section also provides a figure of the derived proof rules for ReLoC suitable for proof automation.

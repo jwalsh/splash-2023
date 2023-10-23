@@ -1,0 +1,157 @@
+Title-Abstract. Section intro
+Octagons Revisited
+
+Elegant Proofs and Simpliﬁedms
+
+Michael Schwarz[0000−0002−9828−0308] and Helmut Seidl[0000−0002−2135−1593]
+
+Technische Universit München, Garching, Germany
+
+{m.schwarz, helmut.seidl}@tum.de
+
+Abstract. Weakly relational domains have enjoyed tremendous success
+in the area of program analysis, since they oﬀer a decent compromise
+between precision and eﬃciency. Octagons, in have widely
+been studied to obtain eﬃcient algorithms which, however, come with
+intricate correctness arguments. Here, we provide simpliﬁed cubic time
+algorithms for computing the closure of Octagon both
+over the rationals and the integers which avoid introducing auxiliary
+variables. They are based on a more general formulation by means of
+2-project which allows for an elegant short correctness proof.
+The notion of 2-projectivity also lends itself to eﬃcient algorithms for
+incremental normalization. For the Octagon domain, we also provide
+an improved construction for linear programming based best abstract
+transformers for aﬃne assignments.
+
+Keywords: weakly relational domains, octagons, 2-decomposable rela-
+tional domains, Floyd-Warshall algorithm
+
+1
+
+Introduction
+
+While for intricate veriﬁcation tasks, monolithic relational domains such as
+the polyhedra abstract domain [8] are indispensable, they are considered pro-
+hibitively expensive. Therefore, weakly relational domains have been proposed
+which can only express simple relational properties, but scale better to larger
+programs. Examples of such domains to capture numerical properties are the
+Two Variables Per Inequality domain [27], or domains given by a ﬁnite set of
+linear templates [25]. The most prominent example of a template numerical do-
+main is the Octagon domain [20, 21] which allows tracking upper and lower
+bounds not only of program variables but also of sums and diﬀerences of two
+program variables. One such octagon abstract relation could, e.g., be given by
+the conjunction
+
+(−x ≤ −5) ∧ (x ≤ 10) ∧ (x + y ≤ 0) ∧ (x − z ≤ 1)
+
+Octagons thus can be considered as a mild extension of the non-relational domain
+of Intervals for program variables. An eﬃcient comparison of octagon abstract
+relations for inclusion, is enabled by canonical representations where all implied
+
+
+2
+
+Michael Schwarz and Helmut Seidl
+
+bounds are made explicit. Such representations are called closed. In the given
+example, the upper bounds
+
+(y ≤ −5) ∧ (−z ≤ −4)
+
+are implied and therefore are included into the closed representation.
+
+Procedures for computing closures of octagons over rationals or integers have
+been given by Miné [20] where an improved closure algorithm for integers later
+has been provided by Bagnara et al. [1, 2]. Further practical improvements are
+discussed in [4]. All these algorithms have in common that they introduce aux-
+iliary variables for negated program variables −z in order to represent each
+octagon as a diﬀerence bound matrix (DBM), and then apply dedicated tech-
+niques for these [19], namely, the Floyd-Warshall algorithm [6]. The auxiliary
+variables, however, must additionally be taken care of by the algorithm which
+blurs the simplicity of the idea, and also complicates the correctness argument.
+Here, we take another approach. To provide eﬃcient procedures for the Oc-
+tagon domain with simple proofs, we identify two generic properties of relational
+domains which are suﬃcient for an abstract version of the Floyd-Warshall al-
+gorithm to provide normal forms. Normalization takes calculations on abstract
+relations between 1, 2, and 3 variables as black boxes and uses these to infer ab-
+stract 1 or 2-variable relations mediated by other variables. Our normalization
+algorithm can be instantiated for rational octagons as well as integer octagons or
+other instances of the class of weakly relational domains satisfying our criteria.
+The ﬁrst criterion is 2-decomposability as introduced in [26] which requires
+that each abstract relation can be uniquely reconstructed from its projections
+onto sub-clusters of variables of size at most 2. The second criterion is called
+2-projectivity. This property means that each variable x can be eliminated from
+an abstract relation by considering projections onto at most 2-variable clus-
+ters. If both criteria are satisﬁed, our algorithm returns the normal form. The
+key correctness argument can be provided on two pages. Our abstract setting
+also provides an elegant algorithm for incremental normalization,e., for re-
+establishing the normal form after improving the relationship between two vari-
+ables. In practice, such improvements may occur as the abstract eﬀect of guards
+in the program which are expressible as abstract relations. For the Octagon do-
+main over rationals or integers, we provide improved abstract transformers for
+aﬃne assignments based on linear programming.
+
+2 Relational Domains
+
+Let us recall basic deﬁnitions for relational domains. We the-
+tion used in [26] where the notion ofdecomposability has been introduced. Let
+X be some ﬁnite set of variables. A relational domain R is a lattice with least
+element ⊥ and greatest element (cid:62) which provides the monotonic operations
+
+(cid:74)x ← e(cid:75)(cid:93) : R → R (assignment to variable x with right-hand e)
+r|Y : R → R (restriction to Y ⊆ X )
+(cid:74)?c(cid:75)(cid:93) : R → R (guard for condition c)
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+3
+
+for some languages e of expressions and c of conditions, respectively.
+The given operations are meant to provide the abstract transformers for the
+basic operations of programs. Restricting a relation r to a subset Y of variables
+amounts to forgetting all information about variables in X \ Y. Thus, we require
+that
+
+Restriction therefore is idempotent. For guards with condition c, we require that
+
+(1)
+
+(2)
+
+when Y1 ⊆ Y2
+
+r|X
+r|∅
+r|Y1
+(r|Y1
+
+= r
+= (cid:62)
+)(cid:12)(cid:12)Y2
+(cid:119) r|Y2
+= r|Y1∩Y2
+(cid:74)?c(cid:75)(cid:93)r = r (cid:117)(cid:74)?c(cid:75)(cid:93)(r|V )
+((cid:74)x ← e(cid:75)(cid:93)r)(cid:12)(cid:12)Y = r|Y
+((cid:74)x ← e(cid:75)(cid:93)r)(cid:12)(cid:12)Y = ((cid:74)x ← e(cid:75)(cid:93)(r|Y ∪V ))(cid:12)(cid:12)Y
+
+where V is the set of variables occurring inside c.
+
+For a numerical relational domain, we additionally require for Y ⊆ X that
+(3)
+(4)
+
+(x (cid:54)∈ Y )
+(x ∈ Y )
+
+where V is the set of variables occurring in e. Intuitively, this means that an
+assignment to the variable x does not aﬀect relational information for any set Y of
+variables with x (cid:54)∈ Y. To determine the eﬀect for a set Y of variables containing x,
+it suﬃces to additionally take the variables into account which occur in the right-
+hand side e. This property may, e.g., be violated if the relational domain also
+represents points-to information so that updates to x may also aﬀect relational
+information for sets of variables not containing x.
+Example 1. For numerical variables, a variety of such relational domains have
+been proposed, e.g., (conjunctions of) aﬃne equalities [16, 22, 23] or aﬃne in-
+equalities [8]. For aﬃne equalities or inequalities, projection onto a subset of Y
+of variables corresponds to the geometric

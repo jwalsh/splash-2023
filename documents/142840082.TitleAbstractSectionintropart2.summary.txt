@@ -1,0 +1,3 @@
+
+
+This section introduces a static analyzer that checks for the absence of run-time errors in embedded critical software. The analyzer is parameterized by an auxiliary numerical abstract domain which is used to compute and represent numerical properties of program instructions. Symbolic methods have been developed to keep relations between variables by reasoning directly over the arithmetic expressions and to apply sound program transformations on-the-fly to ease the analysis. This paper presents symbolic enhancement techniques similar to the ones described in [21], but that allow safe modulo elimination when it is possible. Examples are provided to demonstrate the effects of the new abstract domain.

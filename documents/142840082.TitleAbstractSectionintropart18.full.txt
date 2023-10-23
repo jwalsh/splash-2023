@@ -1,0 +1,135 @@
+Title-Abstract. Section intro
+ interpolation detection step that aims at
+finding and simplifying linear interpolation patterns. This step consists in the
+
+product of a linear formℒ□(𝑋−𝐴) and an abstract expression𝑒♯𝑧, quotient by a
+introduction of two new inference rules in reduce0. The first one matches a
+linear formℒ□(𝐵−𝐴) with𝐴,𝐵,𝑋∈𝒱. It claims the quotient can be reduced
+toℒ□(0)⋓□𝑒♯𝑧 (or more precisely its reduction) when the denominator is nonzero
+and𝑋 is between𝐴 and𝐵. This is the rule that can be used in the program
+Under the condition that𝑋−𝐴 is between0 and𝑘𝑑, with𝑘 the maximum nonzero
+integer that verifies the property (that exists becauseℕ∗ is well-founded), the
+reduction rule returnsℒ□(0)⋓□(𝑒♯𝑧⊠ℒ□(𝑘)) (modulo two reductions). This rule
+can, for example, be used to prove that, in Fig. 10,0≤𝑅≤� holds if𝑅
+
+example given at the beginning of the paper in Fig. 3. The second inductive rule
+introduced is quite similar, but the denominator is a strictly positive constant.
+
+is assigned. If these induction rules cannot be applied, the usual default rule
+NoReduce is used.
+
+
+26
+
+J. Boillot, J. Feret.
+
+𝑦,𝑧∈{1,2}∶𝑦≠𝑧
+𝜄(𝐵−𝐴)𝑅♯⊆[1,+∞[
+𝑋,𝐴,𝐵∈𝒱
+𝑒♯𝑦≝ℒ□(𝑋−𝐴)
+𝜄(𝐵−𝑋)𝑅♯⊆[0,+∞[
+𝜄(𝑋−𝐴)𝑅♯⊆[0,+∞[
+reduce0((𝑒♯1⊠𝑒♯2)⧄ℒ□(𝐵−𝐴))𝑅♯≝ reduce0(ℒ□(0)⋓□𝑒♯𝑧)𝑅♯
+𝑦,𝑧∈{1,2}∶𝑦≠𝑧
+𝑋,𝐴∈𝒱
+𝑑∈ℕ∗
+𝑘≝min{𝑘∈ℕ∗∣𝜄(𝑋−𝐴)𝑅♯⊆[0,𝑘𝑑]}
+𝑒♯𝑦=ℒ□(𝑋−𝐴)
+𝑒′♯𝑧 ≝ reduce0(𝑒♯𝑧⊠ℒ□(𝑘))𝑅♯
+reduce0((𝑒♯1⊠𝑒♯2)⧄ℒ□(𝑑))𝑅♯≝ reduce0(ℒ□(0)⋓□𝑒′♯𝑧)𝑅♯
+
+Interp1
+
+Interp2
+
+In this section, we have introduced a reduction heuristic over abstract ex-
+pressions. We have then presented that we can take advantage of the simplified
+form of the abstract expressions to recognize patterns, such as linear interpola-
+tions. Even if they allow some flexibility (e.g., commutation of the operands in
+multiplications), the capability to recognize all linear interpolations can cause
+the number of rules to explode. It can then be interesting to memoize the result
+of pattern recognition so that further iterations would explore fewer cases.
+
+Implementation presentation
+
+8
+All the methods we have described have been implemented in the Astrée [1,2]
+static analyzer but also in an extra toy abstract interpreter of C code [3] we
+submitted along this article to emphasize our work. Some implementation details
+and results of our artifact are detailed in this section.
+
+The approach we have presented in this paper is sensitive to program trans-
+formations, and particularly to the usage of temporary variables, as in Fig. 2
+In the implementations we also use adopted the Symbolic Constant Propagation
+methods [21] to eliminate them by propagating and simplifying the expressions
+assigned to them. A strategy has to be provided to the symbolic constant prop-
+agation domain to decide which variable substitute by its expression. The one
+we currently use consists in propagating the expressions as soon as they still
+contain variables.
+
+The artifact has been evaluated on several code excerpts from industrial
+code. The improvement of both the analysis time and the number of false-alarms
+returned by the analyzer when adding abstract domain that we
+presented is summarized in Fig. 11. The comparison has been made using three
+different underlying abstract domains implemented in the library Apron [15]:
+
+intervals (boxes), octagons, and polyhedra. If the analysis times out (after5
+
+seconds), the corresponding bars are hatched and the bar height is set to the
+height of the graph, so other bars are not flattened.
+
+The C code excerpts that have been tested are the following ones:
+
+– fig1.c, fig2.c, fig3.c and fig10.c respectively correspond to Figs. 1, 2,
+
+3, and 10,
+
+– fig1_promo.c and fig2_promo.c respectively correspond to Figs. 1 and 2
+
+with the extra usage of integer promotion instead of unsigned data type,
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+27
+
+– fig3+mod.c corresponds to Fig. 3 with the extra usage of variable differences
+
+– promo{1,2,3}.c present different counter-intuitive effects of integer promo-
+
+as introduced in Fig. 1,
+
+tion in C code,
+
+– div0.c is a demonstration that rewritings do not hide potential errors, in
+
+– bilinear.c computes a bilinear interpolation that consists in8 nested linear
+
+particular divisions by zero that are discarded during the
+
+interpolations. Its exact range then has to be proven.
+The results of our artifact 11 show that, as soon as the underlying abstract
+domain is able to prove obligation inequalities, the symbolic domain is able
+to eliminate inner modulo computations and discover more precise numerical
+properties. In general, the overhead cost is compensated by the fact that, due
+to the increase of accuracy, the time spent in the other domains is reduced.
+
+9 Conclusion
+
+We have proposed in this article a method to safely rewrite arithmetic expres-
+ into simpler ones. In particular, modulo computations, that are frequent
+in the semantics of real- languages, are safely discarded ;
+either by proving that they can be precisely described, or by replacing them
+conservatively. Then, a reduction operator has been introduced to achieve maxi-
+mum expression canonization by using linear forms to the fullest extent possible.
+Those reductions allow us to match and simplify expression patterns, such as
+linear interpolations, for a low cost. this technique remains gen-
+eral and could be used with other patterns. This method has been implemented
+within the Astrée static analyzer, and a toy abstract interpreter that is avail-
+able. An evaluation of the accuracy and the overhead cost induced by the new
+abstract domain has been presented and supports its effectiveness in the pres-
+ence of modulo computations. The generally compensated fact
+that, due to the increase of accuracy, the time spent in the other domains is
+red
+
+The reduction operator can be easily tuned

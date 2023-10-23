@@ -1,0 +1,122 @@
+Title-Abstract. Section intro
+point of this function. Hence, we replace the function
+
+state just before interpreting the loop. This does not change the result of the
+concrete iterations.
+
+We can now state the soundness of the abstract semantics.
+
+
+14
+
+J. Boillot, J. Feret.
+
+Theorem 2. Let⟨𝑅0,Ω0⟩∈𝒟 be a semantics state. Let𝑅♯∈𝒟♯ be an abstract
+state. Let𝑠∈ stmt be a statement. Then⟨𝑅0,Ω0⟩⊑𝛾(𝑅♯) ⟹ ⦃𝑠⦄⟨𝑅0,Ω0⟩⊑
+𝛾(⦃𝑠⦄♯𝑅♯
+Thm. 2 states that the abstract semantics ignores no concrete behavior. Nev-
+
+ertheless, it may introduce fictitious ones due to the abstraction.
+
+(that are linear forms).
+
+nothing has to be When the abstract expression is a constant, the modulo
+computation can be directly applied on the constant. Lastly, if the value of the
+abstract expression ranges within the interval of the, then the modulo
+computation can be safely discarded. In all other cases, no information can be
+
+This way, the opposite of a linear form is obtained by taking the opposite
+
+6.1 Primitives over abstract expressions
+We now introduce two primitives that operate over abstract expressions.
+
+Theopposite function pushes unary minus to the leafs of abstract expressions 6. The functionopposite∶ expr♯→ expr♯ is defined inductively as
+follows: opposite(ℒ□(𝑎0+∑𝑋𝑖∈𝒱𝑎𝑖𝑋𝑖))≝ℒ□(−𝑎0+∑𝑋𝑖∈𝒱(−𝑎𝑖)𝑋𝑖)
+opposite(𝑒♯1⊞𝑒♯2)≝opposite(𝑒♯1)⊞opposite(𝑒♯2)
+opposite(𝑒♯1⊠𝑒♯2)≝opposite(𝑒♯1)⊠𝑒♯2
+opposite(𝑒♯1⧄𝑒♯2)≝opposite(𝑒♯1)⧄𝑒♯2
+opposite(𝑒♯1⋓□𝑒♯2)≝opposite(𝑒♯1)⋓□opposite(𝑒♯2)
+of each coefficient. The functionopposite propagates over the sub-expressions
+of the⊞ and the⋓□ operators. Lastly, the opposite of a product or a quotient
+Definition 7. For any abstract expression𝑒♯∈ expr♯ and any modulo specifica-
+tion𝑚∈𝕄, the functionrmMod(𝑒,𝑚)∶𝒟♯→ expr♯ is defined as follows:
+if𝑚=ℤ,
+else if𝑒♯=�□(𝛼) with𝛼∈ℤ,
+rmMod(𝑒♯,𝑚)𝑅♯≝
+else if𝜄(toExpr(𝑒♯))𝑅♯⊆𝑚,
+otherwise, with�=[𝑙,𝑢[.
+In the, if the modulo specification is equal to the setℤ,
+
+We now introduce an operator to propagate a modulo computation over an
+abstract expression. Given an abstract expression and a modulo specification, it
+applies the modulo on the expression.
+
+between two sub-expressions is obtained by propagating it to only one of them
+(the first one has been chosen arbitrarily).
+
+𝑒♯
+ℒ□(𝛼mod𝑚)
+𝑒♯
+
+reduce(ℒ□(𝑙)⋓□ℒ□(𝑢−1))𝑅♯
+
+⎧⎪⎪⎨⎪⎪⎩
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+15
+
+Moreover, this rewrite does not hide any potential error alarms.
+
+Example 5. We give two examples of elimination of modulo computations. We
+
+ulo computation can be eliminated without modifying the abstract
+
+case, the result of the modulo computation cannot be described precisely as
+an abstract expression. It is then soundly replaced by the abstract expression
+
+it is a parameter of our abstraction.
+
+kept about the expression. It is then replaced with the interval of the modular
+ring ( precisely).
+
+The following theorem states that any abstract expression that is evaluated
+over a modular ring can be rewritten in the expression in which the modulo
+
+computation has been forced, that is to say the output of the functionrmMod.
+Theorem 3. For all abstract value𝑅♯∈𝒟♯, abstract expression𝑒♯∈ expr♯, and
+potential modular ring𝑚∈𝕄, the following property holds,
+𝛾(𝑅♯)⊨toExpr(𝑒♯) mod𝑚≼∅toExpr(rmMod(𝑒♯,𝑚)).
+compute the result of the abstract expressionℒ□(0) ⋓□ℒ□(25), that intuitively
+denotes the interval[0,25], respectively modulo[0,28[ and[10,26[. We as-
+sume that the primitive𝜄 provides the exact range of this expression, that
+is to say that𝜄(toExpr(ℒ□(0) ⋓□ ℒ□(25)))𝑅♯ = 𝜄(0cst⋓25cst) = [0,25]. Since
+the interval[0,25] is included in the interval[0,28[, the corresponding mod-
+We obtainrmMod(ℒ□(0) ⋓□ℒ□(25),[0,28[)𝑅♯=ℒ□(0) ⋓□ℒ□(25). In the second
+reduce(ℒ□(10)⋓□ℒ□(25))𝑅♯. We keep the primitive reduce uninterpreted, since
+pressions into abstract ones. Given an expression𝑒∈ expr, its translation⦅𝑒⦆∶
+𝒟♯→ expr♯×𝕄×℘(Ω) function that maps an abstract element𝑅♯ to a
+triple(𝑒♯,𝑚,Ω𝑒). Remember that abstract expressions do not have modulo oper-
+ators. However, the element𝑚∈𝕄 stands for a modulo computation to be ap-
+must be translated conservatively. This can be done thanks to thermMod opera-
+Ω𝑒. The translation is only valid for the semantics states satisfying the property
+𝑅♯ (i.e., for the states in𝛾(𝑅♯)). Thus, the abstract element𝑅♯ should be used
+The translation⦅𝑒⦆𝑅♯ of an expression𝑒, in the context of an abstract ele-
+ment𝑅♯, is defined inductively and by cases by the means of a set of inference
+cients are set to0, except the one corresponding to the variable which is set to1.
+
+6.2 Translation from Classical to Abstract Expressions
+We now have all the material needed to define the translation of classical ex-
+
+plied on the potential values of the abstract expression. This way, the outermost
+modulo computation can be kept precisely, whereas inner modulo computations
+
+tor, yet it may yield a loss of information. Bound checks also cannot be described
+in abstract expressions, so potential bound check failures are reported in the set
+
+to drive the translation process to get a more accurate result.
+
+rules.
+
+Variable. A variable is replaced by a linear combination where all the coeffi

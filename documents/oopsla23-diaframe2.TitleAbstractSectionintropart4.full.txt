@@ -1,0 +1,111 @@
+Title-Abstract. Section intro
+, we identify general
+formats to capture proof rules. These formats describe the ‘current’ and ‘new’ veriﬁcation
+goal, and optionally, a piece of required logical state. To extend the proof search strategy with
+additional proof rules, one simply shows that they can be written as instances of the general
+formats. Modules for our proof automation are then just collections of rules, executed by the
+proof automation strategy. We also add ﬂexibility for when the logical state or current goal
+nearly matches a rule—for example, when the required logical state can be found beneath a
+connective of the logic. In such cases, the rule is still applied automatically, but the automation
+will ﬁrst deal with the connective. This keeps the modules of our proof automation declarative
+and concise, while becoming applicable in more situations.
+
+Implementation of Diaframe 2.0. The implementation of Diaframe 2.0 is guided by the design
+goals and choices described above. An overview of Diaframe 2.0’s architecture is shown in Fig. 1.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:5
+
+Veriﬁcation goal
+
+|= 1 ≾ 2 : 
+
+⟨⟩  ⟨⟩
+
+⊲ , (cid:31) ,...
+
+reﬁnement module (§2)
+
+logical atomicity module (§3)
+
+modality module (§2)
+
+implemented with abduction
+and transformer hints (§ 4)
+
+Diaframe 1.0
+
+ghost state and
+
+invariant
+
+reasoning module
+
+Qed
+
+Fig. 1. Overview of the architecture of Diaframe 2.0.
+
+The key ingredients are the proof strategies underpinning the reﬁnement and logical atomicity
+modules. To realize these strategies, we start with the original proof rules of ReLoC and logically
+atomic triples in Iris, and design derived rules whose application is directed by the program and
+logical state. These derived rules are proved sound in Coq (Design goal #4), and make up our proof
+search strategy. To ensure good integration with interactive proofs (Design goal # 2) and as per
+our design choices, our strategies make minimal use of backtracking. Backtracking is sometimes
+needed to ﬁnd the linearization point, but our strategies are otherwise deterministic. Backtracking
+can be disabled altogether, allowing the user to intervene at key steps in the proof.
+
+Proof automation for linearizability in Iris critically relies on dealing with the cornerstones of
+Iris’s concurrent separation logic: invariants and ghost resources. For these, we build upon our
+earlier work Diaframe 1.0 [Mulder et al. 2022]. Diaframe 1.0 provides proof automation for the
+veriﬁcation of ﬁne-grained concurrent programs, but is restricted to Hoare triples for functional
+correctness—and thus does not support linearizability. However, we reuse Diaframe 1.0’s key
+innovation: its ability to automatically reason with invariants and ghost resources. In accordance
+with Design goal #3, this is a separate proof automation module used by both the reﬁnement and
+logical atomicity proof search strategies.
+
+To express the proof search strategies for contextual reﬁnement and logical atomicity in a
+declarative manner (Design goal #3), we identify two general formats for rules in these strategies.
+Abduction hints are used to replace a program speciﬁcation goal with a successive goal. One can
+specify whether this must be done unconditionally, only when a certain hypothesis is spotted, or just
+as a last resort. A simple collection of abduction hints can describe the original Diaframe 1.0 strategy
+for Hoare triples (so Diaframe 2.0 is backwards compatible w.r.t. Diaframe 1.0). Transformer hints
+apply to goals where we reason about the entire context. Simple instances of transformer
+hints are the introduction rules for Iris’s various modalities, such as the later (⊲) and persistence
+((cid:31)) modality. The combination of abduction and transformer hints can express a crucial proof rule
+in the veriﬁcation of logically atomic triples. Additionally, they allow us to apply (Löb) induction
+automatically (which was impossible in Diaframe 1.0).
+
+Following ideas from Gonthier et al. [2011]; Krebbers et al. [2017b]; Spitters and Weegen [2011],
+we represent these hints using type classes in Coq [Sozeau and Oury 2008]. The modules for our
+strategies for contextual reﬁnement and logical atomicity are given as collections of type class
+instances. Diaframe 2.0’s proof automation is implemented as an Ltac tactic [Delahaye 2000], that
+uses type class search to select an applicable hint (i.e., a rule in the strategy) for a given goal.
+Type class search is also used to close oﬀ our rules under the connectives of separation logic, thus
+achieving our third key idea of near-applicability. Coq requires us to prove soundness of each rule
+represented as a type class instance, thus achieving foundational proofs (Design goal #4). Aside
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+91:6
+
+Ike Mulder and Robbert Krebbers
+
+from enabling declarative deﬁnitions of proof search strategies (Design goal #3), the use of type
+classes is more robust compared to implementing the strategies directly as an Ltac tactic. Type class
+instances are strongly typed, so many errors show up during the implementation of the strategy as
+hints, instead of during the execution of the proof strategy.
+
+Contributions and outline. Our contributions are as follows:
+
+• In §2 we describe our proof automation strategy for reﬁnements in ReLoC.
+• In §3 we describe our proof automation strategy for logically atomic triples in Iris.
+• In §4 we describe the extensible proof automation strategy that underpins Diaframe 2.0. This
+strategy is parametric in the program speciﬁcation style through the use of three kinds of
+hints—for abduction (new), transformer (new), and bi-abduction (from Diaframe 1.0). The
+proof automation strategies for our ﬁrst two contributions are encoded in Diaframe 2.0.
+

@@ -1,0 +1,3 @@
+
+
+This section discusses a theorem that states that the evaluation of a translated expression keeps all the possible values of the evaluation of the original expression. It also states that the set of potential error alarms returned by the translation contains at least all the potential error alarms of the evaluation of the original expression. This is a stronger statement than the one needed to rewrite expressions, and is formalized in the inference rule given in the section.

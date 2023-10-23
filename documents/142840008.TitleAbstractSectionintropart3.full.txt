@@ -1,0 +1,149 @@
+Title-Abstract. Section intro
+ during the development process.
+
+The determined WCETs are typically input into a schedulability analysis.
+
+Consequently, aiT has been integrated with several such tools.
+
+2.4 Tool Qualification
+Whenever the output of a tool is either part of a safety-critical system to be
+certified or the tool output is used to eliminate or reduce any development or
+verification effort for such a system, that tool needs to qualified [22]. Safety norms
+like DO-178C and ISO 26262 impose binding regulations for tool qualification;
+they mandate to demonstrate that the tool works correctly in the operational
+context of its users and/or that the tool is developed in accordance to a safety
+standard. To address this, a Qualification Support Kit has been developed, which
+consists of several parts.
+
+The Tool Operational Requirements (TOR) document lists the tool functions
+and technical features which are stated as low-level requirements to the tool
+behavior under normal operating conditions. Additionally, the TOR describes
+the tool operational context and conditions in which the tool computes valid
+results. A second document (Tool Operational Verification and Validation Cases
+and Procedures, TOVVCP) defines a set of test cases demonstrating the correct
+functioning of all specified requirements from the TOR. Test case definitions
+include the overall test setup as well as a detailed structural and functional
+description of each test case. The test part contains an extensible set of test
+cases with a scripting system to automatically execute them and generate reports
+about the results. These tests also include model validation tests, in fact, a
+significant part of the development effort for aiT is to validate the abstract
+hardware model; [25] gives an overview.
+
+In addition, the QSK provides a set of documents that give details about
+the AbsInt tool development and verification processes and demonstrate their
+suitability for safety-critical software.
+
+Impact in Industry and Academia
+
+2.5
+A painful insight was that hardly any two WCET customers of AbsInt used
+the same hardware configuration in his systems. The costs for an instantiation
+of our WCET-analysis technology for a new processor can take quite an effort,
+making the resulting tool by necessity quite expensive. Still, aiT has been suc-
+cessfully employed in industry and is available for a variety of microprocessors
+ranging from simple processors like ARM7 to complex superscalar processors
+with timing anomalies and domino effects like Freescale MPC755, or MPC7448,
+
+
+6
+
+D. Kästner et al.
+
+and multi-core processors like Infineon AURIX TC27x. Our development of a
+sound method that actually solved a real problem of real industry was considered
+a major success story for the often disputed formal-methods domain. AbsInt be-
+came the favorite partner for the industrialization of academic prototypes. First,
+Patrick Cousot and his team offered their prototype of Astrée, which in co-
+operation with some of the developers has been largely extended by AbsInt –
+more about this in Sec. 3. Then, we entered a cooperation with Xavier Leroy on
+the result of his much acclaimed research project, CompCert, the first formally
+verified optimizing C compiler [30, 29]. The CompCert front-end and back-end
+compilation passes, and their compositions, are all formally proved to be free
+of miscompilation errors. The property that is formally verified, using machine-
+assisted mathematical proofs, is semantic preservation between the input code
+and output code of every pass. Hence, the executable code CompCert produces
+is proved to behave exactly as specified by the formal semantics of the source C
+program. Both Astrée and CompCert are now available as AbsInt products.
+
+2.6 Application to Non-Timing-Predictable Architectures
+Multi-core processors with shared resources pose a severe problem for sound
+and precise WCET analysis. To interconnect the several cores, buses, meshes,
+crossbars, and also dynamically routed communication structures are used. In
+that case, the interference delays due to conflicting, simultaneous accesses to
+shared resources (e.g. main memory) can cause significant imprecision. Multi-
+core processors which can be configured in a timing-predictable way to avoid
+or bound inter-core interferences are amenable to static WCET analysis [27, 63,
+64]. Examples are the Infineon AURIX TC275 [16], or the Freescale MPC 5777.
+The Freescale P4080 [13] is one example of a multi-core platform where the in-
+terference delays have a huge impact on the memory access latencies and cannot
+be satisfactorily predicted by purely static techniques. In addition, no public
+documentation of the interconnect is available. Nowotsch et al. [46] measured
+maximal write latencies of 39 cycles when only one core was active, and max-
+imal write latencies of 1007 cycles when all eight cores were running. This is
+more than 25 times longer than the observed single-core worst case. Like mea-
+suring task execution on one core with interference generators running on all
+other cores, WCET bounds will significantly overestimate
+the timing delays of the system in the intended final configuration.
+
+In some cases, robust partitioning [64] can be achieved with approaches ap-
+proaches like [53] or [46]. For systems which do not implement such rigorous
+software architectures the information needed to develop a static tim-
+ing model is not available, hybrid WCET approaches are the only solution.
+
+For hybrid WCET analysis, the same generic tool architecture as described
+in Sec. 2.2 can be used, as done in the tool TimeWeaver [37]. It performs Ab-
+stract Interpretation-based context-sensitive path and value analysis analysis,
+but replaces the Microarchitectural Analysis stage by non-intrusive real-time
+instruction-level tracing to provide worst-case execution time estimates. The
+trace information covers interference effects, e.g., by accesses to shared resources
+
+
+Abstract Interpretation in Industry – Experience and Lessons Learned
+
+7
+
+from different cores, without being distorted by probe effects since no instrumen-
+tation code is needed. The computed estimates are upper bounds with respect to
+the given input traces, i.e., TimeWeaver derives an overall upper timing bound
+from the execution time observed in the given traces. This approach is compliant
+to the recommendations of CAST-32a and AMC 20-193 [7, 10].
+
+2.7 Spin-off: Worst-case Stack Usage Analysis
+
+In embedded systems, the run-time stack (often just called ”the stack”) typi-
+cally is the only dynamically allocated memory area. It is used during program
+execution to keep track of the currently active procedures and facilitate the
+evaluation of expressions. Each active procedure is represented by an activation
+record, also called stack frame or procedure frame, which holds all the state
+information needed for execution.
+
+Precisely determining the maximum stack usage before deploying the sys-
+tem is important for economical reasons and for system safety. Overestimating
+the maximum stack usage means wasting memory resources. Underestimation
+leads to stack overflows: memory cells from the stacks of different tasks or other
+memory areas are overwritten. This can cause crashes due to memory protection
+violations and can trigger arbitrary erroneous program behavior, if return ad-
+dresses or other parts of the execution state are modified. In consequence stack
+overflows are typically hard to diagnose and hard to reproduce, but they are a
+potential cause of catastrophic failure. The accidents caused by the unintended
+acceleration of the 2005 Toyota Camry illustrate the potential consequences of
+stack overflows: the expert witness’ report commissioned by the Oklahoma court
+in 2013 identifies a stack overflow as probable failure cause [3, 61].
+
+The generic tool architecture of Sec. 2.2 can be easily adapted to perform
+an analysis of the worst-case stack usage, by exchanging the Microarchitectural
+analysis step with a dedicated value analysis for the stack pointer register(s)
+[24]. In 2001, the resulting tool, called StackAnalyzer, was released, which was
+the first commercial tool to safely prove the absence of stack overflows in safety-
+critical systems, and since then has been widely adopted in industry.
+
+3 Sound Runtime Error Analysis
+
+The purpose of the Astrée analyzer is to detect source-level runtime errors due to
+undefined or unspecified behaviors of C programs. Examples are faulty pointer
+manipulations, numerical errors such as arithmetic overflows and division by
+zero, data races, and synchronization errors in concurrent software. Such errors
+can cause software crashes, invalidate separation mechanisms in mixed-criticality
+software, and are a frequent cause of errors in concurrent and multi-core appli-
+cations. At the same time, these defects also constitute security vulnerabilities,
+and have been at the root of a multitude of cybersecurity attacks, in particular

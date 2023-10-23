@@ -1,0 +1,1563 @@
+Lifting On-Demand Analysis to Higher-Order
+
+Languages
+
+Daniel Schoepe1[0009−0006−1187−9569], David Seekatz2[0000−0003−4562−5074], Ilina
+Stoilkovska1[0009−0003−3683−6301], Sandro Stucki1[0000−0001−5608−8273], Daniel
+Tattersall1, Pauline Bolignano1, Franco Raimondi1,3[0000−0002−9508−7713], and
+
+Bor-Yuh Evan Chang1,4[0000−0002−1954−0774]
+
+1 Amazon,{schoeped,ilinas,satucki,dtatters,pln,frai,byec}@amazon.com
+
+2 Unaffiliated, dseekatz@gmail.com
+
+3 Middlesex University
+
+4 University of Colorado Boulder
+
+Abstract. In this paper, we present an approach to lift on-demand anal-
+ysis to higher-order languages. Specifically, our approach bootstraps an
+on-demand call graph construction by leveraging a pair of on-demand
+data flow analyses. Static analysis is increasingly applied to find subtle
+bugs or prove deep properties in large, industrial code bases. To effec-
+tively do this at scale, analyzers need to both resolve function calls in a
+precise manner (i.e., construct a precise call graph) and examine only the
+relevant portion of the program (i.e., be on-demand). A strawman strat-
+egy to this problem is to use fast, approximate, whole-program call graph
+construction algorithms. However, this strategy is generally not adequate
+for modern languages like JavaScript that rely heavily on higher-order
+features, such as callbacks and closures, where scalable approximations
+often introduce unacceptable imprecision. This strategy also limits in-
+creasingly sophisticated on-demand analyses, which scale by analyzing
+only parts of a program as needed: the scalability advantages of an on-
+demand analysis may be thwarted by the need to construct a whole-
+program call graph. The key insight of this paper is that existing on-
+demand data flow analyses can themselves be applied in a black-box
+manner to construct call graphs on demand. We propose a soundness
+condition for the existing on-demand analyses with respect to partial
+call graphs, formalize our algorithm as an abstract domain combinator,
+and prove it sound in Isabelle/HOL. Furthermore, we evaluate a proto-
+type implementation of the resulting on-demand call graph construction
+algorithm for a subset of JavaScript (using the Synchronized Push-Down
+Systems framework as the underlying data flow analysis) on benchmarks
+making heavy use of higher-order functions.
+
+
+2
+
+1
+
+Schoepe et al.
+
+Introduction
+
+We consider the problem of lifting on-demand static analyses to higher-order
+languages—that is, transforming, in a sound manner, an on-demand static anal-
+ysis relying on an upfront call graph into a fully on-demand analysis constructing
+its own call graph, even in the presence of first-class functions.
+
+Program analysis approaches are becoming more and more sophisticated, in-
+creasingly able to find subtle bugs or prove deep program properties of interest
+in large code bases [9, 26]. There are two key enablers for such advances, es-
+pecially needed to scale to large industrial applications. One is the ability to
+reason interprocedurally about the behavior across different functions and mod-
+ules of a program in a precise manner (rather than, e.g., relying solely on local,
+intraprocedural information or coarse-grained global information such as types).
+The other is the capabilty to be on-demand (i.e., to examine only the relevant
+portion of a program to derive a desired fact on demand).
+
+Reasoning interprocedurally requires access to a call graph linking call sites
+in the program to functions that they may invoke at run time. To apply a static
+analysis interprocedurally, many tools assume that a call graph is provided up-
+front, and is consulted by the analysis to determine which parts of the program
+should be explored. This creates two limitations. First, for higher-order, imper-
+ative languages such as JavaScript, the combination of first-class functions with
+a dynamic heap and object-oriented features may require a deep interleaving be-
+tween call graph construction and data flow analysis. This arises due to the need
+to precisely track functions as they flow from the points where they are referenced
+through higher-order functions, heap cells, inheritance hierarchies, and closure
+bindings. Without this back-and-forth between call graph construction and data
+flow analysis, precision might be limited or come at the price of soundness or
+performance trade-offs. Second, this reliance on an upfront call graph limits the
+benefit of on-demand techniques—a precise data flow analysis to compute a call
+graph upfront may significantly negate the benefits of a subsequent on-demand
+analysis. For example, Stein et al. [32] lift an arbitrary abstract interpretation
+to be on-demand (and incremental) but still assume an upfront call graph.
+
+The key insight of this work is that existing on-demand intraprocedural data
+flow analyses can themselves be leveraged in a black-box manner to bootstrap an
+on-demand construction of the call graph. The approach starts from an empty
+call graph and proceeds by interleaving backward data flow queries, resolving
+which values may flow to a given expression, and forward data flow queries,
+resolving which expressions a given value may flow to. Appropriately interleaving
+such queries allows us to bootstrap a sound overapproximation of a relevant part
+of the call graph. This technique allows us to automatically lift the results of on-
+demand analysis for first-order languages to higher-order ones, thereby further
+reducing the need for whole-program analysis. As a result, we can parametrically
+leverage progress on analysis of other challenging language features, allowing the
+on-demand call graph construction to benefit from the large body of work that
+already exists on analyzing various combinations of language features, including
+mutability. Concretely, we make the following contributions:
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+3
+
+– We propose a language-agnostic construction for bootstrapping an on-de-
+mand call graph, parameterized by a pair of underlying backward and for-
+ward on-demand data flow analyses. The two analyses are treated as black
+boxes, except for the assumption that they can resolve backward and for-
+ward queries about data flows between values and expressions with respect
+to a partial call graph (Section 2).
+
+– We present a formalization of our approach as an abstract domain combi-
+nator and determine sufficient assumptions on the input analysis and target
+language to guarantee soundness and termination (Section 3). To express
+soundness, we also introduce a notion of soundness up to a given call graph.
+This demonstrates a broader approach to formulating and proving sound-
+ness of on-demand analyses. Our theoretical results are mechanized in Is-
+abelle/HOL [23]. The theory files are available online [27].
+
+– We evaluate our technique on a prototype implementation that instantiates
+the approach for a subset of JavaScript, leveraging the intermediate represen-
+tation of the JavaScript program analyzer TAJS [17], and using Synchronized
+Push-Down Systems (SPDS) [30] as the underlying data flow analyses. For
+our evaluation, we use a benchmark set of programs generated via property-
+based testing techniques, implemented using QuickCheck [5] (Section 4).
+Our results provide some evidence that on-demand call graph construction
+introduces time savings and explores a smaller portion of the program, when
+compared with whole-program call graph construction.
+
+2 Overview of Our Approach
+
+In this section, we give an informal overview of our approach to on-demand call
+graph construction, illustrating the main ideas on a small JavaScript example
+program (Fig. 1). The presentation in this section is intentionally kept high-level:
+we assume we are given a forward and a backward data flow analysis that can
+resolve queries with the help of an existing call graph, but we gloss over the
+details of how such queries are issued and the formal requirements to make our
+construction sound. These details are formalized in Section 3.
+
+JavaScript programs frequently use callbacks, e.g., to handle user events or
+interactions between different components in UI frameworks, such as React [21].
+Consider the JavaScript snippet in Fig. 1. The function process takes two call-
+back arguments: it retrieves data by calling the callback getData and passes the
+result to the callback handle. Unfortunately, callbacks complicate the control-
+flow of programs, which makes them harder to reason about and increases the
+risk of introducing unintended and undesired behavior. Returning to our exam-
+ple program in Fig. 1, which logs sensitive user data. The leak is not immedi-
+ately visible since it happens indirectly: process is invoked with the arguments
+readUserData, a function returning sensitive data (line 6), and writeToLog, a
+function writing its argument to a public sink (log on line 2). Thus, through a
+sequence of callbacks, the program leaks sensitive user data into a log.
+
+Many existing analyses (e.g., [30]) can detect such leaks, but they typically
+require a call graph to track interprocedural flows. For example, in order to
+
+
+4
+
+Schoepe et al.
+
+log ( arg );
+
+1 function writeToLog ( arg ) {
+2
+3 }
+4 function readUserData () {
+5
+
+// placeholder for a private
+
+source
+
+return " private userData ";
+
+6
+7 }
+8 function process ( getData , handler )
+
+{
+
+var data = getData () ;
+handler ( data );
+
+9
+10
+11 }
+12 var handler = writeToLog ;
+13 process ( readUserData , handler );
+
+1 : function writeToLog(arg)
+
+4 : function readUserData()
+
+8 : function process(...)
+
+9 : getData();
+
+3
+
+10 : handler(...);
+
+8
+
+4
+
+13 : process(...);
+
+Fig. 1. A JavaScript program logging
+user data through callbacks
+
+Fig. 2. The call graph constructed for
+the example program
+
+Query
+⟨2, arg,←⟩
+↰⟨1, writeToLog,→⟩
+↰⟨13, process,←⟩
+↰⟨9, getData,←⟩
+↰⟨8, process,→⟩
+
+0
+∅
+
+1
+∅
+∅
+
+2
+∅
+∅
+∅
+
+3
+∅
+∅
+
+{process@8}
+
+Step
+
+4
+∅
+
+{handler@10}
+{process@8}
+
+Step
+
+6
+∅
+
+Query
+⟨2, arg,←⟩
+↰⟨1, writeToLog,→⟩ {handler@10} {handler@10}
+↰⟨13, process,←⟩ {process@8} {process@8}
+↰⟨9, getData,←⟩
+↰⟨8, process,→⟩
+{process@13}
+
+7
+∅
+
+∅
+∅
+
+∅
+
+8
+∅
+
+{handler@10}
+{process@8}
+{process@13}
+
+5
+∅
+
+∅
+
+{handler@10}
+{process@8}
+
+9
+
+{private@6}
+{handler@10}
+{process@8}
+{process@13}
+
+{readUserData@4} {readUserData@4}
+
+Fig. 3. Step-by-step on-demand call graph construction
+
+determine whether arg on line 2 might contain sensitive information, an analysis
+needs to identify all possible calls to writeToLog, including indirect ones, such as
+the call to handler on line 10. Constructing a call graph for programs involving
+callbacks is challenging, particularly for large code bases.
+
+We now describe a construction that lazily computes only those parts of the
+call graph that are required by a client analysis. This construction relies on two
+components: (1) a backward data flow analysis that can track which values flow
+to a given expression, and (2) a forward data flow analysis that determines to
+which expressions a given value may flow to. Each data flow analysis is only
+assumed to handle interprocedural flows soundly up to a given call graph. Start-
+ing from an empty call graph, we can lazily compute call edges requested by
+a client analysis by repeatedly issuing queries to the two data flow analyses.
+We show how this technique applies to the example from Fig. 1; the resulting
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+5
+
+call graph is shown in Fig. 2. Note that the approach is not limited to tracking
+information leaks but can be applied to any client analysis requiring call graph
+information. Furthermore, two different analyses can be used for forward and
+backward queries as they only communicate through the call graph.
+
+The table in Fig. 3 details the individual steps (1–9) needed to construct the
+call graph in Fig. 2: each edge in the call graph is labeled by the step number at
+which it is introduced. The table also tracks the queries issued to the underlying
+analysis during the process: backward queries of the form ⟨ℓ, c,←⟩ to determine
+which functions can flow to expression c on line ℓ, and forward queries of the
+form ⟨ℓ, f,→⟩ to determine which expressions a function f may flow to. An
+empty cell in the table indicates that a query has not been issued yet, while ∅
+indicates that a query has been issued but has not yet produced any results. For
+each step, the table shows how the data flow analyses can make progress given
+the call graph computed up to this point. This call graph is derived in each step
+from the answers to queries found so far.
+
+In addition, the table in Fig. 3 also shows the dependency between queries:
+the “↰” symbol before a query indicates that its result is required to solve an
+earlier query (i.e., one higher up in the dependency tree). For readability, the
+table is split into two segments, and should be read following the Step number.
+Starting from the call to log inside function writeToLog (on line 2), the client
+annalysis wants to determine whether arg may contain sensitive data. Hence,
+it issues a backward query ⟨2, arg,←⟩ to determine which values flow to arg
+(step 0). Because arg is an argument to writeToLog, this in turn requires identi-
+fying call sites of writeToLog, for which a forward query ⟨1, writeToLog,→⟩ to
+identify call sites of writeToLog (step 1) is issued.
+
+To answer forward queries about calls to a function f, the algorithm starts
+by finding syntactic references to f in the code and following the flow of f
+forwards from those points; such references can be found cheaply by analyzing
+the scope of variables in the program. In this case, the only such reference occurs
+in the top-level code, where writeToLog is assigned to handler, which is passed
+to process. To proceed in identifying call sites of writeToLog, the analysis needs
+to find out how the handler argument is used inside call targets. To do so, a
+query ⟨13, process,←⟩ is issued to resolve call targets of the call to process on
+line 13 (step 2). Since this is a direct call, the underlying backward data flow
+analysis resolves the possible call targets to the function process defined on line 8
+(step 3); this also adds a call edge to our call graph and allows ⟨1, writeToLog,→⟩
+to make progress by analyzing the body of process to find invocations of its
+handler argument. The data flow analysis then finds a call to handler in the
+body of process intraprocedurally, so a call edge is added from that expression
+to writeToLog (step 4). This in turn enables further progress on ⟨2, arg,←⟩ which
+can proceed backwards from this call to resolve what values flow to variable data,
+in this case discovering that the value of getData is assigned to data. Since getData
+is invoked as a function, another query ⟨9, getData,←⟩ needs to be issued to
+resolve callees of getData (step 5).
+
+
+6
+
+Schoepe et al.
+
+obj [ ’func ’] = f;
+
+1 function storeFunc (obj , f) {
+2
+3 }
+4 function retrieveFunc ( obj ) {
+5
+6 }
+7 function f () {
+8
+9 }
+10 function g () {
+
+return obj [ ’func ’];
+
+// ...
+
+// ...
+
+11
+12 }
+13 var obj1 = {};
+14 storeFunc ( obj1 , f);
+15 retrieveFunc ( obj1 ) () ;
+16 var obj2 = {};
+17 storeFunc ( obj2 , g);
+18 retrieveFunc ( obj2 ) () ;
+
+Fig. 4. JavaScript program with heap use
+
+Because getData is passed as a parameter to process, further interprocedural
+analysis is needed to make progress and issue a forward query ⟨8, process,→⟩
+to find call sites of process (step 6). The partial call graph already contains a
+call edge for process, but since this is the first forward query for process, there
+might be additional calls not yet discovered; in this case, however, process is
+only referenced by that call and no additional edges are found (step 7).
+This call edge allows the query ⟨9, getData,←⟩ to make progress by deter-
+mining that getData points to readUserData resulting in a new call edge from
+getData() to readUserData (step 8). This in turn triggers further progress of
+⟨2, arg,←⟩ through the newly added call edge into the body of readUserData
+allowing the data flow analysis to discover that arg may contain data from a
+private source (shown as private@6 in step 9). This completes the analysis.
+
+The above process is fully on-demand without requiring an analysis of the
+entire program, aside from identifying syntactic references to functions (which
+can be determined cheaply through scoping). Additionally, the underlying data
+flow analyses are reused in a black-box fashion, as long as they allow resolv-
+ing forward and backward queries up to a given call graph. Rerunning queries
+when new call edges are added can be avoided when the data flow analyses are
+incremental and can take newly discovered call edges into account without start-
+ing from scratch. Also note that queries make progress independently based on
+newly discovered call graph edges, rather than requiring to fully resolve each
+subquery before continuing with a parent query.
+
+2.1 Precision
+
+Different data flow analyses choose different trade-offs in terms of precision
+and scalability along various dimensions such as context-sensitivity [19], path-
+sensitivity [8], and how aliasing is handled [10]. For example consider the program
+in Fig. 4 making use of the JavaScript heap.
+
+A client analysis may need to resolve the calls on lines 15 and 18. Fol-
+lowing the algorithm outlined above, this would eventually result in trying
+to resolve what parameter f points to on line 2. A simple data flow analysis
+that does not track calling contexts may not distinguish between the objects
+whose ’func’ property is being assigned to in the body of storeFunc and there-
+fore report both function f() and function g() as potential allocation sites of
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+7
+
+retrieveFunc(objN), resulting in an over-approximate call graph. However, if a
+calling-context-sensitive analysis is used to resolve call expressions to call tar-
+gets, the query ⟨15, retrieveFunc(obj1),←⟩ returns function f() as the only
+callee, and ⟨18, retrieveFunc(obj2),←⟩ is resolved to function g() only.
+To see why this is the case, consider the subqueries created during analy-
+sis: The initial query ⟨15, retrieveFunc(obj1),←⟩ starts with an empty calling
+context, the body of retrieveFunc(obj1) needs to be analyzed, leading to query
+⟨15, retrieveFunc,←⟩ to identify the callee, which immediately yields function
+retrieveFunc(). Its analysis in turn yields the fact that the query result is the
+functions that may flow to obj1[’func’]. In order to analyze how obj1 is modified
+by storeFunc, another query to resolve the call target on line 14 is needed, re-
+turning function storeFunc() immediately, adding a call edge to the call graph.
+This allows the initial query ⟨15, retrieveFunc(obj1),←⟩ to proceed analyzing
+the body of storeFunc. Since we assumed the backward data flow analysis anal-
+ysis to be calling-context-sensitive, this analysis will use the call on line 14 as
+the calling context, allowing it to determine that f was stored in obj1[’func’].
+The calling context of the underlying analysis is preserved in the analysis of an
+individual query in the same manner as when the underlying analysis is invoked
+with a precomputed call graph instead.
+
+The same argument applies regardless of the precision of the context sensi-
+tivity or how exactly the analysis represents calling contexts and generalizes to
+other forms of sensitivity, such as field sensitivity.
+
+In more complex cases involving multiple queries, the constructed call graph
+may contain spurious edges. For example, consider a version of Figure 1 where
+the top-level code makes two calls: process(readUserData, dontWriteToLog) and
+process(readPublicData, writeToLog), such that readPublicData returns pub-
+lic information and dontWriteToLog does not log its argument. In this case,
+the call on line 10 is (correctly) resolved to call targets dontWriteToLog and
+writeToLog, and the call 9 is (correctly) resolved to call targets readPublicData
+and readUserData. A standard data flow analysis, when given this call graph,
+will report a warning when the flow is terminated in the body of readUserData.
+This problem can be addressed by augmenting queries with a context param-
+eter specific to the underlying data flow analyses. In this case, when resolving
+backward query ⟨2, arg,←⟩, additional calling context could be passed to query
+⟨9, getData,←⟩, eliminating the false positive, while making the analysis more
+costly as queries now may have to be resolved multiple times with different
+contexts. We leave such an extension as future work.
+
+2.2 Termination and Soundness
+Given that issuing a query may in return issue subqueries, cyclical query depen-
+dencies may arise during analysis. The algorithm avoids non-termination due
+to query cycles by not blocking on a subquery to complete before proceeding.
+Instead, the algorithm allows each query to make progress whenever any other
+query finds additional call edges relevant to another query. More precisely, if a
+query q1 is processed, which triggers another query q2 to be issued, and if q2 in
+
+
+8
+
+Schoepe et al.
+
+turn again issues q1, the algorithm discovers that q1 has already been issued and
+proceeds with other analysis paths of q2 that do not depend on q1 (if there are
+any). Whenever q2 finds a call edge, this may allow q1 to make further progress,
+in turn possibly allowing further progress of q2. This process is guaranteed to
+terminate since, at each step, either the number of query results or the size of
+the call graph increases, yet both are ultimately bounded by the size of the pro-
+gram. The process is reminiscent of a Datalog-based analysis such as Doop [29]
+where new tuples being discovered for one relation, may trigger additional rules
+to apply for another relation, possibly in a mutually recursive fashion. More
+generally, it is an instance of a fixpoint computation on a finite domain.
+
+Soundness is less straightforward to establish, as it requires issuing all neces-
+sary subqueries to eventually discover all the ways in which a given function may
+be invoked or to find all values flowing to a given expression. To show sound-
+ness, we make the assumption that the program under analysis is closed, that
+is, it neither uses reflection nor has entry points that take function arguments.
+Informally, to see why the on-demand call graph construction algorithm is sound
+in the absence of reflection, consider how a given function f might be invoked
+during execution of a closed program. In order for f to be invoked, at least one
+of the following must hold: (i) f is an entry point to the program, or (ii) a ref-
+erence to f flows from f’s definition to a call site. In other words, references to
+a function cannot be “guessed” and can be obtained either through a syntactic
+occurrence of the function’s name or through the use of reflection. By starting
+from such syntactic references, the analysis can track where this function may
+flow. Similarly, by starting backwards from a call site and using forward analysis
+to find calls to the surrounding function, the analysis can discover all function
+definitions flowing to the call site.
+
+Soundness in the presence of reflection requires a way to soundly identify
+locations where references to a given function may be obtained, for example using
+an existing reflection analysis [18,20,28]. In practice this may result in significant
+overapproximation, since analyzing many reflection facilities, for example in Java
+or JavaScript, requires reasoning about e.g., string computations. We discuss this
+topic in more detail in Section 3.6.
+
+Further, handling programs that are incomplete, that is, programs with miss-
+ing code such as libraries, is orthogonal to this work. Analyzing incomplete pro-
+grams with this technique would require incorporating an existing approach for
+handling to missing code, such as models of missing library functions.
+
+3 On-Demand Call Graph Soundness
+
+In this section, we formally prove the soundness of our approach. We start by
+introducing a formal, semantic model of programs, call graphs and queries. We
+define the desired property, on-demand call graph soundness, that the call graphs
+produced by our analysis should satisfy with respect to the given program se-
+mantics. We then introduce our algorithm, in the form of a transition system
+defined by a set of inference rules. Finally, we state our soundness result—that
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+9
+
+call graphs generated by our rules for a given input program and set of input
+queries are on-demand sound—and sketch a proof. The full proof has been for-
+malized using Isabelle/HOL and is available online [27].
+
+We choose to depart from the usual abstract interpretation or data flow style
+presentation in two important ways. First, rather than starting from a concrete
+program syntax and semantics, we choose to model programs directly as the
+collection of (concrete) call-traces they may produce. We do so because our ap-
+proach is fundamentally language-agnostic. The call-trace semantics serves as
+a generic starting point that abstracts over language-specific details while still
+fitting the abstract interpretation framework. Second, we do not introduce an
+abstract representation of sets of program traces as it would be used by a realis-
+tic analyzer. Instead, we model analyses directly in terms of the (semi-concrete)
+call-trace semantics. In practice, one does need an abstract domain, and the
+underlying analysis would typically provide one (e.g., we use SPDS in our proto-
+type implementation). For the purpose of our soundness proof, however, we are
+primarily interested in the concretization of abstract states back into the con-
+crete call-trace semantics. In our formalization, we therefore skip the indirection
+through an abstract domain and directly express the analyses as producing sets
+of concrete traces, while implementations—such as our prototype—use abstract
+representations that can be queried for various properties that we extract from
+traces directly in the formal model.
+
+3.1 Program Semantics
+
+Fig. 5 defines the language of events
+in terms of a given set of expres-
+sions and functions. In addition, we
+assume a set of unique syntactic refer-
+ence points where an initial reference
+to a function is obtained in the pro-
+gram.
+
+call sites c ∈ CallSite
+functions f ∈ Func
+reference points r ∈ RefPoint
+events e ∈ Event
+
+::= call(c, f , r )
+|
+enter(c, f )
+|
+exit(c, f )
+|
+return(c, f )
+|
+ref (f , r )
+
+traces τ ∈ Event∗ = Trace
+
+Events. Let CallSite be the finite set
+of call sites and Func the finite set
+of function definitions appearing in
+some program. Let RefPoint be a fi-
+nite set of reference points containing unique identifiers r used to link function
+calls to locations where functions are referenced in the source code. To make
+our approach applicable to a wide range of languages, regardless of their mem-
+ory model and other features, we model only the language semantics relevant to
+defining a call graph. To do so, we fix a set Event of events, where each event
+e ∈ Event is one of the following:
+
+Fig. 5. Syntax of traces and events
+
+– call(c, f , r ): A call to function f from call site c, where the reference to f
+
+was obtained by the reference point r.
+
+– enter(c, f ): Entering the body of callee f , whose call originated from call site c.
+
+
+10
+
+Schoepe et al.
+
+1
+2
+3
+4
+5
+
+function f () {
+
+return ;
+
+}
+var x = f;
+x () ;
+
+// enter(x(), f )
+// exit(x(), f )
+
+// ref (f, r )
+// call(x(), f, r ), return(x(), f )
+
+Fig. 6. An example program annotated with the events it creates.
+
+– exit(c, f ): Exiting the body of callee f , whose call originated from call site c.
+– return(c, f ): Returning to a call site of function f , whose call originated
+
+from call site c.
+
+– ref (f , r ): Obtaining a reference to function f with reference point r. This
+can be either a syntactic reference to f or a use of reflection evaluating to f .
+
+When a function is called, a call event is first emitted on the caller side, then
+an enter event is emitted on the callee side. Similarly, when the called function
+returns, an exit event is first created on the callee side, and then a return event
+is created on the caller side. Observe that both the ref event and the call event
+contain the reference point r. As we will see in Section 3.4, this allows linking
+the call to a specific reference to the callee that triggered the call. An example
+program and the created events can be seen in Fig. 6.
+Traces and Programs. A (call) trace τ ∈ Trace is a finite sequence of events. We
+denote by |τ| ∈ N the length of τ and by τi its i-th element, where 0 < i ≤ |τ|.
+Given a pair of traces τ, τ′, we denote their concatenation by τ · τ′. We denote
+by e1 ··· en the trace consisting of the events e1, . . . , en.
+In the following, we fix a program and model its semantics as the (potentially
+infinite) set of call traces its executions may result in, written S ∈ P(Trace).
+We impose a few restrictions on S to exclude ill-formed traces that could not
+be generated by a real program: we assume that events on the caller side are
+followed by corresponding events on the callee side and vice versa, and that each
+call to a function f is preceded by obtaining a reference to f . Formally:
+– S is prefix-closed, that is, for every trace τ · τ′ ∈ S, the prefix τ is also in S.
+– For each trace τ ∈ S:
+• If τi = enter(c, f ), then i > 1 and τi−1 = call(c, f , r ) for r ∈ RefPoint.
+• If τi = call(c, f , r ) and i + 1 ≤ |τ|, then τi+1 = enter(c, f ).
+• If τ = τ′ · call(c, f , r ), then τ · enter(c, f ) ∈ S.
+• If τi = exit(c, f ), then ∃ j ∈ N, with 0 < j < i where τj = enter(c, f )
+• If τi = return(c, f ), then i > 1 and τi−1 = exit(c, f ).
+• If τi = exit(c, f ) and i + 1 ≤ |τ|, then τi+1 = return(c, f ).
+• If τi = call(c, f , r ), then ∃ j ∈ N, with 0 < j < i, such that τj = ref (f , r ).
+
+3.2 Queries
+A client analysis is an analysis that uses a call graph in order to reason about
+interprocedural control flow in a program. We distinguish two kinds of call graph
+queries that a client analysis can issue:
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+11
+
+1. callee query, i.e., a call site c ∈ CallSite, whose purpose is to find all func-
+2. caller query, i.e., a function f ∈ Func, whose purpose is to find all call sites
+
+tions f ∈ Func that may have be called at c.
+c ∈ CallSite from which the function f may be called.
+Intuitively, callee queries are backward data flow queries: given a call site c,
+we want to find all the reference points in the program before c from which
+function values can flow to c. Conversely, caller queries are forward data flow
+queries: given a function f , we want to find all the reference points in the program
+from which f can flow to call sites later on in the program.
+
+In each case, the query implicitly defines a subset of program subtraces con-
+taining the reference points of interest. Intuitively, these are the parts of program
+runs relevant to answering a query. Formally, we first define complete backward
+subtraces with both start and end points and then close the resulting set of sub-
+traces under suffix: complete-bwd -traces(c) = {τ | ∃τ0.τ0 · τ ∈ S ∧ τ = ref (f , r )·
+_· call(c, f , r )} and bwd -traces(c) = {τ2 | ∃τ1.τ1 · τ2 ∈ complete-bwd -traces(c)}.
+Note that the reference point r is only used to delimit the backward traces rel-
+evant to a given call site c. Similarly, we define the set of forward subtraces
+fwd -traces(f ) for a forward query f , as the subtraces starting with a reference
+to f , that is, fwd -traces(f ) = {τ |∃τ0.τ0 · τ ∈ S ∧ τ = ref (f , _) · _}.
+
+3.3 Call Graphs
+
+To define an on-demand call graph, we first need the notions of a call graph and
+a whole-program call graph.
+A call graph G ⊆ CallSite× Func is a directed graph whose vertices are call
+sites and functions and whose edges connect a call site c ∈ CallSite to a function
+f ∈ Func. We write CG = CallSite× Func for the set of all call graphs. We
+define the whole-program call graph of a program, written whole-cg, as the set of
+all pairs (c, f ) that occur on a call event in some trace of the program semantics.
+Formally, whole-cg = {(c, f ) | ∃τ ∈ S, 0 < i ≤ |τ| . τi = call(c, f , _)}.
+Let C ⊆ CallSite and F ⊆ Func be the sets of callee and caller queries,
+respectively, that a client analysis issues while analyzing the program. Observe
+that the whole-program call graph whole-cg may be large and include many call
+edges (c, f ) that are never used to answer a call graph query, i.e., such that
+c /∈ C or f /∈ F . The goal of our on-demand approach is to compute a subgraph
+G of whole-cg containing all the edges needed to answer the queries in C and F .
+To characterize such on-demand call graphs G, we introduce the notion of
+(C , F )-soundness. Intuitively, a (C , F )-sound on-demand approximation of a
+whole-program call graph contains at least the call graph edges necessary to
+answer all client queries. Formally:
+Definition 1 (On-demand call graph soundness). Let C ⊆ CallSite and
+F ⊆ Func be finite sets of callee and caller queries, respectively. A call graph
+G ⊆ CallSite× Func is on-demand call graph sound w.r.t. C and F (or simply
+(C , F )-sound) iff every edge (c, f ) ∈ whole-cg is in G if either c ∈ C or f ∈ F .
+
+
+12
+
+Schoepe et al.
+
+3.4 Answering Call Graph Queries
+
+To construct an on-demand call graph, our algorithm starts from an empty call
+graph, and gradually adds edges based on answers to the callee queries C and
+caller queries F issued by the client analysis. To find the answers of these queries,
+our approach is parameterized by two data flow analyses, defined as follows:
+– a forward analysis F : CG× Func → P(Trace), used to detect the call
+– a backward analysis B : CG× CallSite → P(Trace), used to detect the
+
+sites where a caller query f ∈ F may have been called; and
+functions that a callee query c ∈ C may call.
+
+For example, to detect the functions that the callee query x() on line 5
+in Fig. 6 may call, our algorithm uses a backward data flow analysis to issue a
+backward query, whose answer contains the function f, defined on line 1. Once f
+is obtained as an answer, an edge (x(), f ) is added to the on-demand call graph.
+To guarantee on-demand soundness of the call graph obtained by applying
+our algorithm, we assume the following about the underlying data flow analy-
+ses F and B. Both data flow analyses are on-demand analyses, that is, intuitively
+they need only discover interprocedural data flows between a call site c and func-
+tion f if the given partial call graph contains the edge (c, f ). Their answers are
+an overapproximation of the set of subtraces relevant to a given call graph query.
+Note that F and B are modeled as functions returning sets of traces in order
+to reason about the soundness of the approach. In practice they would return
+abstract representations that concretize to sets of traces, which would provide
+interfaces to determine when data flows to function boundaries.
+
+Next, we define the notions of backward and forward compatibility of a given
+trace with a partial call graph. These notions are used to restrict the traces that
+need to be overapproximated by the on-demand analyses F and B, since they
+are allowed to only reason about parts of traces relevant to the given query. A
+trace τ is forward-compatible with a call graph G, written compat→(G, τ ), if for
+any event enter(c, f ) or return(c, f ) in τ, it holds that (c, f ) ∈ G. Similarly,
+a trace is backward-compatible with a call graph G, written compat←(G, τ ), if
+for any event call(c, f , r ) or exit(c, f ) in τ, it holds that (c, f ) ∈ G. Note that
+the compatibility definitions are slightly different depending on the direction of
+the analysis. In the forward case, encountering a call site is easy to identify, but
+determining the callee-side enter event requires resolving which function flows
+to the call site. In the backward case, reaching the entry point of a function is
+easy to identify, but not where this function was called. Also, when proceeding
+backwards, a call site is indicated first by a caller-side return event, but its callee
+needs to be found through additional analysis to identify the corresponding exit
+event. The precise definitions of compat→(G, τ ) and compat←(G, τ ) can be found
+in the Isabelle/HOL formalization [27].
+
+Finally, we define the soundness requirements on F and B. Given a relevant
+subtrace that is compatible with a given partial call graph, F should discover
+next possible event relevant to a query, whereas B should discover previous
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+13
+
+possible events. Intuitively, this captures that analyses can make progress on the
+part of the program that a partial call graph provides enough information about.
+Formally, F is forward-sound iff {τ ∈ fwd -traces(f )| compat→(G, τ )} ⊆
+F (G, f ) and if τ · enter(c, f ) ∈ fwd -traces(f ) and compat→(G, τ ), then τ ·
+enter(c, f ) ∈ F (G, f ). Note that this definition entails that F (G, f ) overap-
+proximates all references ref (f , r ) to f as singleton traces ref (f , r ) are com-
+patible with any call graph. Similarly, B is backward-sound iff for any τ ∈
+bwd -traces(c) such that τ = τ′ · call(c, f , r ) and compat←(G, τ′), then τ ∈
+B(G, c) and if call(c, f , r ) ∈ bwd -traces(c), then call(c, f , r ) ∈ B(G, c).
+
+If all the assumptions on F and B outlined in this section are satisfied, our
+
+call graph construction is sound. We make this precise next.
+
+3.5 On-Demand Call Graph Construction as a Transition System
+
+Our on-demand call graph construction algorithm maintains a state consisting
+of a triple (G, C , F ), where G is the currently known call graph, C contains the
+set of relevant backward queries for callees of call sites c ∈ C and F contains a
+set of relevant forward queries for callers of functions f ∈ F .
+
+Fig. 7 describes how call graph construction, starting from some call graph
+construction state can make progress. If the underlying data flow analyses dis-
+cover a call for a query, either in the forward or backward direction, then we can
+add the corresponding call edge to the call graph (rules AddFwdCallEdge
+and AddBwdCallEdge). Note that discovering a call in the forward direction
+is indicated by an enter(·,·) event, whereas in the backward direction, this is
+indicated by a call(·,·,·) event instead. This difference results from the fact that
+when proceeding forwards through a function, the caller-side call event is always
+compatible with any partial call graph, whereas discovering the corresponding
+callee-side enter event must have been resolved by the forward analysis. Simi-
+larly, in the backward direction, the enter event is backward-compatible with
+any call graph, while the corresponding call event is not. The remaining rules
+describe which additional queries to issue: When reaching a call in either forward
+or backward direction, the call target needs to be resolved through an additional
+query (rules ReachedCallBwds and ReachedCallFwds); these rules again
+exhibit the same difference regarding enter and call events as for adding call
+edges to the call graph. Lastly, when reaching the beginning of a function going
+backwards or the end of a function going forwards, call sites of the containing
+function need to be resolved through another query to make progress.
+
+The transition system is intentionally non-deterministic: At each point, mul-
+tiple rules may be applicable to make progress. The rules can be applied in any
+order to reach an overapproximation of the relevant parts of the real call graph.
+We prove soundness of the approach by stating that once the algorithm reaches
+a fixed point, the call graph is on-demand sound w.r.t. the answered queries.
+
+Theorem 1 (On-Demand Soundness). For any call graph construction state
+(G, C , F ), if (G, C , F ) ⇝∗ (G′, C ′, F ′) ̸⇝, then G′ is (C ′, F ′)-sound.
+
+
+14
+
+Schoepe et al.
+
+AddFwdCallEdge
+f ∈ F
+
+τ · enter(c, f ) ∈ F (G, f )
+(G, C , F ) ⇝ ({(c, f )} ∪ G, C , F )
+
+(c, f ) ̸∈ G
+
+AddBwdCallEdge
+c ∈ C
+
+ref (f , r ) · τ · call(c, f , r ) ∈ B(G, c)
+(G, C , F ) ⇝ ({(c, f )} ∪ G, C , F )
+
+(c, f ) ̸∈ G
+
+ReachedCallFwds
+f ∈ F τ · call(c
+′
+, r
+
+) ∈ F (G, f )
+(G, C , F ) ⇝ (G, C ∪ {c
+
+, f
+
+′
+
+′
+
+′}, F )
+
+ReachedCallBwds
+c ∈ C
+′
+return(c
+, f
+(G, C , F ) ⇝ (G, C ∪ {c
+
+) · τ ∈ B(G, c)
+′}, F )
+
+′
+
+ReachedEnterBwds
+c ∈ C
+′
+
+, f
+
+′
+
+′ ∈ B(G, c)
+enter(c
+(G, C , F ) ⇝ (G, C , F ∪ {f
+′})
+
+) · τ
+
+′
+
+c
+
+/∈ C
+
+′ ̸∈ C
+
+c
+
+′
+
+f
+
+/∈ F
+
+ReachedExitFwds
+f ∈ F
+τ · exit(c, f
+
+) ∈ F (G, f )
+(G, C , F ) ⇝ (G, C , F ∪ {f
+
+′
+
+′
+
+f
+
+/∈ F
+
+′})
+
+Fig. 7. On-Demand Call Graph Construction as a transition system
+
+The analysis starts with an empty call graph and non-empty query sets,
+relying on the special case of the theorem where G = ∅. As ⇝ is monotone
+(discussed below), any queries issued as part of C or F are still present in C ′
+or F ′. Based on the intuitions presented in Section 2.2, we present a proof sketch
+summarizing the key techniques. Some definitions and lemma statements are
+simplified. The full details can be found in the Isabelle/HOL formalization [27].
+
+Proof (sketch). The proof proceeds in four main steps:
+1. We first define an intermediate collecting semantics ↣ that adds subtraces
+and new queries in the same order as ⇝ adds call edges and queries. The in-
+termediate collecting semantics maintains the state of forward queries (resp.
+backward queries) as partial maps F (resp. B) from functions f ∈ Func
+(resp. c ∈ CallSite) to subsets of fwd -traces(f ) (resp. bwd -traces(c)). Each
+step (F,B) ↣ (F′,B′) either adds an event to the end (resp. beginning) of
+a set in the co-domain of either map. If the event requires no other queries
+(such as an ref (f , r ) event), then it is added directly. If the new event re-
+quires resolving another query (such as function call events), then it is only
+added if the query it depends on has made enough progress. Alternatively, a
+step may issue an additional query under similar conditions as ⇝. Note that
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+15
+
+this intermediate semantics is more precise as only real events are added to
+traces. This also renders it not computable.
+2. We proceed by proving that ⇝ overapproximates ↣. Concretely, we show
+that if (F,B) ↣ (F′,B′), and γ((G, C , F )) = (F,B), then there exists a new
+call graph construction state (G′, C ′, F ′) such that (G, C , F ) ⇝ (G′, C ′, F ′)
+and (F′,B′) ⊑ γ((G′, C ′, F ′)), where we write γ for the concretization of a
+call graph construction state (G, C , F ) into subsets of traces for each forward
+and backward query (F,B) and ⊑ for a lifting of subset inclusion of traces
+for each forward and backward query. This is proven using a straightforward
+induction on (F,B) ↣ (F′,B′).
+3. Next, we show that a fixed point of ↣ approximates all subtraces for the
+queries that were generated. For this, we need an intermediate definition of
+well-formedness on the events in the subtraces being discovered. Formally, if
+(F,B) ̸↣, and (F,B) is well-formed, then for each f such that F(f ) = Tf ,
+we have fwd -traces(f ) ⊆ Tf . Similarly, if B(c) = Tb, then it holds that
+bwd -traces(c) ⊆ Tb. Well-formedness for forward queries requires that all
+singleton traces [ref (f ,·)] are included in Tf and that Tf is prefix-closed.
+Similarly, well-formed backward sets Tb need to include the singleton suffixes
+of bwd -traces(c) in addition to being suffix-closed. To show that a fixed point
+of ↣ approximates all subtraces, we proceed by contradiction. Suppose that
+after reaching a fixed point (F,B) there is a missing event for a query;
+hence there must be an earlier missing event. This means there must either
+be another possible transition ↣ or an earlier missing event, yielding a
+contradiction in either case.
+4. Combining 2 and 3, we obtain that a fixed point of ⇝ overapproximates the
+
+relevant subset of the whole-program call graph of a given program.
+
+Note that termination follows from the assumption that a fixed program has
+a finite number of functions and call sites, combined with the monotonicity of ⇝:
+Lemma 1 (Monotonicity). If (G, C , F ) ⇝ (G′, C ′, F ′), then (G, C , F ) ⊏
+(G′, C ′, F ′), where ⊏ denotes lexicographic tuple ordering.
+
+3.6 Discussion
+Reflection. The above algorithm relies on correctly identifying all references to
+for which call sites need to be determined. In languages without
+a function f
+reflection, this can be done easily by identifying where f
+is referenced syntac-
+tically, taking into account scoping rules. However, many languages including
+Java and JavaScript allow obtaining a reference to a function through the use of
+reflection. The above definitions assume that an F correctly overapproximates
+where a function might be referenced, which entails a reflection analysis in order
+to soundly analyze programs in the presence of reflection.
+
+Implementation considerations. We model F and B as returning sets of traces
+that on-demand call graph constructions inspects for certain events. In a real-
+world implementation, data flow analyses would provide an interface signaling
+
+
+16
+
+Schoepe et al.
+
+discovered data flows between reference points and call sites as well to a function
+boundary. Our prototype, described in Section 4, interfaces with the automata-
+based abstraction of SPDS to detect when to issue additional queries or add call
+graph edges through the listener functionality provided by SPDS.
+
+Non-termination. In the formal model, non-terminating programs are repre-
+sented as infinite sets of finite traces. In order for an underlying data flow anal-
+ysis to be considered sound, such infinite sets need to be over-approximated to
+satisfy the conditions of forward or backward soundness. In practice, this re-
+quires a suitable finite representation of an infinite set of traces. For example,
+consider the program |while(true) f(); |, producing an infinite sequence of call
+events call(f (), f, r ) for some reference point r along with associated enter,
+exit, and return events. Assume further that the call target of f() produces no
+additional events. Its denotation is the infinite set {S, S · S, S · S · S, . . .} where
+S = call(f, f, r ) · enter(f (), f ) · exit(f (), f ) · return(f (), f ).
+
+To satisfy the conditions of backward soundness, a backward data flow anal-
+ysis B has to include any trace Sn in the set B(G, f ()). As discussed, a practical
+implementation will therefore have to finitely represent an infinite set. For exam-
+ple, a backward analysis may map program locations to potential call targets—in
+this case mapping f() to the function f. In SPDS, this example can be repre-
+sented using a loop in the call push-down system, adding an edge from f() to
+itself. Similar considerations apply to sound forward data flow analyses.
+
+4 Evaluation
+
+The main research question we explore with our experimental evaluation con-
+cerns scalability: A key promise of on-demand call graph construction is the
+application of more expensive analyses to only relevant parts of a code base,
+rather than the entire program. This unlocks the possibility to apply analyses
+that are too expensive to use with a whole-program approach.
+
+In addition to a set of initial queries, issued for the call sites of interest
+in a given program, our on-demand call graph construction issues queries on
+which the initial queries depend. As a result, how much of a program is explored
+during analysis depends on the structure of the program and cannot be bounded
+upfront—in the worst case, the algorithm may still produce the whole-program
+call graph. Our experiments evaluate how many queries are resolved in total,
+for initial sets of various sizes, and report on the potential time savings from
+on-demand analysis on a set of synthetic benchmarks. The prototype can be
+found online [27].
+
+Implementation. We implemented the on-demand call graph construction algo-
+rithm in a prototype, called Merlin, for a limited subset of JavaScript. The
+implementation uses the TAJS [17] intermediate representation and Synchro-
+nized Push-Down Systems (SPDS) [30] as the underlying data flow analysis
+for both forward and backward queries. To support (a subset of) JavaScript in
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+17
+
+SPDS, the implementation adds backward and forward flow functions on top
+of an existing language-agnostic SPDS implementation [6]. The implementation
+supports basic JavaScript features, such as assignments, object allocation and
+function calls, including closures and accounting for mutability of captured vari-
+ables. Instantiating SPDS to a sufficiently large subset of JavaScript to analyze
+real-world code is out of scope for this paper.
+
+To compute a fixed point, Merlin maintains a set of queries, in addition to
+the current call graph. A query in this context is represented as a synchronized
+pushdown system starting from a reference to a function or an call site, depend-
+ing on the query. Individual queries subscribe to updates about (i) callees of a
+particular call site, or (ii) call sites of a particular function discovered by other
+queries. An update may result in adding further transitions in a query’s SPDS
+in the current call graph. Objects are also tracked using SPDS.
+
+When a function entry point is reached by a backward query, or a return
+statement of a function is reached by a forward query, a new forward query is
+issued to find call sites of that function. Similarly, when a function call is reached
+by either a forward or a backward query, a new backward query is issued to
+resolve possible callees. Based on the results of these new queries, the analysis
+continues at the function’s call sites or a call site’s callees.
+
+The asynchronous saturation process described in Section 2 is implemented
+using a reactive programming [12] approach implemented using the Java Vir-
+tual Machine’s ForkJoinPool to resolve queries concurrently. This also enables
+parallel execution of multiple queries on multi-core machines.
+
+Synthetic Benchmarks. We evaluate Merlin against a set of synthetic bench-
+marks generated using the property-based testing library QuickCheck [5]. To
+capture non-trivial dependencies between the call graph queries, the generated
+programs heavily use higher-order functions, and treat functions as first class
+values, reflecting the dynamic nature of JavaScript programs. That is, functions
+are passed along a chain of functions, both as arguments and return values,
+before they are eventually called.
+
+Each generated program has between 6000 and 10000 lines of code, including
+whitespace and braces. Fig. 8 shows a (simplified) excerpt from an example in the
+benchmark set, where function chainTarget106 is returned from a function via
+returnAFunc100, the return value of which is invoked in fun57. The benchmarks
+contain between 600 and 900 functions, with higher-order call chains of up to
+length 4. We leave an investigation of typical usage patterns of higher-order
+functions in JavaScript for future work.
+
+Results. We ran the experiments on an AWS EC2 instance of type c5.4xlarge
+with Intel Xeon Platinum 8124M CPU with 16 cores and 32 GiB memory. We
+use Correto version 17.0.6.10.1 with a stack size limit of 512 MiB and heap size
+limit of 16 GiB. For each program, Merlin’s analysis is run multiple times, with
+increasing the number of initial call graph queries in each iteration. The set of
+initial call graph queries is constructed by randomly selecting call sites occurring
+in the benchmark programs. This simulates a client analysis that issues queries
+
+
+1 function fun57 ( arg57 ) {
+2
+
+);
+
+(( chainTarget106 ) (( fun57 ) (( retAFunc100 )( someIdentifier ))))( someIdentifier
+
+18
+
+Schoepe et al.
+
+3 }
+4 function retAFunc100 ( arg615 ) {
+5
+6 }
+7 function chainTarget106 ( arg614 ) {}
+
+return chainTarget106 ;
+
+Fig. 8. Example output by QuickCheck-based benchmark generator
+
+for a subset of all call sites in the program. In the limit, issuing a query for
+every function call approximates a whole-program analysis. Our experiments
+also simulate a whole-program analysis by querying all call sites in the program.
+The results of running Merlin on the synthetic benchmarks are shown in
+Fig. 9. Overall, the wall clock time (Fig. 9a) grows super-linearly with the number
+of resolved queries. The number of queries that need to be resolved (Fig. 9d)
+increases with the number of initial queries, matching the intuitive expectation
+that on-demand call graph construction explores only a part of the program on
+our benchmark set. Similarly, the wall clock time increases with the number of
+resolved queries, albeit to a lesser extent due to the use of parallelism. Memory
+consumption (Fig. 9b) remains relatively constant, indicating a significant fixed
+memory cost in our implementation.
+
+As shown in Fig. 9a, whole-program analysis results (indicated by black
+boxes) often require less wall clock time to resolve than smaller initial sets of
+queries. This effect is due to the use of parallelism in the prototype: As demon-
+strated by Fig. 9c, whole-program analysis runs require as much or more CPU
+time to be resolved. However, but due to starting the analysis for all queries
+in parallel, they make better use of available CPU cores in the same span of
+wall clock time. This effect is somewhat in line with intuitive expectations: If a
+smaller set of queries is requested, there are less unrelated data flows to analyze,
+lowering the opportunities for parallelism. On the contrary, a whole-program
+analysis benefits from parallelism because many paths through a program can be
+analyzed independently. We double-check this explanation by reporting single-
+threaded results on the same benchmark set in Appendix A. This observation
+allows client analyses to fine-tune the strategy for call graph construction de-
+pending on the scenario. On an end-user machine, using all available CPU cores
+may degrade the overall system performance too much to be viable, making
+on-demand analysis preferable. Electricity usage, environmental concerns, and
+battery life are other factors that make reducing CPU time relevant.
+
+While the reduction in wall clock time based on the number queries to be
+resolved is often not significant compared to a whole-program analysis with the
+same technique, this data provides evidence that only a part of the program
+needs to be explored in order to answer a limited set of call graph queries. This
+effect may become more relevant in very large code bases or when using highly
+precise, expensive data flow analyses.
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+19
+
+(a) Wall clock time
+
+(b) Memory usage per set of initial queries
+
+(c) CPU time
+
+(d) Average number of queries resolved
+
+Fig. 9. Running Merlin on synthetic benchmarks. The x-axis shows the size of each
+initial query set. The data points depict executions on different benchmark files. For
+each initial query set size, the same file is randomly sampled multiple times. Each initial
+query set is run independently without keeping intermediate results between runs.
+
+Threats to Validity. The memory usage reported in Fig. 9 is subject to mea-
+surement inaccuracies. CPU time and memory usage were measured using JVM
+internals with varying levels of guarantees. For example, memory usage is mea-
+sured by first asking the JVM to perform garbage collection via System.gc(),
+but this is not guaranteed to garbage-collect all unreachable objects in the JVM
+heap. As a result, memory usage may include state produced by previous analysis
+batches. Additionally, while all the internal state of all SPDS solvers is retained
+when measuring the memory consumption, there may be temporary data that
+is garbage-collected before the memory measurement is taken.
+
+Limitations. As supporting the whole JavaScript langauge in SPDS is out of
+scope for this paper, Merlin currently does not support all JavaScript lan-
+guage features, motivating evaluation on synthetic benchmarks that may not
+be representative of real-world JavaScript code. Instead, Merlin presents an
+initial evaluation of whether this approach can be implemented using a realistic
+state-of-the-art data flow analysis. As a result, the above experiments do not
+
+05001000150020002500# queries resolved0.51.01.52.02.5wall clock time (s)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries05001000150020002500# queries resolved100200300400500600700memory (MiB)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries05001000150020002500# queries resolved020004000600080001000012000CPU time (ms)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries1510501002505001000allinitial queries05001000150020002500queries resolved
+20
+
+Schoepe et al.
+
+show how much time is saved on real-world code, given the fact that many com-
+mon JavaScript features are deliberately not used in the synthetic benchmark
+code, and the generated programs may use patterns that may not translate to
+patterns found in real-world code. Nevertheless, the subset of JavaScript that
+Merlin supports and the set of synthetic benchmarks is sufficient to show the
+usefulness of on-demand call graph construction. We list the current limitations
+of Merlin below, and consider addressing them as part of future work.
+
+In the current implementation, Merlin does not support dynamic property
+access, prototype inheritance, reflection, and JavaScript builtins. This may pro-
+duce unsound results in practice. Moreover, context sharing between different
+queries is limited, even though this is in principle supported by the SPDS ap-
+proach; this results in lower precision of our results than necessary. Since Merlin
+reuses the TAJS [17] intermediate interpretation, it can only directly analyze Ec-
+maScript 5 [11] programs, which in practice can be mitigated by transpiling code
+written in newer EcmaScript dialects using tools such as Babel [1].
+
+Finally, Merlin produces a large number of conceptually unnecessary queries,
+SPDS represents possible call stacks abstractly using a push-down system, where
+the system’s stack contains program locations. To avoid querying for call sites
+when reaching a function boundary, the pushdown system could be consulted to
+approximate the possible elements at the top of the stack at this location. While
+SPDS constructs another automaton encoding the reachable configurations of
+the pushdown system using an existing approach [3, 13], it is unclear whether
+this automaton allows extracting the required information. We leave leveraging
+call stack abstraction of SPDS to support this as future work.
+
+5 Related Work
+
+Demand Control-Flow Analysis [15] (Demand-CFA) tackles the problem of per-
+forming the functional equivalent of on-demand call graph construction for a
+purely functional lambda calculus, and similarly divides its approach into inter-
+dependent forward and backward queries. The key distinguishing feature of our
+work is providing a parameterized construction leveraging data flow analyses to
+support impure languages with non-functional features. In contrast, Demand-
+CFA fixes the specific analyses used for resolving expressions and finding call
+sites. This approach is sufficient in the context of a purely functional language,
+but translation to a language with imperative features introduces a large design
+space of how to trade-off precision and scalability. By providing a parameterized
+approach, we sidestep such trade-offs and provide a modular building block.
+
+Another line of work aims to make whole-program call graph construction
+scalable enough to apply to large code bases. A prominent example is Class-
+Hierarchy Analysis [7] (CHA) and subsequent work [2] in the context of object-
+oriented languages. CHA achieves scalability by making use of nominal typing to
+resolve higher-order behavior resulting from dynamic dispatch. Since all subtyp-
+ing relationships are explicit in the syntax (for example, in the form of extends
+and implements clauses in Java), this is straightforward to compute efficiently.
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+21
+
+However, this approach is harder to apply to languages that use functions as
+first-class values without potentially introducing a large amount of imprecision.
+For example, given a higher-order function accepting a function of type int ->
+int as input, considering each function with this type (out of potentially many)
+as a potential callee in the body of the higher-order function might lead to many
+spurious call edges in practice. Using functions as first-class values is common
+practice in JavaScript, and is becoming common in more languages, for exam-
+ple through Java’s introduction of lambda expressions [25] and streams [24].
+Similarly, fast and scalable approaches exist for whole-program JavaScript call
+graph construction. Feldthaus et al. [14] present an underapproximate call graph
+construction algorithm for JavaScript that scales to usage inside an integrated
+development environment (IDE), which places strict requirements on how fast
+the analysis can be performed. However, in order to achieve this level of per-
+formance, the approach is intentionally unsound and misses call edges. Nielsen
+et. al [22] also present a highly scalable approach to call graph construction
+sacrificing soundness in some cases. While our implementation is also unsound
+in the presence of the same features that cause unsoundness in their work, our
+theoretical approach provides strong soundness guarantees.
+
+Another well-known approach is variable-type analysis (VTA) [33], which
+produces reasonably scalable whole-program call graphs in the presence of higher-
+order functions and heap objects without requiring deep interleavings between
+the call graph construction and the data flow analysis. However, VTA’s perfor-
+mance may render it too slow in certain contexts, e.g. for in-IDE use on large
+applications. To achieve this level of scalability, VTA’s precision is constrained
+by its heap abstraction, while our approach allows for the use of more precise
+heap abstractions while hopefully remaining scalable for large code bases.
+
+A key motivation for our work is the common theme of other analysis ap-
+proaches assuming a precomputed call graph. Such examples include practical
+bug detection tools such as Infer [4], as well as theoretical results on Demanded
+Abstract Interpretation [32] that allow turning whole-program analyses into
+demand-driven analyses transparently. The latter example in particular may
+allow turning a whole-program data flow analysis into a fully demand-driven
+analysis by (i) obtaining an on-demand, but still call-graph-dependent, data
+flow analysis by applying Demanded Abstract Interpretation, and (ii) lifting the
+call graph requirement using the approach presented in this paper.
+
+Our work relies on the existence of sufficiently precise on-demand data flow
+analyses, an area that has seen improvements recently. Notably, Synchronized
+Push-Down Systems [30] reconcile the conflict between precise tracking of field
+accesses and calling contexts. Boomerang [31] provides another on-demand data
+flow analysis supporting exactly the same forward and backward queries required
+to instantiate our approach.
+
+Our approach of issuing additional queries that allow each other to make
+progress in a mutually recursive fashion is inspired by Datalog-based analyses
+such as Doop [29] and CodeQL [16]. Datalog analyses, however, directly build a
+call graph together with a specific points-to analysis and do not typically allow
+
+
+22
+
+Schoepe et al.
+
+plugging in another points-to analysis instead. Further, we are not aware of on-
+demand analyses implemented in Datalog. The formalization of our approach
+may also provide a starting point to reason about soundness of Datalog-based
+analyses, which has not been extensively studied formally.
+
+6 Conclusions
+
+We present an approach for bootstrapping an on-demand call graph, leveraging
+underlying forward and backward data flow analyses. Our approach is para-
+metric in the underlying analyses assuming only a notion of soundness up to a
+partial call graph. Based on this notion of soundness, we formalize our call graph
+construction and prove it sound (mechanized in Isabelle/HOL). Our prototype
+Merlin implements this approach for a subset of JavaScript using Synchronized
+Push-Down Systems [30] for both forward and backward data flow analysis. We
+evaluate Merlin on a synthetic benchmark set. The results indicate that on-
+demand call graph construction indeed has the potential to improve scalability
+by only exploring the relevant part of programs in the benchmark.
+
+Acknowledgments. This paper describes work performed in part while David
+Seekatz was an Applied Scientist Intern at Amazon. Franco Raimondi holds
+concurrent appointments at Middlesex University and as an Amazon Scholar.
+Bor-Yuh Evan Chang holds concurrent appointments at the University of Col-
+orado Boulder and as an Amazon Scholar. This paper describes work performed
+at Amazon and is not associated with Middlesex University nor the University
+of Colorado Boulder.
+
+We are particularly grateful to Fangyi Zhou and Martin Schaef for their
+discussions and feedback on several drafts of this paper. We thank the anonymous
+reviewers for their helpful comments and feedback. This research was conducted
+in the Prime Video Automated Reasoning team and we are grateful to the entire
+team for their support.
+
+A Single-Threaded Performance Results
+
+Fig. 10 shows the benchmark results when run on a single core, demonstrating
+that the faster whole-program results are caused by better CPU utilization.
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+23
+
+(a) Wall clock time
+
+(b) Memory usage per set of initial
+queries
+
+(c) CPU time
+
+(d) Average number of queries resolved
+
+Fig. 10. Single-threaded performance results
+
+References
+
+1. Babel: Babel. https://babeljs.io/, accessed: 2023-04-01
+2. Bacon, D.F., Sweeney, P.F.: Fast static analysis of C++ virtual function calls. In:
+Anderson, L., Coplien, J. (eds.) Proceedings of the 1996 ACM SIGPLAN Confer-
+ence on Object-Oriented Programming Systems, Languages & Applications (OOP-
+SLA ’96), San Jose, California, USA, October 6-10, 1996. pp. 324–341. ACM (1996)
+3. Bouajjani, A., Esparza, J., Maler, O.: Reachability analysis of pushdown au-
+tomata: Application to model-checking. In: Mazurkiewicz, A.W., Winkowski, J.
+(eds.) CONCUR ’97: Concurrency Theory, 8th International Conference, Warsaw,
+Poland, July 1-4, 1997, Proceedings. Lecture Notes in Computer Science, vol. 1243,
+pp. 135–150. Springer (1997)
+
+4. Calcagno, C., Distefano, D.: Infer: An automatic program verifier for memory safety
+of C programs. In: Bobaru, M.G., Havelund, K., Holzmann, G.J., Joshi, R. (eds.)
+NASA Formal Methods - Third International Symposium, NFM 2011, Pasadena,
+CA, USA, April 18-20, 2011. Proceedings. Lecture Notes in Computer Science,
+vol. 6617, pp. 459–465. Springer (2011)
+
+5. Claessen, K., Hughes, J.: Quickcheck: a lightweight tool for random testing of
+Haskell programs. In: Odersky, M., Wadler, P. (eds.) Proceedings of the Fifth
+ACM SIGPLAN International Conference on Functional Programming (ICFP ’00),
+Montreal, Canada, September 18-21, 2000. pp. 268–279. ACM (2000)
+
+05001000150020002500# queries resolved123456wall clock time (s)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries05001000150020002500# queries resolved100150200250300350400450memory (MiB)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries05001000150020002500# queries resolved01000200030004000CPU time (ms)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries1510501002505001000allinitial queries05001000150020002500queries resolved
+24
+
+Schoepe et al.
+
+6. CodeShield: de.fraunhofer.iem.SPDS. https://github.com/codeshield-security/
+
+spds, accessed: 2022-01-30
+
+7. Dean, J., Grove, D., Chambers, C.: Optimization of object-oriented programs using
+static class hierarchy analysis. In: Olthoff, W.G. (ed.) ECOOP’95 - Object-Oriented
+Programming, 9th European Conference, Århus, Denmark, August 7-11, 1995, Pro-
+ceedings. Lecture Notes in Computer Science, vol. 952, pp. 77–101. Springer (1995)
+8. Dillig, I., Dillig, T., Aiken, A.: Sound, complete and scalable path-sensitive analysis.
+In: Gupta, R., Amarasinghe, S.P. (eds.) Proceedings of the ACM SIGPLAN 2008
+Conference on Programming Language Design and Implementation, Tucson, AZ,
+USA, June 7-13, 2008. pp. 270–280. ACM (2008)
+
+9. Distefano, D., Fähndrich, M., Logozzo, F., O’Hearn, P.W.: Scaling static anal-
+yses at facebook. Commun. ACM 62(8), 62–70 (2019). https://doi.org/10.1145/
+3338112, https://doi.org/10.1145/3338112
+
+10. Diwan, A., McKinley, K.S., Moss, J.E.B.: Type-based alias analysis. In: Davidson,
+J.W., Cooper, K.D., Berman, A.M. (eds.) Proceedings of the ACM SIGPLAN
+’98 Conference on Programming Language Design and Implementation (PLDI),
+Montreal, Canada, June 17-19, 1998. pp. 106–117. ACM (1998)
+
+11. ECMA International: ECMAScript language specification, 5th edition. https://
+
+www.ecma-international.org/ecma-262/5.1/ (2011)
+
+12. Elliott, C., Hudak, P.: Functional reactive animation. In: Jones, S.L.P., Tofte, M.,
+Berman, A.M. (eds.) Proceedings of the 1997 ACM SIGPLAN International Con-
+ference on Functional Programming (ICFP ’97), Amsterdam, The Netherlands,
+June 9-11, 1997. pp. 263–273. ACM (1997)
+
+13. Esparza, J., Hansel, D., Rossmanith, P., Schwoon, S.: Efficient algorithms for model
+checking pushdown systems. In: Emerson, E.A., Sistla, A.P. (eds.) Computer Aided
+Verification, 12th International Conference, CAV 2000, Chicago, IL, USA, July 15-
+19, 2000, Proceedings. Lecture Notes in Computer Science, vol. 1855, pp. 232–247.
+Springer (2000)
+
+14. Feldthaus, A., Schäfer, M., Sridharan, M., Dolby, J., Tip, F.: Efficient construction
+of approximate call graphs for JavaScript IDE services. In: Notkin, D., Cheng,
+B.H.C., Pohl, K. (eds.) 35th International Conference on Software Engineering,
+ICSE ’13, San Francisco, CA, USA, May 18-26, 2013. pp. 752–761. IEEE Computer
+Society (2013)
+
+15. Germane, K., McCarthy, J., Adams, M.D., Might, M.: Demand control-flow anal-
+ysis. In: Enea, C., Piskac, R. (eds.) Verification, Model Checking, and Abstract
+Interpretation - 20th International Conference, VMCAI 2019, Cascais, Portugal,
+January 13-15, 2019, Proceedings. Lecture Notes in Computer Science, vol. 11388,
+pp. 226–246. Springer (2019)
+
+16. GitHub: CodeQL. https://codeql.github.com/, accessed: 2022-01-29
+17. Jensen, S.H., Møller, A., Thiemann, P.: Type analysis for JavaScript. In: Palsberg,
+J., Su, Z. (eds.) Static Analysis, 16th International Symposium, SAS 2009, Los
+Angeles, CA, USA, August 9-11, 2009. Proceedings. Lecture Notes in Computer
+Science, vol. 5673, pp. 238–255. Springer (2009)
+
+18. Landman, D., Serebrenik, A., Vinju, J.J.: Challenges for static analysis of Java
+reflection: literature review and empirical study. In: Uchitel, S., Orso, A., Robil-
+lard, M.P. (eds.) Proceedings of the 39th International Conference on Software
+Engineering, ICSE 2017, Buenos Aires, Argentina, May 20-28, 2017. pp. 507–518.
+IEEE / ACM (2017)
+
+19. Lhoták, O., Hendren, L.J.: Context-sensitive points-to analysis: Is it worth it? In:
+Mycroft, A., Zeller, A. (eds.) Compiler Construction, 15th International Confer-
+ence, CC 2006, Held as Part of the Joint European Conferences on Theory and
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+25
+
+Practice of Software, ETAPS 2006, Vienna, Austria, March 30-31, 2006, Proceed-
+ings. Lecture Notes in Computer Science, vol. 3923, pp. 47–64. Springer (2006)
+
+20. Li, Y., Tan, T., Xue, J.: Understanding and analyzing Java reflection. ACM Trans.
+
+Softw. Eng. Methodol. 28(2), 7:1–7:50 (2019)
+
+21. Meta: React. https://reactjs.org/, accessed: 2022-02-06
+22. Nielsen, B.B., Torp, M.T., Møller, A.: Modular call graph construction for secu-
+rity scanning of Node.js applications. In: Cadar, C., Zhang, X. (eds.) ISSTA ’21:
+30th ACM SIGSOFT International Symposium on Software Testing and Analysis,
+Virtual Event, Denmark, July 11-17, 2021. pp. 29–41. ACM (2021)
+
+23. Nipkow, T., Paulson, L.C., Wenzel, M.: Isabelle/HOL: a proof assistant for higher-
+
+order logic, vol. 2283. Springer Science & Business Media (2002)
+
+24. Oracle:
+
+Java
+
+streams.
+
+https://docs.oracle.com/javase/8/docs/api/java/util/
+
+stream/package-summary.html, accessed: 2022-02-02
+
+25. Oracle: Lambda expressions for the Java programming language. https://jcp.org/
+
+aboutJava/communityprocess/final/jsr335/index.html (2014)
+
+26. Sadowski, C., Aftandilian, E., Eagle, A., Miller-Cushon, L., Jaspan, C.: Lessons
+from building static analysis tools at google. Commun. ACM 61(4), 58–66 (2018).
+https://doi.org/10.1145/3188720, https://doi.org/10.1145/3188720
+
+27. Schoepe, D., Seekatz, D., Stoilkovska, I., Stucki, S., Tattersall, D., Bolignano,
+P., Raimondi, F., Chang, B.Y.E.: Lifting on-demand analysis to higher-order
+languages (artifact). Static Analysis Symposium (2023). https://doi.org/10.5281/
+zenodo.8189312
+
+28. Smaragdakis, Y., Balatsouras, G., Kastrinis, G., Bravenboer, M.: More sound
+static handling of Java reflection. In: Feng, X., Park, S. (eds.) Programming Lan-
+guages and Systems - 13th Asian Symposium, APLAS 2015, Pohang, South Korea,
+November 30 - December 2, 2015, Proceedings. Lecture Notes in Computer Science,
+vol. 9458, pp. 485–503. Springer (2015)
+
+29. Smaragdakis, Y., Bravenboer, M.: Using Datalog for fast and easy program analy-
+sis. In: de Moor, O., Gottlob, G., Furche, T., Sellers, A.J. (eds.) Datalog Reloaded
+- First International Workshop, Datalog 2010, Oxford, UK, March 16-19, 2010. Re-
+vised Selected Papers. Lecture Notes in Computer Science, vol. 6702, pp. 245–251.
+Springer (2010)
+
+30. Späth, J., Ali, K., Bodden, E.: Context-, flow-, and field-sensitive data-flow analy-
+sis using synchronized pushdown systems. Proc. ACM Program. Lang. 3(POPL),
+48:1–48:29 (2019)
+
+31. Späth, J., Do, L.N.Q., Ali, K., Bodden, E.: Boomerang: Demand-driven flow- and
+context-sensitive pointer analysis for Java. In: Krishnamurthi, S., Lerner, B.S.
+(eds.) 30th European Conference on Object-Oriented Programming, ECOOP 2016,
+July 18-22, 2016, Rome, Italy. LIPIcs, vol. 56, pp. 22:1–22:26. Schloss Dagstuhl -
+Leibniz-Zentrum für Informatik (2016)
+
+32. Stein, B., Chang, B.E., Sridharan, M.: Demanded abstract interpretation. In: Fre-
+und, S.N., Yahav, E. (eds.) PLDI ’21: 42nd ACM SIGPLAN International Con-
+ference on Programming Language Design and Implementation, Virtual Event,
+Canada, June 20-25, 2021. pp. 282–295. ACM (2021)
+
+33. Sundaresan, V., Hendren, L.J., Razafimahefa, C., Vallée-Rai, R., Lam, P., Gagnon,
+E., Godin, C.: Practical virtual method call resolution for Java. In: Rosson, M.B.,
+Lea, D. (eds.) Proceedings of the 2000 ACM SIGPLAN Conference on Object-
+Oriented Programming Systems, Languages & Applications, OOPSLA 2000, Min-
+neapolis, Minnesota, USA, October 15-19, 2000. pp. 264–280. ACM (2000)
+
+

@@ -1,0 +1,3 @@
+
+
+This section discusses the application of the modulo operation in the context of abstract expressions interpreted in ℤ. It explains how the Plus2Const, PlusConst, PlusEqZero, MultZeroConst, MultNegConst, MultNoMod, Mult2Const, and MultPosConst inference rules can be applied to reduce the modulo computations in both arguments translations. It also explains how the thermMod operator can be used to suppress the modulo computations in both arguments translations. Finally, it explains how the reduce parametric operator can be used to potentially simplify the resulting abstract expression.

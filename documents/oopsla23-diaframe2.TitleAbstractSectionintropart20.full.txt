@@ -1,0 +1,109 @@
+Title-Abstract. Section intro
+
+Ike Mulder and Robbert Krebbers
+
+correctness, Viper is used for logical atomicity in the TaDA logic [Wolf et al. 2021] (called Voila)
+and the security condition non-interference [Eilers et al. 2021]. An extensive comparison between
+Voila and our automation for logical atomicity can be found in § 5.1. In summary, we show an
+average proof size reduction by a factor 4, and we support more complicated examples (RDCCS,
+elimination stack, and the Michael-Scott queue).
+
+With regard to extensibility, Viper has the same goal as Diaframe 2.0—to provide a common
+veriﬁcation backend that can handle multiple speciﬁcation styles. There are some notable diﬀerences
+that make the two approaches diﬃcult to compare in detail. First, Viper targets non-foundational
+veriﬁcation instead of foundational veriﬁcation in a proof assistant (see §5.1 for a discussion on
+the diﬀerences). Second, the embedding into Viper’s veriﬁcation language is a syntactic program
+transformation that is performed before veriﬁcation, while Diaframe 2.0 operates directly on
+program speciﬁcations during theﬁcation. Third, Viper uses separation logic based on implicit
+dynamic frames [Parkinson and Summers 2011], which is diﬀerent from Iris’s separation logic.
+
+Automated linearizability checkers. CAVE [Henzinger et al. 2013; Vafeiadis 2010], Poling
+[Zhu et al. 2015] and Line-up [Burckhardt et al. 2010] are automated non-foundational tools for
+establishing linearizability. CAVE uses shape analysis to ﬁnd linearization points, and Line-up uses
+model checking to refute linearizability. Poling extends CAVE with support for external linearization
+points. These tools use the trace-based formulation of linearizability [Herlihy and Wing 1990],
+which is less compositional than contextual reﬁnement and logical atomicity. Poling does not
+support future-dependent linearization points, which are present in algorithms such as RDCSS
+and the Michael-Scott queue, and Line-up does not support non-deterministic concurrent data
+structures. The advantage of restricting supported target programs is that these tools do not need
+much user assistance.
+
+Veriﬁed concurrent search data structures. Krishna et al. [2020, 2021] develop methods to
+prove logical atomicity of a particular class of concurrent algorithms: concurrent search structures.
+Their key idea is to subdivide the veriﬁcation of a data structure into two parts: the veriﬁcation
+of a template algorithm and verifying that a data structure is an instance of the template. The
+veriﬁcation of the template algorithm is done interactively using the Iris Proof Mode. The
+template-instance veriﬁcation is done automatically using the tool GRASShopper [Piskac et al.
+2014]. This work is thus only partly foundational. To obtain a full foundational proof, it would be
+interesting to investigate if our work could be used to automate the veriﬁcation of the instances
+currently done using GRASShopper.
+
+Automated veriﬁers for concurrent reﬁnements. Civl [Hawblitzel et al. 2015; Kragl and
+Qadeer 2021] is an automated tool for establishing reﬁnement of concurrent programs. Their
+approach is based on establishing multiple layers of reﬁnement, where each layer simpliﬁes and
+reﬁnes the previous layer. By employing the Boogie veriﬁer [Barnett et al. 2005], Civl can auto-
+matically prove these layered reﬁnements—although inductive invariants and non-interference
+conditions need to be speciﬁed by the user. This approach has also been shown to scale to larger
+examples: in particular, Civl has been used to verify a concurrent garbage collector of signiﬁcant
+size. Civl focuses on reﬁnements in general, and not on linearizability in particular. Linearizability
+has been established for e.g., the Treiber stack [Treiber 1986], but not for more complex examples
+such as the Michael-Scott queue.
+
+Other logics for linearizability. Our work builds upon Iris, which consolidates prior work on
+logical atomicity and reﬁnements in separation logic [da Rocha Pinto et al. 2014; Dreyer et al. 2010;
+Jacobs and Piessens 2011; Svendsen et al. 2013; Turon et al. 2013]. Aside from Iris, there are a number
+of other expressive logics for linearizability that employ diﬀerent approaches to compositionality.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:27
+
+While none of this work addresses the challenge of automating linearizability proofs, we brieﬂy
+discuss some of this work. FCSL [Nanevski et al. 2019; Sergey et al. 2015] is a Coq-based separation
+logic, where linearizability can be established by keeping track of timestamped histories. Liang
+and Feng [2013] have designed a program logic based on rely-guarantee for proving linearizability.
+They can handle challenging examples (such as RDCSS), but their proofs are not mechanized in a
+proof assistant. Kim et al. [2017] verify linearizability and liveness of a C implementation of an
+MCS lock using the certiﬁed concurrent abstraction layer framework in Coq [Gu et al. 2015].
+
+7 FUTURE WORK
+
+We would like to improve the usability of Diaframe 2.0. As can be seen. 2, variable names
+are automatically generated by Coq. This can make it diﬃcult to relate generated Coq goals to
+the program subject to veriﬁcation. A further improvement would be to avoid interaction with
+Coq altogether by using annotations in source code, akin to auto-active veriﬁcation tools [Leino
+and Moskal 2010]. ReﬁnedC [S et al. 2021] demonstrates that a proof strategy in Iris can be
+used as a backend for a foundational auto-active tool for functional correctness. For reﬁnement
+and logical atomicity it is currently unclear what suitable annotations like.
+
+We focused on automating the separation logic part of reﬁnement and logical atomicity proofs.
+To automate the pure conditions that arise in the veriﬁcation, we use standard solvers from Coq
+such as lia and set solver. It would be interesting to investigate if recent approaches to improve
+pureq could beBesson 2021; Czajka 2020; Ekici et al. 2017].
+
+We focused on proof strategies for reﬁnement and logical atomicity, but we conjecture that
+the generic Diaframe 2.0 strategy is more widely applicable. We would like to instantiate it with
+other logics and languages. We have some initial experiments for Similuris [Gäher et al. 2022] and
+-rust [Jung et al. 2018a]. Languages like Georges et al. [2022]’s capability machines, and logics like
+VST (which Mansky [2022] has recently ported to the Iris Proof Mode, and also supports logical
+atomicity) are also interesting targets. Finally, it would be interesting to investigate automation for
+recent work by Dang et al. [2022] on logical atomicity under weak memory.
+
+As mentioned in the evaluation (§5), our proof automation cannot always automatically determine
+the required case distinctions for a proof. Additionally, we rely on backtracking to determine
+linearization points. A recent extension of Diaframe [Mulder et al. 2023] provides better support
+for disjunctions and avoids backtracking, which could address these problems.
+
+ACKNOWLEDGMENTS
+
+We thank Jules Jacobs for useful discussions, and the anonymous reviewers for their helpful feedback.
+This research was supported by the Dutch ResearchNWO), project 016.Veni.192.259, and
+by generous awards from Google Android Security’s ASPIRE program.
+
+REFERENCES
+
+Andrew W. Appel. 2001. Foundational Proof-Carrying Code. In LICS. 247–256. https://doi.org/10.1109/LICS.2001.932501
+Andrew W. Appel

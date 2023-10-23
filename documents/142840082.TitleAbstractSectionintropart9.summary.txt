@@ -1,0 +1,3 @@
+
+
+This section provides a definition of an abstract domain, which is a set of properties about semantics states. It contains a sound abstract counterpart to the join operator, a primitive to approximate the increasing iteration of concrete operators, and two abstract transformers assign and guard. The primitive extracts the range of abstract expressions and reduce performs sound expression rewriting for all the memory states contained in the semantics state given as an argument. It is assumed that an abstract domain has been chosen, which requires a widening operator and a narrowing operator.

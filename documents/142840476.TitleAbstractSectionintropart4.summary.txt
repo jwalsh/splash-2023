@@ -1,0 +1,3 @@
+
+
+This section provides an example of how Fourier-Motzkin elimination of z can be used to obtain a conjunction of octagon constraints using variables yi and yj. It provides two examples of how this works, the first involving an integer octagon and the second involving finite sets of two-variable maps and implications between interval constraints. The section concludes by demonstrating that the two-decomposable domains are not two-projective.

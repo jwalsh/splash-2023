@@ -1,0 +1,112 @@
+Title-Abstract. Section intro
+ order to analyze how obj1 is modified
+by storeFunc, another query to resolve the call target on line 14 is needed, re-
+turning function storeFunc() immediately, adding a call edge to the call graph.
+This allows the initial query ⟨15, retrieveFunc(obj1),←⟩ to proceed analyzing
+the body of storeFunc. Since we assumed the backward data flow analysis anal-
+ysis to be calling-context-sensitive, this analysis will use the call on line 14 as
+the calling context, allowing it to determine that f was stored in obj1[’func’].
+The calling context of the underlying analysis is preserved in the analysis of an
+individual query in the same manner as when the underlying analysis is invoked
+with a precomputed call graph instead.
+
+The same argument applies regardless of the precision of the context sensi-
+tivity or how exactly the analysis represents calling contexts and generalizes to
+other forms of sensitivity, such as field sensitivity.
+
+In more complex cases involving multiple queries, the constructed call graph
+may contain spurious edges. For example, consider a version of Figure 1 where
+the top-level code makes two calls: process(readUserData, dontWriteToLog) and
+process(readPublicData, writeToLog), such that readPublicData returns pub-
+lic information and dontWriteToLog does not log its argument. In this case,
+the call on line 10 is (correctly) resolved to call targets dontWriteToLog and
+writeToLog, and the call 9 is (correctly) resolved to call targets readPublicData
+and readUserData. A standard data flow analysis, when given this call graph,
+will report a warning when the flow is terminated in the body of readUserData.
+This problem can be addressed by augmenting queries with a context param-
+eter specific to the underlying data flow analyses. In this case, when resolving
+backward query ⟨2, arg,←⟩, additional calling context could be passed to query
+⟨9, getData,←⟩, eliminating the false positive, while making the analysis more
+costly as queries now may have to be resolved multiple times with different
+contexts. We leave such an extension as future work.
+
+2.2 Termination and Soundness
+Given that issuing a query may in return issue subqueries, cyclical query depen-
+dencies may arise during analysis. The algorithm avoids non-termination due
+to query cycles by not blocking on a subquery to complete before proceeding.
+Instead, the algorithm allows each query to make progress whenever any other
+query finds additional call edges relevant to another query. More precisely, if a
+query q1 is processed, which triggers another query q2 to be issued, and if q2 in
+
+
+8
+
+Schoepe et al.
+
+turn again issues q1, the algorithm discovers that q1 has already been issued and
+proceeds with other analysis paths of q2 that do not depend on q1 (if there are
+any). Whenever q2 finds a call edge, this may allow q1 to make further progress,
+in turn possibly allowing further progress of q2. This process is guaranteed to
+terminate since, at each step, either the number of query results or the size of
+the call graph increases, yet both are ultimately bounded by the size of the pro-
+gram. The process is reminiscent of a Datalog-based analysis such as Doop [29]
+where new tuples being discovered for one relation, may trigger additional rules
+to apply for another relation, possibly in a mutually recursive fashion. More
+generally, it is an instance of a fixpoint computation on a finite domain.
+
+Soundness is less straightforward to establish, as it requires issuing all neces-
+sary subqueries to eventually discover all the ways in which a given function may
+be invoked or to find all values flowing to a given expression. To show sound-
+ness, we make the assumption that the program under analysis is closed, that
+is, it neither uses reflection nor has entry points that take function arguments.
+Informally, to see why the on-demand call graph construction algorithm is sound
+in the absence of reflection, consider how a given function f might be invoked
+during execution of a closed program. In order for f to be invoked, at least one
+of the following must hold: (i) f is an entry point to the program, or (ii) a ref-
+erence to f flows from f’s definition to a call site. In other words, references to
+a function cannot be “guessed” and can be obtained either through a syntactic
+occurrence of the function’s name or through the use of reflection. By starting
+from such syntactic references, the analysis can track where this function may
+flow. Similarly, by starting backwards from a call site and using forward analysis
+to find calls to the surrounding function, the analysis can discover all function
+definitions flowing to the call site.
+
+Soundness in the presence of reflection requires a way to soundly identify
+ where references to a given function may be obtained, for example using
+an existing reflection analysis [18,20,28]. In practice this may result in significant
+overapproximation, since analyzing many reflection facilities, for example in Java
+or JavaScript, requires e., string computations. We discuss this
+topic in more detail in Section 3.6.
+
+Further, handling programs that are incomplete, that is, programs with miss-
+ing code such as libraries, is orthogonal to this work. Analyzing incomplete pro-
+grams with this technique would require incorporating an existing approach for
+handling to missing code, such as models of missing library functions.
+
+3 On-Demand Call Graph Soundness
+
+In this section, we formally prove the soundness of our approach. We start by
+introducing a formal, semantic model of programs, call graphs and queries. We
+define the desired property, on-demand call graph soundness, that the call graphs
+produced by our analysis should satisfy with respect to the given program se-
+mantics. We then introduce our algorithm, in the form of a transition system
+defined by a set of inference rules. Finally, we state our soundness result—that
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+9
+
+call graphs generated by our rules for a given input program and set of input
+queries are on-demand sound—and sketch a proof. The full proof has been for-
+malized using Isabelle/HOL and is available online [27].
+
+We choose to depart from the usual abstract interpretation or data flow style
+presentation in two important ways. First, rather than starting from a concrete
+program syntax and semantics, we choose to model programs directly as the
+collection of (concrete) call-traces they may produce. We do so because our ap-
+proach is fundamentally language-agnostic. The call-trace semantics serves as
+a generic starting point that abstracts over language-specific details while still
+fitting the abstract interpretation framework. Second, we do not introduce an
+abstract representation of sets of program traces as it would be used by a realis-
+tic

@@ -1,0 +1,117 @@
+Title-Abstract. Section intro
+ domain S = (cid:104)sp(cid:105)p∈[X ]2, and a collection S1 = (cid:104)s(cid:48)
+p(cid:48)(cid:105)p(cid:48)⊆V,|p(cid:48)|=2 with
+Algorithm 2 for the collection S(cid:48) = (cid:104)sp(cid:105)p∈[X ]2,(p(cid:54)⊆V ∨|p|(cid:54)=2) ∪ S1 Let ¯s =(cid:100) S(cid:48) the
+p(cid:48) (cid:118) sp(cid:48) for all p(cid:48). Assume that (cid:104)tp(cid:105)p∈[X ]2 is the collection of values returned by
+s(cid:48)
+abstract relation represented by S(cid:48). Then for each p ∈ [X ]2,
+1. ¯s|p (cid:118) tp;
+2. If the 2-decomposable domain R is 2-projective, then ¯s|p = tp holds. In that
+
+case, (cid:104)tp(cid:105)p∈[X ]2 is the greatest solution of constraint system (8).
+
+Proof. Let p ∈ [X ]2. ¯s|p (cid:118) tp holds since, as observed before, all right-hand sides
+of the constraint system (8) are monotonic and the individual update steps of
+Algorithm 2 each correspond to updates performed by the evaluations of the
+right-hand sides of (8). Thus, the ﬁrst statement follows.
+
+Now consider the case where the relational domain is additionally 2-projective.
+The invariant which the non-incremental Algorithm 1 attains after the initializa-
+tion holds by construction here. Let t(r)
+p denote the value of tp attained after the
+iteration of the second loop for the r-th variable in the non-incremental Algo-
+rithm 1. We choose the order of the iteration of variables in the second loop such
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+13
+
+p
+
+= t(r)
+
+that the variables in V are considered last. Then, for the ﬁrst |X \ V | iterations
+t(r−1)
+p, as the original collection (cid:104)sp(cid:105)p∈[X ]2 was normalized. Therefore, it
+suﬃces to execute the last |V | iterations of the second loop of Algorithm 1 which
+(cid:117)(cid:116)
+is identical to Algorithm 2. Thus, by Theorem 1, the claim follows.
+We have thus shown that re-establishing normalization (and thus closure) after
+adding octagon constraints for m variables is in O(m · n2).
+
+6 Abstract Transformers for Linear Assignments
+Assume we are given a normalized value r over the set X of program variables
+from some 2-decomposable relational domain. Assume further that we are given
+an assignment a of the form x ← e where e is an expression over some subset
+V ⊆ X, and assume that the relational domain satisﬁes3) and (4).
+Let r ∈ R denote the relational value before the assignment and assume r is
+already normalized where rp = r|p has already been computed for all p [X ]2.
+Let r(cid:48) =(cid:74)a(cid:75)(cid:93) r denote the relational value after the assignment. Then, for every
+p ∈ [X ]2 with x (cid:54)∈ p, r(cid:48)|p|p = rp. In order to compute the of
+p = r(cid)|p for x ∈ p, i.e., a linear
+r(cid:48), it therefore suﬃces to compute the values r(cid:48)
+number of clusters p. Now consider some variable y ∈ X. Because of property
+(4), we have that
+
+r(cid:48)
+
+p =(cid:74)a(cid:75)(cid:93)r(cid:12)(cid:12){x,y}
+= ((cid:74)a(cid:75)(cid:93)r|V ∪{x,y})
+= ((cid:74)a(c75)(cid:93)((cid:rp | p ⊆ V ∪ {x, y}}))(cid:cid:12){x,y}
+{x,y} requires taking into account only clusters p ∈ [X ]2
+
+(cid:12)(cid:12)(cid:12){x,y}
+
+i.e., the abstract value r(cid:48)
+ from V ∪ {x, y}. We conclude:
+Proposition 4. Assume that computations on abstract relations from R over
+a bounded set of variables is constant time, and assume that the assignment a
+refers only to a bounded number of variables. Assume further that the abstract
+(cid:117)(cid:116)
+
+relation r ∈ R is normalized. Then a normalization of the relationid:74)a(cid:75)(cid:93)r can be
+
+computed in linear time.
+
+7 Linear Programming with Octagon Constraints
+
+Let us turn to the implementation of best abstract transformers for assignments
+for the octagon domain (over rationals as well as over integers). For the octagon
+domain, an abstract transformer for assignments can be constructed by adding
+octagon constraints. This works well for right-hand sides of the form y + c or
+−y + c for variables y and constants c. For more general right-hand sides such
+as, e.g., 3 · y − 2 · z, the best transformer can instead be expressed by means of
+optimization problems [25].
+
+
+14
+
+Michael Schwarz and Helmut Seidl
+
+Assume that the octagon is provided by bounds bid:96), (cid:96) ∈ LV for some subset
+V ⊆ X of variables. Depending on the sign of a variable occurring in a linear
+combination (:96 say it occurs positively or negatively. Consider the optimiza-
+tion problem of maximizing a linear objective function taking variables from V
+subject to the given set of constraints
+z∈V az · z
+
+maximize (cid:80)
+
+(13)
+
+subject to (cid:96) ≤ b(cid:96)
+
+((cid:96) ∈ LV )
+
+When interpreted over the rationals, optimal solutions can be computed in time
+polynomial in the size of the linear program (i.e., the number of bits to spell it
+out) [15] or exponential time in the number of variables if simplex type algo-
+rithms are used [17]. To this general approach, we here add one more observation,
+namely, that over the rationals, the set of octagon constraints to be satisﬁed in
+optimization problems can be restricted to constraints where each occurring vari-
+able z ∈ V occurs with the same sign as the coeﬃcient az of z in the objective
+function: this considerably reduces the number of constraints to be considered.
+Proposition 5. Assume that we are given the rational octagon linear program
+(13) where az > 0 for all z ∈ V. If the octagon corresponding to the constraints
+is closed, then the same result is obtained when the constraints are restricted to

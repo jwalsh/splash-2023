@@ -1,0 +1,89 @@
+Title-Abstract. Section intro
+ again, may result in a signiﬁcant speedup when it
+comes to practical implementations.
+
+In future work, we would like to provide a new implementation of Octagon
+domains based on our algorithms and evaluate its practical performance on re-
+alistic examples. Combining our algorithms with orthogonal techniques such as
+online decomposition [28] in particular seems like a promising line of inquiry.
+We also would like to explore in greater detail the potential of further, perhaps
+non-numerical 2-decomposable domains.
+
+Acknowledgements. This work was supported in part by Deutsche Forschungs-
+gemeinschaft (DFG) – 378803395/2428 ConVeY.
+
+A 2-Projectivity for Extensions of Octagons
+
+Here, we investigate extensions to the Octagon domain and the domain of dif-
+ference bounds, respectively, that have been proposed in the literature, and in-
+vestigate whether they are 2-decomposable and 2-projective.
+
+Example 8. Consider the domain of di�-bound matrices enhanced with
+disequalities [24] where X = {a, b, c}. This domain is 2-decomposable. Now, for
+2-projectivity, let, e.g.,
+
+r{a,b} = (a − b ≤ −1 ∧ b (cid:54)= 98 ∧ b (cid:54)= 97)
+r{a,c} = (c ≤ 99)
+r{b,c} = (b − c ≤ −1)
+
+and all other rp = (cid:62). We remark that, by abuse of notation, we write b (cid:54)= 98
+instead of introducing a dedicated variable c98 and constraints b (cid:54)= c98 ∧ c98 ≤
+98∧0−c98 ≤ −98, and analogously for b (cid:54)= 97. Now, consider (9) with Y = {a, c},
+z = b, r(cid:48) = {c ≤ 99} Then,
+
+(r{b} ∧ r{b,a} ∧ r{b,c} ∧ r(cid:48))(cid:12)(cid:12)Y
+= (r{b} ∧ r{b,a} ∧ r{b,c} ∧ r(cid:48))(cid:12)(cid:12){a,c}
+= (c ≤ 99) ∧ (r{b} ∧ r{b})(cid:12)(cid:12)∅ ∧ (r{a,b} ∧ r{a,b})(cid:12)(cid:12){a} ∧ (r{b,c} ∧ r{b,c})(cid:12)(cid:12){c}
+∧(r{a,b} ∧ r{b,c})(cid:12)(cid:12){a,c} ∧ (r{b} ∧ r{b,a})(cid:12)(cid:12){a} ∧ (r{b} ∧ r{b,c})(cid:12)(cid:12){c}
+= r(cid:48) ∧(cid:86)k
+
+= (c ∧ a − c ≤ −2 ∧ c ≤ 95)
+(cid:54)= (c ≤ 99 ∧ a − c ≤ −2 ∧ c ≤ 97)
+= (c ≤ 99) ∧ (cid:62) ∧ (cid:62) ∧ (cid) ∧ (a − c ≤ −2) ∧ (cid:62) ∧ (c62)
+
+i,j=1 (r{b,yi} ∧ r{b,yj})(cid:12)(cid:12)Y{yi,yj}
+
+and the domain thus is not 2-projective.
+
+(cid:117)(cid:116)
+
+Example 9. domain of octagons enhanced with additional con-
+str the absolute values of variables [5], i.e., with additional constraints
+of the form ±|x| ± |y| ≤ c and ±|x| ± y ≤ c. This domain is 2-decomposable.
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+21
+
+Now, for 2-projectivity, let, e.g.,
+
+r{a,d} = a − |d| ≤ 2
+r{b,c} = b + c ≤ 5
+r{b,d} = b − d ≤ 5
+r{c,d} = −c + d ≤ 2 ∧ −|d| ≤ 0
+
+with all other rp = (cid:62) for p ∈ [X ]2. Now, consider (9) with Y = {a, b, c}, z = d,
+rid:48) = (b + c ≤ 5).
+
+(r{d} ∧ r{d,a} ∧ r{b} ∧ r{d,c} ∧ r(cid:48))(cid:12)(cid:12)Y
+= (r} ∧ r{d,a} r{d,b} r{d, ∧ r(cid:48))(cid:12)(cid:12){a,b,c}
+
+= b + c ≤ 5 ∧ b − c ≤ 7 ∧ b ≤ 6 ∧ a + b ≤ 9
+(cid:54)= b ≤� b − c ≤ 7 ∧ b ≤ 6
+= b + c ≤ 5 ∧ (cid:62) ∧ (cid:62) ∧ {b − c ≤ 7}
+= b + c ≤ 5 ∧ (a − |d| ≤ 2 ∧ b − d ≤ 5)|{a,b}
+∧(a − |d| ≤ 2 ∧ (−c + d ≤ 2 ∧ −|d| ≤ 0))|{a,c}∧
+(b − d ≤ 5 ∧ (−c + d ≤ 2 ∧ −|d| ≤ 0))|{b,c}
+
+= {b + c ≤∧
+
+= b + c ≤ 5 ∧ (r{d,a} ∧ r{b})(cid:12)(cid:12){a,b} ∧ (r{d,a} ∧ r{d,c})(:12)(cid:12){a,c} ∧ (r{d,b} ∧ r{d,c})(cid:12)(cid:12){b,c}
+(r{d,a})(cid:12)(cid:12){a} (r{d,a} ∧ r{d,b})(cid:12)(cid:12){a,b} ∧ (r{d,a} ∧ r{d,c})(cid:12)(cid:12){a,c}∧
+(r{d,b})(cid)(cid:12){b} ∧ (r{d,b� r{d,c})(cid:12)(cid:12){b,c}∧
+(r,c})(cid:12)(cid:12){c}
+(r{d,a} ∧ r{d})(cid:12)(cid:12){a} ∧ (r{d,a} ∧ r{d,b})(cid:12)(cid:12){a,b} ∧ (r{d,a} ∧ r{d,c})(cid:12)(cid:12){a,c}
+∧(r{d,a} ∧ r{d,d})(cid:12)(:12){a}∧
+(r{d,b} ∧ r{d,b})(c12)(cid:12){b} ∧ (r{d,b} ∧ r{d,c})(cid:12)(cid:12){b,c} ∧ (r{d,b} ∧ r{d,d})(cid:12)(cid:12){b}∧
+(r{d} ∧ r{d})(cid:12)(c12){c} ∧ (r{d,c} ∧ r{d,d})(c12)(cid:12){c}
+(r{d,d}

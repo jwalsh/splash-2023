@@ -1,0 +1,86 @@
+Title-Abstract. Section intro
+��𝑅♯
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+(𝑒♯𝑗,[𝑙𝑗,𝑢𝑗[,Ω𝑗)≝⦅𝑒𝑗⦆𝑅♯
+𝑒♯𝑗∉ Const♯
+𝛼′≝𝛼mod𝑚𝑖
+⦅𝑒1+𝑒2⦆𝑅♯≝(reduce(ℒ□(𝛼′)⊞𝑒♯𝑗)𝑅♯,[𝑙𝑗+𝛼′,𝑢𝑗+𝛼′[,Ω𝑖∪Ω𝑗)
+(𝑒♯1,[𝑙1,𝑢1[,Ω1)≝⦅𝑒1⦆𝑅♯
+(𝑒♯2,[𝑙2,𝑢2[,Ω2)≝⦅𝑒2⦆𝑅♯
+reduce(𝑒♯1⊞𝑒♯2)𝑅♯=ℒ□(0)
+𝑒♯2∉ Const♯
+𝑒♯1∉ Const♯
+𝑙2=−𝑢1+1
+𝑢2=−𝑙1+1
+⦅𝑒1+𝑒2⦆𝑅♯≝(ℒ□(0),ℤ,Ω1∪Ω2)
+(𝑒♯1,𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+(𝑒♯2,𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+𝑒′♯2≝rmMod(𝑒♯2,𝑚2)𝑅♯
+𝑒′♯1≝rmMod(𝑒♯1,𝑚1)𝑅♯
+⦅𝑒1+𝑒2⦆𝑅♯≝(reduce(𝑒′♯1⊞𝑒′♯2)𝑅♯,ℤ,Ω1∪Ω2)
+
+neither the rule Plus2Const nor PlusConst nor PlusEqZero can be applied
+
+into an abstract expression interpreted inℤ, then applying thermMod operator
+
+Note that in case one argument is translated into a the other one
+
+produces no loss of information. Thus, the rule PlusNoMod is enough.
+
+Plus2Const
+
+PlusConst
+
+PlusEqZeroPlusNo
+18
+
+J. Boillot, J. Feret.
+
+Multiplication. of a multiplication between two expressions
+works similarly.
+
+In the case both operands are translated into constants, the potential appli-
+cation of the modulo operation can be directly applied on the constant values.
+
+The result can then be interpreted inℤ. Whenever exactly one operand is trans-
+constant is positive, zero, or negative. In all other cases, thermMod operator
+
+lated into a constant and the other abstract expression must be interpreted in
+modular arithmetic, the potential modulo operator of the constant expression
+can be directly applied on the constant value. The resulting abstract expres-
+sion is multiplied by the constant and then potentially simplified by the reduce
+operator. The update of the modular interval depends on the sign of the con-
+stant, which splits the inference rule into three ones, depending on whether the
+
+is used to suppress the modulo computations in both arguments translations.
+Once again, the resulting abstract expression can be potentially simplified by
+the means of the reduce parametric operator.
+
+In all cases, the computation yields no additional error alarms. This is for-
+
+malized in the following five inference rules.
+
+MultZeroConst
+
+MultNegConst
+
+MultNoMod
+
+Mult2Const
+
+MultPosConst
+
+𝛼1∈ℤ∶(ℒ□(𝛼1),𝑚1,Ω1)≝⦅𝑒1⦆𝑅♯
+𝛼2∈ℤ∶(ℒ□(𝛼2),𝑚2,Ω2)≝⦅𝑒2⦆𝑅♯
+
+𝛼′≝𝛼mod𝑚𝑖
+
+⦅𝑒1×𝑒2⦆𝑅♯≝(ℒ□((𝛼1mod𝑚1)×(𝛼2mod𝑚2)),ℤ,Ω𝑖∪Ω𝑗)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+(𝑒♯𝑗,[𝑙𝑗,𝑢𝑗[,���)≝⦅𝑒𝑗⦆𝑅♯
+𝛼∈ℤ∶(ℒ□(�𝑚𝑖,���)≝⦅�𝑖⦆𝑅♯
+𝛼′>0
+𝑒♯𝑗∉ Const♯
+⦅𝑒1×𝑒2⦆𝑅♯≝(reduce(𝑒♯𝑗⊠ℒ�𝛼′))𝑅�𝑙𝑗×𝛼′,𝑢𝑗×𝛼′[,Ω𝑖∪Ω𝑗)
+𝑖,𝑗∈{1,2}∶𝑖≠𝑗
+(𝑒♯𝑗,𝑚�

@@ -1,0 +1,183 @@
+Title-Abstract. Section intro
+�V −az · z
+The best abstract transformer(cid:74)a(cid:75)(cid:93) given by
+(cid:74)a(cid:75)(cid:93)(r) = r|X\{x} ∧ r
+where rx denotes the conjunction
+
+x) ∧ (cid:86)
+
+(x ≤ b + b(cid:48)
+
+(16)
+
+z(cid:54)=x(x + z ≤ b + b(cid:48)
+(−x + z ≤ b(cid:48)
+
+x+z) ∧ (x − z ≤ b + b(cid:48)
+−x+z − b) ∧ (−x − z ≤ b(cid:48)
+
+x−z) ∧
+−x−z − b)
+
+Over the integers, we can proceed analogously to the rational case by solving
+the corresponding integer optimization problems. Since these, in general, are
+NP-hard, we prefer for integer octagons, to rely on rational relaxations of the
+corresponding ILP problems. This means that for each octagon combination (cid:96),
+we determine the best rational upper bound b(cid:96) after the assignment (as deter-
+mined by the corresponding LP problem) which is tightened to (cid:98)b(cid:96)(cid:99) to obtain a
+sound upper bound for (cid:96) over the integers. We remark that for integer octagons,
+an alternative formulation of abstract transformers for aﬃne assignments has
+been provided in [21]. The transformer there is based on the optimal abstract
+transformer for rational polyhedra in [9] whose bounds are tightened and subse-
+quentlyapproximated by octagon constraints. The latter step also requires
+
+
+18
+
+Michael Schwarz and Helmut Seidl
+
+solving appropriate (relaxed) LP problems, which are essentially the same as we
+solve – only that we beneﬁt from a reduced number of octagon constraints to be
+taken into account by each LP problem. We obtain:
+
+Theorem 3. For the octagon domain over the rationals, the best transformer
+(16) for a linear assignment can be computed in polynomial time. For n program
+variables and a constant number of variables the assignment, the
+best transformer can be computed in time O(n).
+(cid:117)(cid:116)
+
+Proof. Assume that the octagon before the assignment is closed. Due to Propo-
+sition 5, the octagon transformer for linear assignments satisﬁes properties (4)
+and (3). Therefore by Proposition 4, only a linear number of optimization prob-
+lems must be solved. Over the rationals, the optimal upper bound to an octagon
+combination can be determined by solving an LP problem – which is known
+to be possible in polynomial time. Note that due to Proposition 5, the set of
+octagon constraints to be taken into account can be reduced to constraints with
+octagon combinations where the signs of variables match the corresponding signs
+occurring in the objective function.
+
+If the right-hand side contains only a bounded number of variables, each of
+the LP problems will refer to a bounded number of variables only, and thus can
+be solved in constant time (e.g., by using the Simplex algorithm). Since only
+O(n) many of these problems must be solved, the overall runtime is linear. (cid:117)(cid:116)
+
+Over the integers, on the other hand, the solution of the relaxed integer LP
+problem for a sound bound to an octagon combination can be obtained as the
+solution to the corresponding relaxed rational LP problem, and the argument
+proceed in the. As a corollary, we therefore obtain:
+
+Corollary 1. For the octagon domain over the integers, the integer relaxation of
+) for a linear assignment can be computed in polynomial time. For n program
+variables and a constant number of variables occurring in the assignment, the
+(cid:117)(cid:116)
+relaxed best transformer can be computed in time O(n).
+
+9 Related Work
+
+Since being introduced by Miné [20, 21], the weakly relational numerical domain
+of Octagons has found widespread application in the analysis and veriﬁof programs and is part, e.g., of the highly successful static analyzer Astrée
+[ 7]. While normalization has been known to be cubic time for rational oc-
+tagons right from the beginning [20], it was open whether this also holds true
+for integer octagons. This question has been settled aﬃrmatively by Bagnara
+et al. [1]. Sankaranarayanan et al. [25] proposed using techniques from linear
+programming to compute best transformers for linear assignments. Chawdhary
+et al. [4] investigated the problem of improved quadratic algorithms for incre-
+mental closure, i.e., adding one further octagon constraint. Implementations of
+
+
+Octagons Revisited - Elegant Proofs and Simpliﬁed Algorithms
+
+19
+
+Domain
+Integer Octagons [20]
+Rational Octagons [20]
+TVPI [27]1
+Pentagons [18]
+Weighted Hexagons [11]
+Logahedra [13]
+dDBM [24]2
+AVO [5]
+Pairs (Example 5)
+
+2-decomposable
+
+2-projective
+
+Normalization
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+O(n3)
+O(n3)
+
+O(n3 log2 n)
+
+O(n3)
+O(n3)
+O(n3)
+
+ (Appendix A) O(n3) rat.; O(n5) ints
+ (Appendix A) O(2 n3) rat.;? ints
+
+
+
+?
+
+Fig. 1: Various weakly relational domains, whether they are 2-projective and
+2-decomposable, and the complexity of their normalization operation.
+
+Octagons are provided, e. by the Apron library [14] and Elina [10]. Various
+Octagon algorithms are practically evaluated by Gange et al. [12].
+
+Extensions of octagons have been considered by Péron and Halbwachs [24]
+and Chen et al. [5]. For these extensions, however, known normalization al-
+gorithms turn out to be rather expensive so that more practical approximate
+normalizations have been proposed. Fig. 1 gives an overview over some weakly
+relational whether they aredecomposable and whether they are also
+2-projective as well as the best time complexities for (approximate) normaliza-
+tion in the number of variables.
+
+10 Conclusion and Future Work
+
+We have provided an algorithm for normalizing octagon abstract relations over
+rationals as well as over integers. For that, we introduced the notion of 2-
+decomposability for relational domains and provided a cubic-time algorithm
+based on Floyd-Warshall which overapproximates normalization. For the sub-
+class of 2-projective domains comprising, e.g., integer or rational Octagons, it
+computes the exact 2-normal form. The major beneﬁt of the resulting algorithm
+is its simplicity. For the instance of the Octagon domain, e.g., the closure is ob-
+tained without duplication of variables. The general setup also provides us with
+a quadratic algorithm for incremental normalization. For octagons, we also re-
+considered the construction of best abstract transformers for aﬃne assignments
+by means of linear programming. Over the rationals, we observe that only those
+ constraints need to be taken into account where the sign of each oc-
+curring variable z agrees with the sign of the occurrence of z in the respective
+1 For TVPI: As operations on values for 3 variables are in O(log2 n).
+2 For int dDBM: Approximate normalization up-to emptiness. Checking emptiness is
+
+exponential.
+
+
+20
+
+Michael Schwarz and Helmut Seidl
+
+objective functions.

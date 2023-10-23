@@ -1,0 +1,105 @@
+Title-Abstract. Section intro
+
+We finish this preliminary results section, with few examples about modulo
+
+computations.
+
+3 Syntax and Semantics of the Language
+3.1 Syntax of the Language
+The syntax of our language is introduced in Fig. 5. The analysis that is described
+in this paper only refines the result of integer computations. Thus, the descrip-
+
+
+Symbolic transformation of expressions in modular arithmetic
+
+7
+
+tion of pointers and floating point arithmetic is omitted. We indeed suppose
+that lvalue resolution has been partially solved (see [2, Sect. 6.1.3]) and that the
+abstraction presented here assigns no information to the value of floating point
+variables (which are handled by some other of the analyzer).
+We focus on integer expressions, which are made of variables, constant inter-
+vals, classical arithmetic operations, modulo within a constant modular ring,
+
+and bound checks. A specific operator⋓ is added to our extended syntax to rep-
+For example,. if it is defined, the value of𝑅 is between the
+𝑌0 and𝑌1, regardless of their order. We then denote𝑅𝑌0⋓𝑌1. Assuming we
+can establish that𝑌0≤𝑌1, it follows that𝑌0���≤𝑌1.
+The variables involved in the program belong to a finite set, denoted𝒱.
+
+resent the value of some sub-expressions. This operator represents the convex
+join of two integer expressions, that is any value between its operands. This is
+especially helpful to deal with expressions involved in interpolation procedures.
+
+We use interval constants to represent constants or to model non-determinism
+that may be due to some unknown inputs or potentially imprecise abstraction.
+Implicit and explicit casts have been decomposed by means of two operators:
+as it will be seen in the description of the semantics, the bound check operator
+bound_check checks whether the value of an expression does not overflow, and
+the modulo operator mod extracts the remainder of the Euclidean division.
+Lastly, we assume that bit shifting has been replaced with equivalent arithmetications.
+
+Stat assignments, sequential composition, conditional branch-
+ing (we only consider positive branches, negative ones can be encoded conse-
+quently), and loops. The conditions of branching and loops compare expressions
+
+with the value0. This toy language is enough to encode the semantics of the
+For the rest of the paper, every constant expression of the form[𝛼,𝛼] with
+𝛼∈ℤ is denoted𝛼cst.
+
+integer arithmetic restriction of real-life programming languages like C.
+
+3.2 Concrete Semantics of the Language
+We now concrete semantics of our language is a mathematical
+expression of its behaviors. It is worth noting that, due to the use of intervals
+and convex join operators, the evaluation of an expression may induce non-
+determinism. Additionally, our semantics tracks erroneous computations.
+
+We introduce a set of possible errors that we noteΩ. We assume thatΩ
+contains in particular two distinct elements𝜔𝑑 and𝜔𝑜: the error𝜔𝑑 stands for a
+division by zero the error𝜔𝑜 denotes a bound check failure. The other
+elements ofΩ can be raised by the other domains of the analyzer, especially
+A memory state is a function that maps each variable from the set𝒱 to an in�. The set of all memory den��. The concrete semantics
+� expr⟧∈ℰ→(℘(ℤ)×℘(Ω)) of an expression maps a memory state to sets of
+values and errors. To simplify the formulas, given an expression𝑒∈ a
+memory state𝜌∈ℰ, the first component of⟦𝑒⟧� is often written⟦𝑒⟧𝑉𝜌∈℘(ℤ),
+
+during the resolution lvalues.
+
+
+8
+
+J. Boillot, J. Feret.
+
+⟦𝑋�𝜌≝ ⟨{𝜌(𝑋)},∅⟩
+⟦��]�𝜌≝⟨��∈ℤ∣�≤𝑥≤𝑏},∅�
+⟦−�⟧��⟨{−𝑥∣𝑥∈⟦𝑒⟧𝑉𝜌},⟦𝑒⟧Ω𝜌⟩
+⟦𝑒1+𝑒2⟧𝜌≝�𝑥+𝑦∣𝑥∈⟦𝑒1⟧𝑉𝜌,𝑦���𝑒2⟧𝑉𝜌},⟦𝑒1⟧Ω𝜌∪⟦𝑒2⟧Ω𝜌⟩
+⟦𝑒1×𝑒2⟧𝜌≝⟨{𝑥×𝑦∣𝑥∈⟦𝑒1⟧𝑉𝜌,𝑦∈⟦𝑒2⟧𝑉𝜌},⟦𝑒1⟧Ω𝜌∪⟦�⟧Ω𝜌⟩
+⟦𝑒1∕𝑒2⟧𝜌≝⟨{truncate(𝑥∕𝑦)∣𝑥∈⟦𝑒1⟧𝑉𝜌,𝑦∈⟦𝑒2⟧𝑉𝜌,𝑦≠0},⟦𝑒1⟧Ω𝜌∪⟦𝑒2⟧Ω𝜌∪Ω1⟩
+withΩ1≝{{𝜔�
+if0∈⟦𝑒2⟧𝑉𝜌
+∅
+⟦𝑒1⋓𝑒2⟧𝜌≝⟨{𝑧∈ℤ||||||||𝑥∈⟦𝑒1⟧𝑉𝜌,𝑦∈⟦𝑒2⟧𝑉𝜌
+},⟦𝑒1⟧Ω𝜌∪⟦𝑒2⟧Ω𝜌⟩
+𝑥≤𝑧≤𝑦 ∨𝑦≤𝑧≤𝑥
+⟦𝑒 mod[𝑙,𝑢[⟧𝜌≝⟨{𝑥mod[𝑙,𝑢[∣𝑥∈⟦𝑒⟧𝑉𝜌},⟦𝑒⟧Ω𝜌⟩
+⟦ bound_check(𝑒,[𝑙,𝑢[)⟧𝜌≝⟨⟦𝑒⟧𝑉𝜌,⟦𝑒⟧Ω𝜌∪Ω1⟩ withΩ1≝{{𝜔𝑜}
+if⟦𝑒⟧𝑉𝜌⊈[𝑙,𝑢[
+∅
+while the second one is written⟦𝑒⟧Ω𝜌∈℘(Ω). These notations are used in the
+
+Fig. 6: Concrete semantics of expressions.
+
+otherwise
+
+otherwise
+
+inductive definition given in Fig. 6 and also until the rest of the paper.
+
+argument.
+
+the errors, but does not raise new ones. Finally, bound-checking propagates val-
+
+The evaluation of a variable raises no error, it only gives the value that is
+fetched from the memory state. The evaluation of an interval

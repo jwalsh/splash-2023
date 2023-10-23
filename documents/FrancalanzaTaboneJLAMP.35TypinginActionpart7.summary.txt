@@ -1,0 +1,3 @@
+
+
+This section discusses how the type system of Section 3.4 can be used to statically analyse an Elixir module containing two public functions, server and client, annotated with the session types, counter and counter, respectively defined in eqs. (1) and (2). It explains how the behavioural typing judgement is used to typecheck the server function, which consists of a receive statement. It then explains how the [tBranch] rule is used to typecheck the two branches of the receive statement, and how the [tLet] and [tUnknownCall] rules are used to typecheck the body of the private function terminate. Finally, it explains how the [tChoice] rule is used to typecheck the misbehaving client function body from Listing 3, which is deemed to be ill-typed.

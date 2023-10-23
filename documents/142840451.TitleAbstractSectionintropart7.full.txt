@@ -1,0 +1,117 @@
+Title-Abstract. Section intro
+ {τ2 | ∃τ1.τ1 · τ2 ∈ complete-bwd -traces(c)}.
+Note that the reference point r is only used to delimit the backward traces rel-
+evant to a given call site c. Similarly, we define the set of forward subtraces
+fwd -traces(f ) for a forward query f, as the subtraces starting with a reference
+to f, that is, fwd -traces(f ) = {τ |∃τ0.τ0 · τ ∈ S ∧ τ = ref (f, _) · _}.
+
+3.3 Call Graphs
+
+To define an on-demand call graph, we first need the notions of a call graph and
+a whole-program call graph.
+A call graph G ⊆ CallSite× Func is a directed graph whose vertices are call
+sites and functions and whose edges connect a call site c ∈ CallSite to a function
+f ∈ Func. We write CG = CallSite× Func for the set of all call graphs. We
+define the whole-program call graph of a program, written whole-cg, as the set of
+all pairs (c, f ) that occur on a call event in some trace of the program semantics.
+Formally, whole-cg = {(c, f ) | ∃τ ∈ S, 0 < i ≤ |τ|. τi = call(c, f, _)}.
+Let C ⊆ CallSite and F ⊆ Func be the sets of callee and caller queries,
+respectively, that a client analysis issues while analyzing the program. Observe
+that the whole-program call graph whole-cg may be large and include many call
+edges (c, f ) that are never used to answer a call graph query, i.e., such that
+c /∈ C or f /∈ F. The goal of our on-demand approach is to compute a subgraph
+G of whole-cg containing all the edges needed to answer the queries in C and F.
+To characterize such on-demand call graphs G, we introduce the notion of
+(C, F )-soundness. Intuitively, a (C, F )-sound on-demand approximation of a
+whole-program call graph contains at least the call graph edges necessary to
+answer all client queries. Formally:
+Definition 1 (On-demand call graph soundness). Let C ⊆ CallSite and
+F ⊆ Func be finite sets of callee and caller queries, respectively. A call graph
+G ⊆ CallSite× Func is on-demand call graph sound w.r.t. C and F (or simply
+(C, F )-sound) iff every edge (c, f ) ∈ whole-cg is in G if either c ∈ C or f ∈ F.
+
+
+12
+
+Schoepe et al.
+
+3.4 Answering Call Graph Queries
+
+To construct an on-demand call graph, our algorithm starts from an empty call
+graph, and gradually adds edges based on answers to the callee queries C and
+caller queries F issued by the client analysis. To find the answers of these queries,
+our approach is parameterized by two data flow analyses, defined as follows:
+– a forward analysis F : CG× Func → P(Trace), used to detect the call
+– a backward analysis B : CG× CallSite → P(Trace), used to detect the
+
+sites where a caller query f ∈ F may have been called; and
+functions that a callee query c ∈ C may call.
+
+For example, to detect the functions that the callee query x() on line 5
+in Fig. 6 may call, our algorithm uses a backward data flow analysis to issue a
+backward query, whose answer contains the function f, defined on line 1. Once f
+is obtained as an answer, an edge (x(), f ) is added to the on-demand call graph.
+To guarantee on-demand soundness of the call graph obtained by applying
+our algorithm, we assume the following about the underlying data flow analy-
+ses F and B. Both data flow analyses are on-demand analyses, that is, intuitively
+they need only discover interural data flows between a call site c and func-
+tion f if the given partial call graph contains the edge (c, f ). Their answers are
+an overapproximation of the set of subtraces relevant to a given call graph query.
+Note that F and B are modeled as functions returning sets of traces in order
+to reason about the soundness of the approach. In practice they would return
+abstract representations that concretize to sets of traces, which would provide
+interfaces to determine when data flows to function boundaries.
+
+Next, we define the notions of backward and forward compatibility of a given
+trace with a partial call graph. These notions are used to restrict the traces that
+need to be overapproximated by thedemand analyses B, since they
+are allowed to only reason about parts of traces the given query. A
+trace τ is forward-compatible call graph G, written compat→(G, τ ), if for
+any event enter(c, f ) or return(c, f ) in τ, it holds that (c, f ) ∈ G. Similarly,
+a trace is backward-compatible with a call graph G, written compat←(G, τ
+for any event call(c, f, r ) or exit(c, f ) in τ, it holds that (c, ∈ G. Note that compatibility definitions are slightly different depending on the direction of
+the analysis. In the forward case, encountering a call site is easy to identify,determining the callee-side enter event requires resolving which function flows
+to the call site. In the backward case, reaching the entry point of a function is
+easy to identify, but not where this function was called,
+backwards, a call site is indicated first by a caller-side return event, but its callee
+needs to be found through additional analysis to identify the corresponding exit
+event. The precise definitions→(G, τ ) and compat←(G, τ ) can be found
+in the Isabelle/HOL formalization [27].
+
+Finally, we define the soundness requirements on F and B. Given a relevant
+subtrace that is compatible with a given partial call graph, F should discover
+next possible event relevant to a query, whereas B should discover
+Lifting On-Demand Analysis to Higher-Order Languages
+
+13
+
+possible events. Intuitively, this captures that make progress on the
+part of the program that a partial call graph provides enough information about.
+Formally, F is forward-f {τ ∈ fwd -traces(f )| compat→(G, τ )} ⊆ (G, f ) and if τ · enter(c, f� -traces(f ) and compat→(G, τ ), then τ ·
+c ) F (G, f ). Note that this definition entails that F (G, f )-
+proximates all references ref (f, r ) to f as singleton traces ref (f, r ) are com-
+patible with any call graph. Similarly, B is backward-sound iff for any τ ∈
+bwd -traces(c) such that τ = τ call(c, f, r ) and compat←(G, τ′), then τ ∈
+B(G, c) and if call(c, f, r ) ∈ bwd -traces(c), then call(c, f, r ) B(G, c).
+
+If all the assumptions on F and B outlined in this section are satisfied, our
+
+call graph construction is sound. We make this precise next.
+
+3.5 On-Demand Call Graph Construction as a Transition System
+
+Our on-demand call graph construction algorithm maintains a state consisting
+of a triple (G, C, F ), where G is the currently known, C containsset of relevant backward querieslees of call sites c ∈ F contains a
+set forward queries for callers of functions f ∈ F
+Fig. 7 call graph construction from some call graph
+construction state can make progress. If the underlying data flow analyses dis-
+cover a call query, either in or backward direction we can
+add the corresponding call edge to the call graph (rules AddFwdCallEdge
+and AddBwdCallEdge). Note that discovering a call in the forward direction
+is indicated by an enter(·,·) event, whereas in the backward direction, this is
+indicated by a call(·,·,·) event instead. This difference results from the fact that
+when proceeding forwards through a function, the caller-side call event is always
+compatible with any partial call graph, whereas discovering the corresponding
+callee-side enter event must have been resolved by the forward analysis. Simi-
+larly, in the backward direction, the enter event is backward-compatible with
+any, while the event is not remainingdescribe which

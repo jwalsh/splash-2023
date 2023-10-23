@@ -1,0 +1,147 @@
+Title-Abstract. Section intro
+Abstract Interpretation in Industry – Experience
+
+and Lessons Learned
+
+Daniel Kästner1, Reinhard Wilhelm2, and Christian Ferdinand1
+
+1 AbsInt GmbH, Science Park 1, 66123 Saarbren, Germany
+
+2 Saarland University, Stuhlsatzenhausweg 66123 Saarbrücken, Germany
+
+kaestner@absint.com
+
+Abstract. In this article we will give an overview of the development
+and commercialization of two industry-strength Abstract Interpretation-
+based static analyzers, aiT WCET Analy Astrée. We focus on
+development steps, adaptations to meet industry requirements and dis-
+cuss criteria for a successful transfer of formal verification methods to
+industrial usage.
+
+Keywords: abstract interpretation, WCET analysis, runtime error anal-
+ysis, functional safety.
+
+1
+
+Introduction
+
+Abstract interpretation is a formal method for sound semantics-based static pro-
+gram analysis [8]. It supports formal correctness proofs: it can be proved that an
+analysis will terminate and that it is sound in the sense that it computes an over-
+approximation of the concrete program semantics. Abstract interpretation
+static analyzers provide full control and data coverage and allow conclusions to
+be drawn that are all program runs with all inputs.
+
+As of today, abstract interpretation-based static analyzers are most widely
+used to determine non-functional software quality properties [23, 22]. On the
+one hand that includes source code properties, such as compliance to coding
+guidelines, compliance to software architectural requirements, as well as absence
+of runtime errors and data races [34]. On the other hand also low-level code
+properties are covered, such as absence of stack overflows and violation of timing
+constraints [24, 25].
+
+Violations of non-functional software quality requirements often either di-
+rectly represent safety hazards and cybersecurity vulnerabilities in safety- or
+security-relevant code, or they can indirectly trigger them. Corresponding veri-
+fication obligations can be found in all current safety and security norms, such
+as DO-178C [48], IEC-61508 [15], ISO-26262 [17], and EN-50128 [6].
+
+Many formal verification tools, including abstract interpretation-based static
+analyzers, originate from academic research projects. However, the transition
+from academia into industry is far from straightforward. In this article we will
+give an overview of our experience in development and commercialization of two
+
+
+2
+
+D. Kästner et al.
+
+industry-strength sound analyzers, aiT WCET analyzer and Astrée. We will dis-
+cuss the lessons learned, and present recommendations to improve dissemination
+and acceptance in industrial practice.
+
+2 Sound Worst-Case Execution Time Analysis
+
+Time-critical embedded systems have deadlines derived from the physical envi-
+ronment. They need assurance that their execution time does not exceed these
+deadlines. Essential input response-time analysis are the safe upper bounds
+of all execution times of tasks to be executed on the same execution platform.
+These are commonly called Worst-case Execution times, WCET. The WCET-
+analysis problem had a solution for architectures with constant execution times
+for instructions, so-called Timing Schemata [54]. These described how WCETs
+could be computed by structural induction over programs. However, in the 1990s
+industry started using microprocessors employing performance-enhancing archi-
+ural features such as caches, pipelines, and speculation.
+These based on timing schemata obsolete. The execution-time
+of an instruction now depended on the execution state in which the instruction
+were executed. The variability of execution times grew with several architectural
+parameters, e.g. the cache-miss penalty and the costs for pipeline stalls and for
+control-flow mis-predictions.
+
+2.1 Our View of and our Solution to the WCET-Analysis Problem
+
+We developed the following view of the WCET-analysis problem for architec-
+tures with state-dependent execution times: Any architectural effect that lets an
+instruction execute longer than its fastest execution time is a Timing Accident.
+Some of such timing accidents are cache misses, pipeline stalls, bus-access con-
+flicts, and branch mis-predictions. Each such timing accident has to be paid for,
+in terms of execution-time cycles, by an associated Timing Penalty. The size of a
+timing penalty can be constant, but may also depend on the execution state. We
+consider the property that an instruction in the program will not cause a par-
+ticular timing accident as a safety property. The occurrence of a timing accident
+thus violates a corresponding safety property.
+
+The essence of our WCET-analysis method then consists in the attempt to
+verify for each instruction in the program as many safety properties as possible,
+namely that some of the potential timing accidents will never happen. The proof
+of such safety properties reduces the worst-case execution-time bound for the
+instruction by the penalties for the excluded timing accidents. This so-called
+Microarchitectural Analysis, embedded within a complex tool architecture, is
+the central innovation that made our WCET analysis work and scale. We use
+Abstract Interpretation to compute certain invariants at each program point,
+namely an upper approximation of the set of execution states that are possible
+when execution reaches this program point and then derive safety properties,
+that certain timing accidents will not happen, from these invariants.
+
+
+Abstract Interpretation in Industry – Experience and Lessons Learned
+
+3
+
+2.2 The Development of our WCET-Analysis Technique
+
+We started with a classifying cache analysis [1, 12], an attempts to
+classify memory accesses in programs as either always hitting or always missing
+the caches, i.e. instruction and data caches. Our Must analysis, used to identify
+cache hits, computes an under-approximation of the set of cache states that may
+occur when execution reaches a program point. Our May analysis determines
+an over-approximation of this set of cache states. Both can be represented by
+compact, efficiently updatable abstract cache states. At the start of the devel-
+opment, the caches we, and everybody else, considered used LRU replacement.
+This made our life easy, but application to real-life processors difficult since the
+hardware logic for implementing LRU replacement is expensive, and therefore
+LRU replacement is rarely used in real-life processors.
+
+Involved in the European project Daedalus with Airbus we were confronted
+with two processors using very different cache-replacement strategies. The first
+processor, flying the Airbus A340 plane, was a Motorola Coldfire processor which
+used a cheap emulation of a random-replacement cache. The second projected
+to fly the A380 plane was a Motorola PowerPC 755. It used a Pseudo-LRU re-
+placement strategy. We noticed that our cache analysis for the Coldfire processor
+could only track the last loads into the cache, and that our cache analysis for
+the PowerPC 755 could only track 4 out of the 8 ways in each cache set. This
+inspired us to very fruitful research about Timing Predictability [60] and in par-
+ticular to the first formal notion of timing predictability, namely that for caches
+[50].
+
+Next Stephan Thesing developed our pipeline analysis [39]. Unfortunately,
+pipelines in real-life processors do not admit compact abstract pipeline states.
+Therefore, expensive powerset domains are used. The pipeline analysis turned
+out to be the most expensive part of the WCET analysis. A basic block could
+easily generate a million pipeline states and correspondingly many transitions for
+analysis. There was a tempting idea to follow only local worst-case transitions
+and ignore all others. However, real-life processors exhibit Timing Anomalies
+[51]. These entail that a local non-worst-case may contribute to a global worst
+case.
+
+In the

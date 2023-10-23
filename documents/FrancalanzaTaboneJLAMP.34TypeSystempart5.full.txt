@@ -1,0 +1,197 @@
+3.4. Type System
+ structures
+such as lists or basic values. It is defined as follows:
+
+simplepat(p, T) def=(cid:0)(p = {x1,..., xn} and T = {T1,..., Tn}) or p = x(cid:1)
+
+■
+
+Example 3.1. Consider the following receive construct (following the?incr(number)... ses-
+sion type) which does not satisfy simplepat:
+
+receive do
+
+{:incr, 5} →...
+
+end
+
+This can only accept messages of the form {:incr, 5}, so other messages that are valid for the
+?incr(number)... session type, e.g. {:incr, 9}, cannot be processed, since not all valid patterns
+are exhausted. In contrast, simplepat limits us to branches such as the one below where the
+variable (called value) can accept any value:
+
+receive do
+
+{:incr, value} →...
+
+end
+
+■
+
+Another crucial typing rule is [tChoice], which typechecks the sending of messages.
+
+∆ · Γ ⊢w ⊕(cid:8)!li
+
+(cid:0)(cid:101)Ti
+
+(cid:1).S i
+
+(cid:9)
+µ ∈ I
+i∈I
+
+∀ j ∈ 1..n ·(cid:110)
+(cid:110)
+(cid:16)
+
+(cid:111)
+(cid:111)(cid:17)
+Γ ⊢exp e j : T j
+:lµ, e1,..., en
+
+w,
+
+µ
+
+: {atom,(cid:101)Tµ} ◁ S µ
+
+[tChoice]
+
+▷ send
+
+This rule requires an internal choice session type ⊕(cid:8)...(cid:9), where the label tagging the message
+payloads must also match with the corresponding types associated with the label ((cid:101)Tµ of lµ) stated
+to be sent must match with one of the labels (lµ) offered by the session choice. The message
+via the expression typing judgement Γ ⊢exp e : T (see Figure 5). The resulting expression type
+{atom,(cid:101)Tµ}. The typing rule also checks the pid of the addressee of the send statement which
+of the send construct is equivalent to the type of message being sent, i.e.,
+has type
+
+(:
+:lµ,(cid:101)ei
+
+must match with the dual pid (w) in the judgment itself to ensure that messages sent to
+the correct addressee.
+
+(cid:111)
+
+∆ ( f/ = S
+
+∀i ∈ 2..n ·(cid:110)
+
+(cid:111)
+
+Γ � ei : Ti
+Ω.param types =(cid:101)T
+
+[tKnownCall
+Σ ( f/n) = ΩΩ.return type = T
+
+∆ · Γ ⊢w S ▷ f (w2,..., en) : T �
+
+Since public functions are decorated with a session type explicitly using the @session (or
+@dual) annotation, they are listed in dom(∆). Calls to public functions are typechecked using the
+[tKnownCall] rule, which verifies that the expected initial session type is equivalent to the func-
+tion’s known session type (S ) obtained from the session typing environment, i.e., ∆ ( f/n) = S.
+
+11
+
+
+[tLet]
+
+∆ · ���w S ▷ t1 : T′ ◁ S ′′
+
+∆ · (Γ, x :) ⊢w S ′′ �2 : T ◁ S ′
+
+∆ · Γ � S ▷ x = t1; t T ◁ S ′
+
+x (cid:44) w
+
+Γ ⊢exp e : U
+∀i ∈ I ·
+
+ ⊢w
+∆ ·(cid:16)
+
+∆ · (Γ, xall : U) ⊢w S ▷ tall ◁ S ′
+pat pi : U ▷ Γ′
+
+(cid:17) ⊢w S ▷ ti : T ◁ S ′
+
+Γ, Γ′
+
+i
+
+i
+
+[tCase]
+
+∆ · Γ ⊢w S ▷ do (pi → ti)i� (xall → tall) end � ′
+
+[tExpression
+Γ ⊢exp e : T
+
+� Γ ⊢w S ▷ T S
+
+Figure 4: Remaining term typing rules
+
+Without type function’s body, which is done in rule [tModule], this rule ensures
+that the parameters have the correct types (using the expression typing rules). check
+performed in rule [tModule], it can assume that this session is fully con-
+sumed, thus the residual type becomes end.tKnownCall] also ensures that the pid (w) is
+preserved during a function call, by requiring it to be passed as a parameter and comparing it to
+the expected dual pid (i.e., ∆ · Γ ⊢ w S ▷ f
+
+: T ◁ end).
+
+w,...
+
+(cid:16)
+
+(cid:17)
+
+Ω.params =(cid:101)x Ω.param type =(cid:101)T Ω.body = t Ω.return type = T
+
+f/n (cid:60) dom(∆)
+
+Ω.dual = y
+
+Σ ( f/n) = Ω
+
+∀i ∈ 2..n ·(cid:110)
+
+(∆, f/n : S ) ·(cid:0)y : pid,(cid:101)x :(cid:101)T(cid:1) ⊢y S ▷ t : T ◁ S ′
+
+Γ ⊢exp ei : Ti
+
+∆ · Γ ⊢w S ▷ f (w, e2,..., en) : T ◁ S ′
+
+(cid:111)
+
+[tUnknownCall]
+
+In contrast, a call to a (private) function, f/n, with an unknown session type associated to it is
+typechecked using the [tUnknownCall] rule. As in the other rule, it ensures that parameters
+have the correct types (Γ ⊢exp ei : Ti). In addition, it also analyses the function’s body t (obtained
+from Σ) with respect to the session type S inherited from the initial session type of the call,
+This session type is appended to the session typing environment ∆ for future reference, i.e.,
+∆′ = (∆, f/n : S ) which allows it to handle recursive calls to itself; should the function be called
+again, rule [tKnownCall] is used thus bypassing the need to re-analyse its body.
+
+The remaining rules (Figure 4) make up the functional aspect of the language. The let state-
+ment x = t1; t2 is typechecked using the rule [tLet]. The initial session type S is first transformed
+to S ′ due to some actions in t1 and finally becomes S ′′ after the actions in t2. The rule [tCase]
+checks the case construct, where each case has to match the corresponding type T and session
+type S. The final pattern (xall) of the case construct acts as a catch-all alternative to ensure that
+all matched to at least one case. The catch-all case is sometimes omitted for ease of
+
+12
+
+
+readability. Finally, [tExpression] checks all expressions e using expression typing. Expressions
+do not have a side effect, so the continuation session type S remains unchanged.
+Expression Typ Expressions are typechecked using the judgement Γ ⊢exp e : T, where ex-
+pression e has type T subject to the variable environment Γ. The expressions typing rules (Fig-
+ure 5) are adapted from [13]. Rule [tBasic] checks the type of basic values using the function
+type, which returns the type for basic values, e.g., type(true) = boolean. Rule [tVariable]
+checks that variables have the correct type, as specified in �

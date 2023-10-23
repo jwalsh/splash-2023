@@ -1,0 +1,3 @@
+
+
+This section discusses a motivating example of a simple counter system written in Elixir. It explains the server and client functions, as well as the protocol that the server and client must follow. It also introduces the concept of session types, which are used to provide a high-level specification of how a public function should be interacted with, and to typecheck the function implementations against the protocol. An example of a problematic client implementation is given, which violates the counter protocol.

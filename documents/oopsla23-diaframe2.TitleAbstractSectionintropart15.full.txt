@@ -1,0 +1,109 @@
+Title-Abstract. Section intro
+. Since the atomic update ⟨. ℓ ↦→  | . ℓ ↦→ ( + 1) ⇛ ⟩ E
+is in our context, Diaframe 1.0 will use au-access-diaframe to obtain temporary ownership of
+ℓ ↦→ . After symbolic execution, we receive back a possibly changed ℓ ↦→  ′, and the remaining
+‘closing resource’ of shape (∀. ∨ −∗ |⇛∅
+E ). Diaframe notices it can use this closing resource
+to restore the mask, so the goal becomes (note that  is bound in ):
+
+Δ ⊢ |⇛∅
+
+∅ ∃ .(cid:0)( ∗ ⌜ = None⌝) ∨ (∃.  ∗ ⌜ = Some  ⌝)(cid:1) ∗ .
+
+The iSmash tactic uses backtracking to pick the correct side of this disjunction—i.e., to decide if the
+linearization point should be deferred or committed. We can also use the non-backtracking tactic
+iStepsS and pick the correct disjunct interactively with the Iris tactics iLeft/iRight.
+
+Functions. There are two cases for functions. Item 3b handles the situation in which the function
+is recursive and generates a Löb induction hypothesis. Item 3a is a specialized version that handles
+the case where there actual recursion. Omitting this specialized version would work, but
+would cause Item 3b to generate useless induction hypotheses that in turn increase the search space
+in Item 2c, and thus slow down the automation. Omitting Item 3a would also make the goal less
+readable if the user help out with an interactive proof.
+
+Why these rules? The above rules constitute a strategy that can prove logical atomicity of
+‘simple’ examples (Design goal #1). We have demonstrated this on the example in Fig. 5, and show a
+number of other simple examples in §5. To ensure good integration with interactive proofs (Design
+goal #2), we once again minimize the use of backtracking. Backtracking is only needed in Item 6 to
+identify the linearization point, just like for reﬁnements. The proof automation is modular (Design
+goal #3): Items 4 and 6 are part of the core automation module, Items 1 to 3 are part of the weakest
+precondition module, while Item 5 comes in a separate module for proving atomic updates. Similar
+to our automation for reﬁnements, we achieve foundational proofs (Design goal #4) by mechanizing
+that all rules used in our proof strategy can be derived from Iris’s primitive rules.
+
+4 IMPLEMENTATION AS EXTENSIBLE PROOF STRATEGY
+
+In § 2 and 3 we have seen descriptions of our proof search strategies for contextual reﬁnement and
+logical atomicity, respectively. This section discusses their implementation; speciﬁcally, how they
+ﬁt in the extensible proof automation strategy that underpins Diaframe 2.0.
+
+Proof search strategies operate on Iris entailments Δ ⊢ , where (in our cases)  is a reﬁnement
+judgment, later or persistence modality (§2), a weakest precondition, or an atomic update (§3). As
+we will see in §4.5, rules of these strategies cannot be represented by the automation of Diaframe 1.0.
+However, our insight is that each rule in such a strategy falls into one of the following categories:
+
+(1) Rules of the form Δ ⊢  ′ =⇒ (Δ ⊢ ), and  ′ ⊢  is provable.
+(2) Rules of the form Δ \  ⊢  ′ =⇒ (Δ ⊢ ) for some  ∈ Δ, and  ∗  ′ ⊢  is provable.
+
+3This transformation is sound since both sides of the ∧ fancy update |⇛∅
+
+E with the same mask.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA1, Article 91. Publication date: April 2023.
+
+
+Proof Automation for Linearizability in Separation Logic
+
+91:19
+
+(3) Rules of the form (Δ′ ⊢  ′) =⇒ (Δ ⊢ ), where Δ′ and  ′ can be calculated from Δ and 
+
+by just inspecting their head symbols (i.e., modalities).
+
+(4) Rules of the form (Δ ⊢  ′) =⇒ (Δ ⊢ ), where  ′ mentions the entire context Δ.
+
+We repeat a select number of cases of the proof search strategy in § 2 and 3 to make this apparent:
+
+(1) If  = wp  {Φ} and  is a value , continue with Δ ⊢ |⇛⊤ ⊤ Φ .
+(2) If  = ⟨®.  | .  ⇛ Φ⟩ E, check if  ∈ Δ. If so, we can continue with Δ \  ⊢ True
+(3) If  = (cid:31)  ′, and all hypotheses in Δ are persistent, continue with Δ ⊢  ′. Note that the
+
+entailment  ′ ⊢ (cid:31)  ′ does not hold. This rule is only valid because of the condition on Δ.
+
+(4) If  = ⟨®.  | .  ⇛ Φ⟩ E, and the above Rule 2 is not applicable, apply au-intro. The new
+
+goal has shape Δ ⊢
+the right-hand-side of the turnstile, so this rule falls outside the ﬁrst two categories.
+
+E Δ) ∧ (∀.  −∗
+
+|⇛?E′
+
+?E′
+
+|⇛E
+
+|⇛?E′
+
+E )(cid:1). The Δ occurs on
+
+∃®.  ∗(cid:0)( −∗
+
+We describe a generic proof strategy based on this insight, that can be extended to support new
+goals (§4.5). We have implemented this proof strategy in Ltac [Delahaye 2000]. Support for new
+goals and proof rules can be added by providing appropriate hints (registered as type class instances
+q [Sozeau and Oury 2008]), corresponding to Category 1 to 4. Rules of Category 1 and 2 ﬁt
+into our abduction hints (§ 4.1 and 4.2), while rules of Category 3 and 4 ﬁt into our transformer hints
+(§4.3). A combination of abduction hints and transformer hints (§4.4) can be used to implement
+composite procedures suchöb induction.
+
+4.1 Abduction Hints
+
+This section deﬁnes abduction hints to capture rules in Category 1 and 2:
+
+ ∗ [ ′] (cid:25)  ≜   ′ ⊢ 
+
+Here, we give some hypothesis  ∈ Δ and current goal  as input to type class search, and receive
+the new goal  ′ as an output, indicated by the square brackets. Given some  and , we want to
+�nd a ‘good’ new goal  ′—which might not exist. If a good  ′ cannot be found, we start the search
+again for a diﬀerent

@@ -1,0 +1,28 @@
+Title-Abstract. Section intro
+.
+
+In this section, we give a description of our proof strategy that can handle these challenges. The
+strategy operates on goals Δ ⊢ , where the grammar of  is given by:
+
+ ::= |=E 1 ≾ 2 :  | ⊲  | (cid:31)  |
+
+|⇛E1
+
+E2 ∃®.  ∗ .
+
+( are ‘easy’ goals like ℓ ↦→ , described in §4.5). If  is of one of the ﬁrst three shapes, the strategy
+either provides a rule to apply, or stops. If  has the last shape, we reuse the existing automation of
+Diaframe 1.0 [Mulder et al. 2022] to handle invariants, which operates on precisely these goals.
+
+Our proof strategy is the result of restating the original rules of ReLoC (Fig. 3) so that they can
+be applied systematically. Our new rules can be found in Fig. 4. We have veriﬁed in Coq that these
+rules can be derived from the existing rules of ReLoC and Iris. Rule exec-l generalizes symbolic
+execution rules like load-l over the expression 1, where ∀®. {} 1 { } is a Hoare triple for 1. In
+Coq, ∀®. {} 1 { } is represented by a type class, so that given an expression 1, the precondition
+ and postcondition  can be found automatically. Rule exec-r is similar, but uses Hoare triples
+∀®. {} 2 { }s for the right-hand side. Finally, val-z and val-fun keep the fancy update around
+and have been generalized to all masks E so that the strategy can postpone closing invariants.
+
+We can now give our proof search strategy for reﬁnement judgments. Suppose the goal is
+Δ ⊢ |=E 1 ≾ 2 : . We proceed by case distinction on both 1 and 2, and try the following rules in
+order (omitting some cases, e.g., those related to pure reductions and
