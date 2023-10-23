@@ -27,20 +27,8 @@ endif
 .PHONY: all setup check test static_analysis offline run 
 
 # Show available targets with descriptions 
-help:
-	@echo "Usage: make [target]"
-	@echo "Available Targets:"
-	@echo "  all               - Perform all actions: setup, check, test, static_analysis, offline, run"
-	@echo "  setup             - Install build dependencies"
-	@echo "  check             - Verify the project's integrity"
-	@echo "  test              - Execute project's tests"
-	@echo "  static_analysis   - Run static analysis on source code"
-	@echo "  offline           - Prepare application for offline use"
-	@echo "  run               - Start the application"
-	@echo "  psql              - Perform PostgreSQL operations"
-	@echo "  clean             - Remove any build artifacts"
-	@echo "  deploy            - Deploy application"
-	@echo "  help              - Display this help message"
+help: # This is generated dynamically based on the previous line 
+	awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # Composite target that triggers all other targets 
 all: setup check test static_analysis offline run 
@@ -52,6 +40,11 @@ ifdef BUILD_REQ_PKGS
 else
 	@echo "No dependencies to install or already installed"
 endif
+
+# For the install of dependencies 
+deps:
+	brew install $(BUILD_REQ_PKGS)
+	brew install borkdude/brew/clj-kondo
 
 # Validate the project's structure and correctness
 check:
@@ -104,8 +97,15 @@ room-iii:
 # Room IV
 room-iv:
 	$(BB) --classpath $(CLASSPATH) --main cljs.main -re room-iv
-	
+
 # Room XV
 room-xv: 
 	poetry run python summarize_video.py https://www.youtube.com/watch\?v\=e0V9-8unJbg
-	# $(BB) --classpath $(CLASSPATH) --main cljs.main -re room-xv
+
+.PHONY: run-scripts
+run-scripts:
+	@echo "Running scripts..."
+	clojure -M -m scripts.download_html
+	clojure -M -m scripts.read_ics
+	clojure -M -m scripts.gh_repo_create
+	clojure -M -m scripts.clone_repos
