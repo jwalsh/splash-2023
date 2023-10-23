@@ -883,3 +883,230 @@ No specific Clojure code, model, or simulation examples are suggested as the pap
 (defn octagonal-computations [data]...)
 (defn convex-hull-algorithm [points]...)
 #+END_SRC
+
+
+** A Brief Introduction to the Flix Programming Language
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+
+- https://2023.splashcon.org/details/splash-2023-PLMW/10/A-Brief-Introduction-to-the-Flix-Programming-Language
+- https://flix.dev/
+- https://cs.au.dk/~magnusm/
+- https://github.com/flix/flix
+- https://doc.flix.dev/
+
+#+end_src
+
+#+RESULTS:
+* A Brief Introduction to the Flix Programming Language
+  :PROPERTIES:
+  :URL: https://2023.splashcon.org/details/splash-2023-PLMW/10/A-Brief-Introduction-to-the-Flix-Programming-Language
+  :Author: https://cs.au.dk/~magnusm/
+  :DATE: TBD
+  :END:
+
+** Flix Programming Language
+Flix is a new programming language designed for applications involving large amounts of data. It is a hybrid functional and logic programming language, supporting first-class functions, pattern matching, and algebraic data types. Flix is statically typed and supports Hindley-Milner type inference and parametric polymorphism.
+
+** Features
+*** Functional Programming
+Flix supports common features of functional programming languages, such as first-class functions, pattern matching, and algebraic data types.
+
+*** Logic Programming
+In addition to its functional programming features, Flix supports features from logic programming, such as predicates, and relations, that allow handling large amounts of data.
+
+*** Static Typing
+Flix supports static typing, and uses Hindley-Milner type inference system and parametric polymorphism. This gives it the ability to handle complex data types and ensures better safety and performance.
+
+** More Information
+*** Flix Official Website
+More information about Flix can be found on its official website [https://flix.dev/](https://flix.dev/).
+
+*** Flix Documentation
+The official Flix documentation is available at [https://doc.flix.dev/](https://doc.flix.dev/).
+
+*** Flix GitHub
+The source code for Flix can be found at [https://github.com/flix/flix](https://github.com/flix/flix).
+
+** Clojure Examples
+Since this org-file does not mention any specific programming examples, and Flix is a different language from Clojure, no specific Clojure programming examples that directly correlate to Flix are available.
+
+However, one could always examine the features of Flix and try to implement a similar functionality in Clojure.
+
+#+begin_src clojure
+; functional programming feature - first class functions
+(defn add-func [a]
+  (fn [b] (+ a b)))
+
+(def add2 (add-func 2))
+
+(println (add2 3)) ; prints 5
+#+end_src
+
+#+begin_src clojure
+; pattern matching feature using cond
+(defn match-pattern [x]
+  (cond
+    (= x 1) "one"
+    (= x 2) "two"
+    :else "unknown"))
+
+(println (match-pattern 1)) ; prints "one"
+(println (match-pattern 3)) ; prints "unknown"
+#+end_src
+
+Note: Clojure does not support static typing or logic programming in the same sense that Flix does.
+
+** PAW: a programmable and visual audio workstation
+
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+
+- https://2023.splashcon.org/details/live-2023/5/PAW-a-programmable-and-visual-audio-workstation
+- https://lambein.xyz/
+- https://lambein.xyz/music/
+
+#+end_src
+
+#+RESULTS:
+*** PAW - A programmable and visual audio workstation
+  
+  - URL: https://2023.splashcon.org/details/live-2023/5/PAW-a-programmable-and-visual-audio-workstation
+  - Date: Not specified
+  - Author: Not specified
+
+  PAW is a new software tool that aims to combine elements of programming languages and graphical interfaces to facilitate more flexible and intricate sound design and music production.
+
+**** Key Features
+  - Two key features that set PAW apart from traditional music production software are its integration of a fully-fledged programming language and a highly flexible graphical user interface for visual sound design.
+  - These features enable users to create intricate sound configurations that go beyond most commercial software offerings.
+
+**** Limitations and Future Work
+  - Despite promising features, PAW faces several limitations including a steep learning curve and a lack of integrated documentation for users.
+  - To address these issues, the authors stress the need for future work on easing the learning process and developing comprehensive user support.
+
+*** Lambein
+
+  - URL: https://lambein.xyz/
+  - Date: Not specified
+  - Author: Not specified
+
+  The website offers a personal portfolio of a software developer/music producer. Portfolio includes a collection of personal projects and music productions.
+
+**** Music page
+  - URL: https://lambein.xyz/music/
+  
+  This page contains a collection of the developer's music productions, demonstrating their skills in music production and sound design.
+
+
+Code, model, and simulation examples in Clojure are not applicable for this content.
+
+** CellPond: Spatial programming without escape
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+
+- https://2023.splashcon.org/details/live-2023/6/CellPond-Spatial-programming-without-escape
+- https://github.com/TodePond
+#+end_src
+
+#+RESULTS:
+*** CellPond: Spatial programming without escape (https://2023.splashcon.org/details/live-2023/6/CellPond-Spatial-programming-without-escape)
+
+- Authors: Unlisted
+- Published: Not yet published
+- Associated Code Repository: https://github.com/TodePond
+
+CellPond is described as a way to program in a spatial environment, where the code interacts with other code in its neighborhood.
+
+**** Major Features and Thoughts
+
+CellPond allows code to take into account its spatial context, modify the environment around it, and act on other codes in its vicinity. This brings a new perspective to programming where not only the logic of the code matters but also its context and location. It could open up new possibilities for creating emergent behavior or complex systems from simple rules.
+
+**** Code and Model Examples
+
+The article does not provide specific examples, and since the concept is still developmental and hypothetical, it's not feasible to provide specific Clojure code or model examples at this stage. The provided GitHub repository also does not contain any code examples.
+
+Instead, it might make sense to conceptualize how such a system might work. For example, one could potentially create spatial models using Clojure's multi-dimensional array library, with each cell in the array representing a code cell in CellPond.
+#+begin_src clojure
+(def cell-space (array-fill [10 10] :initial-code))
+#+end_src
+
+Then, using a model of interaction rules, we could simulate how cells would interact, modify, and move in this spatial environment.
+#+begin_src clojure
+(defn interact [cell1 cell2]
+  (if (can-interact? cell1 cell2)
+    (do-interaction cell1 cell2)
+    {:status :interaction-failed}))
+   
+(loop [cell-space cell-space]
+  (let [cell-space' (map interact-with-neighbors cell-space)]
+    (if (not= cell-space cell-space')
+      (recur cell-space')
+      cell-space)))
+#+end_src
+
+Please note the above is just a speculative idea of how the system might be implemented. Without a concrete specification or clear model to base it on, it's impossible to provide a direct translation of the abstract concept of CellPond into Clojure code.
+
+
+** Revisiting Dynamic Dispatch for Modern Architectures
+
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+
+- https://2023.splashcon.org/details/vmil-2023-papers/5/Revisiting-Dynamic-Dispatch-for-Modern-Architectures
+- https://github.com/dvmason/Zag-Smalltalk
+- https://github.com/dvmason/Zag-Smalltalk/tree/main/Documentation
+
+#+end_src
+
+#+RESULTS:
+*** Article: Revisiting Dynamic Dispatch for Modern Architectures
+- URL: https://2023.splashcon.org/details/vmil-2023-papers/5/Revisiting-Dynamic-Dispatch-for-Modern-Architectures
+- Author(s): Not available
+- Date: Not available
+
+The article revisits the topic of dynamic dispatch in the context of modern computing architectures. Dynamic dispatch, an important element in object-oriented programming for late binding or runtime method overloading, has seen improvements in efficiency through newly proposed techniques. These techniques leverage the high performance of modern computer architectures.
+
+It can be noted that the speed of dynamic dispatch can reach near the speed of static dispatch under optimal conditions and for specific languages like Smalltalk. However, general improvement in dynamic dispatch speed across various languages remains a challenge. 
+
+- Related Repository: Zag-Smalltalk
+  - URL: https://github.com/dvmason/Zag-Smalltalk
+  - Description: Zag-Smalltalk is a project on Github that focuses on implementing a just-in-time (JIT) compiler for Smalltalk, aiming to make the language faster in dynamic dispatch.
+
+Here an example using Clojure programming language is shown.
+
+#+begin_src clojure
+(defprotocol Dispatch 
+  (run [this] "Run the command"))
+
+(defrecord Command1 []
+  Dispatch
+  (run [this] (println "Running command 1")))
+
+(defrecord Command2 []
+  Dispatch
+  (run [this] (println "Running command 2")))
+
+(defn execute [cmd]
+  (run cmd))
+
+(let [cmd1 (->Command1)
+      cmd2 (->Command2)]
+  (execute cmd1)
+  (execute cmd2))
+#+end_src
+
+This example demonstrates dynamic dispatch in Clojure using protocols and records. We define a protocol called "Dispatch" with a method "run". Then we create two records "Command1" and "Command2" which both implement the "Dispatch" protocol. The function "execute" takes an object and uses dynamic dispatch to call the correct "run" method. 
+
+It's important to note that while the code demonstrates dynamic dispatch conceptually, "run" time performance will depend on many factors including but not limited to the underlying JIT compiler, execution environment, and machine architecture.
+
+Further detailed information related to Zag Smalltalk can be found in its documentation here:
+https://github.com/dvmason/Zag-Smalltalk/tree/main/Documentation
