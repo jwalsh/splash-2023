@@ -646,3 +646,170 @@ Clojure, being a functional language, can be used for similar on-demand analysis
 #+END_SRC
 In this example, the `on-demand-analysis` takes two inputs: the program (represented as a collection of parts) and a query. It filters the relevant parts of the program using the query and then applies the `analyze` function on each part. This 'analyze' function is a placeholder for any analysis operations. Clojure's laziness property ensures that the analysis will only be "on-demand", i.e., it will only run when the result is actually needed.
 
+
+** Behavioural up/down casting for statically typed languages
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+
+- https://2023.splashcon.org/details/st-anniversary-30-papers/17/Behavioural-up-down-casting-for-statically-typed-languages
+
+#+end_src
+
+#+RESULTS:
+
+- URL: https://2023.splashcon.org/details/st-anniversary-30-papers/17/Behavioural-up-down-casting-for-statically-typed-languages
+- Author: Not given
+- Date: Not given
+
+*** Abstract:
+The paper discusses an approach called behavioral upcasting and downcasting to static type checking. The aim is to refine, by dynamic checks, the static type information of values, looking at their behavior rather than their structure. In simple terms, it allows you to have different variables interpret the same value differently based on their expected behavior, not just the form of data.
+
+*** Introduction 
+In statically typed languages, type-related casts, like upcasts and downcasts, operate based on structure. However, the approach discussed in this paper uses behavioral upcasting and downcasting that refines static type information through enhanced dynamic checks. The intent is to create improved flexibility without compromising static type safety.
+
+*** Key Takeaways:
+- This approach allows to mix objects that do not share a common superclass but share some methods.
+- It can help preventing the long standing problem of cross class casting.
+- This has been tested on both Java and OCaml languages.
+
+** Suggested Model/Simulation in Clojure:
+Although the article primarily addresses concepts used in statically typed languages like Java and OCaml, similar concepts could theoretically be applied to Clojure, which is dynamically typed. Here's an example illustrating how we might explore the concept of upcasting and downcasting in Clojure:
+
+#+begin_src clojure
+(defn dynamic-typecheck [val]
+ (cond
+   (string? val) (println "This is a string: " val)
+   (integer? val) (println "This is an integer: " val)
+   :else (println "This is something else: " val)))
+
+(dynamic-typecheck "hello")  ;; prints "This is a string: hello"
+(dynamic-typecheck 10)       ;; prints "This is an integer: 10"
+(dynamic-typecheck 10.5)     ;; prints "This is something else: 10.5"
+#+end_src
+
+In the example above, the function 'dynamic-typecheck' essentially performs a type-check dynamically and behaves accordingly. In Clojure, we don't have static types, so this function effectively demonstrates how you might conceptually upcast or downcast types based on their behavior or values when dealing with different types of arguments.
+
+** GPCE Tutorial - Compile-time generative programming for OCaml: flexible, safe and efficient
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+
+- https://2023.splashcon.org/details/gpce-2023-papers/13/GPCE-Tutorial-Compile-time-generative-programming-for-OCaml-flexible-safe-and-eff
+- https://www.cl.cam.ac.uk/~jdy22/
+- https://www.cl.cam.ac.uk/~jdy22/projects/modular-macros/
+
+#+end_src
+
+#+RESULTS:
+
+- URL: https://2023.splashcon.org/details/gpce-2023-papers/13/GPCE-Tutorial-Compile-time-generative-programming-for-OCaml-flexible-safe-and-eff
+- Date: To be published in 2023
+- Author: Jeremy Yallop, from the University of Cambridge Computer Laboratory. Additional information about the author can be found at https://www.cl.cam.ac.uk/~jdy22/ and about the project at https://www.cl.cam.ac.uk/~jdy22/projects/modular-macros/
+
+*** Summary
+
+This upcoming tutorial aims to share compile-time generative programming for OCaml. The goal is to make code more flexible, safer, and efficient. The tutorial will introduce uses of generative programming for OCaml, and elaborate on how to use compile-time code generation to refactor the program into smaller, reusable parts. Despite being about OCaml programming, the principles introduced could potentially be generalized to other programming paradigms.
+
+- Note: As the tutorial paper has not been published yet, additional summaries and Clojure examples would be made based on the actual content of the tutorial in 2023.
+
+*** Tutorial
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Create a tutorial for GPCE Tutorial - Compile-time generative programming for OCaml: flexible, safe and efficient
+MacoCaml is a new design and implementation of compile-time computation for OCaml that features a novel combination of phase separation and quotation-based staging. Together with OCaml’s existing facilities — sophisticated data types, algebraic effects, a rich module language — these features provide a flexible and expressive system for generative programming.
+
+This interactive tutorial illustrates the development of a generative program using MacoCaml, and outlines how the key meta-theoretical properties of type soundness and phase distinction offer practical benefits for programmers.
+
+Make this a two week course that covers `showenv`, `outlist`, `showty`. 
+
+Provide code for Generative Programming with GADTs
+
+#+end_src
+
+#+RESULTS:
+
+
+**** Week 1:
+- Introduction & Basics
+- Meta-theoretical properties: type soundness and phase distinction
+- Macros in OCaml: ~macolet~ and ~macodef~
+
+**** Week 2:
+- Interacting with the environment
+- The ~showenv~ utility
+- Outputs and lists with ~outlist~
+- Type checks with ~showty~
+- Generative Programming with GADTs
+
+*** Week 1
+
+**** Day 1: Introduction & Basics
+
+Before jumping into MacoCaml and its syntax, it's important to grasp the basics of OCaml— a general-purpose, powerful language with a strong emphasis on expressiveness and safety. 
+
+a. Introduction to OCaml
+b. Basic data types 
+c. Basic Constructs in OCaml
+
+**** Day 2-3: Meta-theoretical properties: type soundness and phase distinction
+
+a. Starting with the mathematical properties of type soundness and phase distinction
+b. Exploring the concepts in MacoCaml, a dialect of OCaml designed for generative programming
+   
+**** Day 3-4: Macros in OCaml: ~macolet~ and ~macodef~
+
+a. Understanding OCaml Macros
+b. Creating and using ~macolet~: a construct for binding a name to a compile-time expression
+c. Creating and using ~macodef~: a construct for defining more complex macros
+
+*** Week 2
+
+**** Day 1-2: Interacting with the environment
+
+a. Understanding phase preservation and how to interact with the environment
+b. Use macros to communicate with the environment and process input data
+
+**** Day 3: The ~showenv~ utility
+
+a. Demonstration of ~showenv~: a utility to manipulate and display the compile-time environment
+b. Exercises on ~showenv~
+
+**** Day 4: Outputs and lists with ~outlist~
+
+a. Understanding the ~outlist~ function and its use in producing lists of output values
+b. Exercises on ~outlist~
+
+**** Day 5: Type checks with ~showty~
+
+a. Introduction to ~showty~: a tool to check and display types at compile-time
+b. Exercises on ~showty~
+
+**** Day 6-7: Generative Programming with GADTs
+
+a. Introducing Generative Abstract Data Types (GADTs)
+b. Building and manipulating GADTs
+c. Implementing Generative Programming with them
+
+After completion of this course, users will have a practical understanding of generative programming in OCaml using MacoCaml, enabling them to optimise their programming skills in this language further. 
+
+*** Course Setup
+
+Software: OCaml & MacoCaml
+
+**** Course Requirements
+
+Fundamentals of Programming and Basic understanding of OCaml.
+
+**** Course materials
+
+1. Code snippets
+2. Reading materials
+3. Assignments
+4. Quizzes and tests
+5. Solution documents
+
+This course offers a hands-on approach to learning, reinforced with assignments and quizzes to test students' understanding and command of the subject matter. At the end of the two weeks, learners should be able to apply MacoCaml in practical scenarios, optimize code, and have a solid understanding of generative programming.
