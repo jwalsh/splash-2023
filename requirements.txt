@@ -1,0 +1,4 @@
+pdfminer
+html2text
+tiktoken
+openai
