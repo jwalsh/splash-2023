@@ -84,3 +84,28 @@ clean:
 # Deploy the project to Clojars repository
 deploy:
 	lein deploy clojars
+
+# Get all vidoes and summarize
+summarize-videos:
+	$(BB) --classpath $(CLASSPATH) --main cljs.main -re summarize-videos
+
+# Room I
+room-i:
+	$(BB) --classpath $(CLASSPATH) --main cljs.main -re room-i
+
+# Room II
+room-ii:
+	$(BB) --classpath $(CLASSPATH) --main cljs.main -re room-ii
+
+# Room III
+room-iii:
+	$(BB) --classpath $(CLASSPATH) --main cljs.main -re room-iii
+
+# Room IV
+room-iv:
+	$(BB) --classpath $(CLASSPATH) --main cljs.main -re room-iv
+	
+# Room XV
+room-xv: 
+	poetry run python summarize_video.py https://www.youtube.com/watch\?v\=e0V9-8unJbg
+	# $(BB) --classpath $(CLASSPATH) --main cljs.main -re room-xv
