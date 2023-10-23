@@ -1,0 +1,136 @@
+Title-Abstract. Section intro
+�1
+
+10
+
+ℓ2
+
+20
+
+ℓ3
+
+30
+
+2: Detaching and retiring ℓ1 and ℓ2
+
+Fig. 3. Traversing possibly retired nodes.
+
+On the other hand, protect(tid, src) loads a pointer, say p, from src (line C12), and stores p
+in the thread tid’s slot of the protected pointer list (line C14). However, it is not yet safe to use p
+because it could have already been retired and then freed by other threads. Therefore, one should
+validate that the pointer is not retired. This is usually done by checking that the memory block is
+still reachable from the data structure, assuming that only detached (i.e., unreachable) blocks are
+retired. For example, protect() validates the protection by checking whether src still points to p
+(line C15-16).2 If validation fails, protect() retries from the beginning (line C13-18).
+
+Veriﬁcation Challenges. Validation makes hazard pointers more diﬃcult to apply (and verify)
+than it seems in two aspects.
+
+(1) The requirement for validation is fundamentally incompatible with optimistic traversal to
+possibly retired nodes, a common optimization pattern in concurrent data structure design.
+For instance, in Fig. 3 where 2 detaches and retires ℓ1 and ℓ2, is it safe for 1 to traverse from
+ℓ1 to ℓ2? This is unsafe when using hazard pointers because ℓ2 could have been retired and
+reclaimed before 2 tried protecting it. Then the only reasonable option for 2 is to restart the
+traversal from ℓhead, possibly incurring performance degradation. Therefore, when applying
+hazard pointers, the data structure must be modiﬁed to handle such scenarios. For example,
+the Harris-Michael list [Michael 2002] is an adaptation of Harris’s lock-free list [Harris 2001]
+that forgoes optimistic traversal for compatibility with hazard pointers.
+
+(2) But still, how can 1 detect that ℓ2 may have been retired? In general, protect()’s validation
+does not work: protect((*ℓ1).next) would return ℓ2 despite that it might have been already
+retired. Therefore, sophisticated data structures resort to custom validation strategies that
+exploit the data structures’ complex invariant. For example, the Harris-Michael list requires
+collaboration from the deleting thread: before 2 detaches ℓ1, it ﬁrst marks the link ℓ1 → ℓ2
+by setting the least signiﬁcant bit (LSB) of the pointer value. Then, if 1 sees that ℓ1 → ℓ2 is
+marked, the validation of ℓ2 fails conservatively.3 This is because if ℓ2 is detached and yet ℓ1
+still links to ℓ2, then ℓ1 must have been detached too, by the deﬁnition of “detaching”.
+
+These subtleties are sometimes misunderstood even by experienced programmers and lead to
+critical bugs [Anderson et al. 2021]. In §3 and §5, we will capture such subtleties within a powerful
+yet modular speciﬁcation of hazard pointers.
+
+2The comparison of pointers at this point may involve an invalid (dangling) pointer, which is an undeﬁned behavior in
+C/C++’s provenance-based pointer semantics. Since the comparison of invalid pointers is unavoidable in SMR schemes and
+many other low-level concurrent algorithms, there is a proposal to introduce a special pointer type that is exempted from
+this strict semantics [McKenney et al. 2021]. We assume the proposed lenient semantics.
+3The marking process, called logical deletion, is required even when hazard pointer is not used. This is a common technique in
+concurrent data structure design for synchronizing concurrent updates in linked data structures. Hazard pointers piggyback
+on this mechanism for validation.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic251:7
+
+2.2 RCU
+
+RCU is more straightforward to use than hazard pointers thanks to critical section-based protection:
+a pointer is protected throughout a critical section if it were not retired before the beginning of
+the critical section [McKenney et al. 2023]. Speciﬁcally, in Fig. 3, it is safe to perform optimistic
+traversal from ℓ1 to�2 because RCU’s protection condition implies that all memory blocks reachable
+by traversing the data structure—including just retired ℓ2—are protected. Therefore, users can
+seamlessly integrate RCU into existing data structures such as Harris’s list without worrying about
+validation and restarting.
+
+Veriﬁcation Challenges. However formal veri� of the safety of optimistic traversal
+using RCU is challenging. To guarantee the protection of reachable blocks, one should deduce that
+they were not retired before the beginning of the critical section by reasoning about the history of
+updates of links among memory blocks and their retirement. This has been tackled by Tassarotti
+et al. [2015] for a ﬁxed data structure with the simplifying assumption that updates are done by a
+single writer thread.4 In §6, we will general approach and encapsulate this reasoning in a
+modular speciﬁcation for RCU.
+
+2.3 Verification of Treiber’s Stack without Reclamation
+
+We review a separation logic-based veriﬁcation of Treiber’s stack without reclamation. We will
+adapt this proof to the version with hazard pointers (§3) and RCU (§6).
+
+Separation Logic Primer. First, we brieﬂy overview the fragment of the Iris separation logic we
+will be using. Some concepts not explained here will be gradually introduced along the way. We
+refer the reader to Jung et al. [2018, §2] for a more detailed overview.
+
+,  ∈ iProp ::=  |  ∧  |  ∨  |  ⇒  | ∃.  | ∀.  |...
+
+higher-order logic
+
+
+↦−→  | 
+
+ℓ
+
+
+Z==⇒  |  |...
+
+separation logic resources
+
+ ∗  |  −∗  | 
+
+ | 2  |...
+
+separation logic connectives
+
+{ }  {.  ()} | ⟨.  ()⟩  ⟨.  (, )⟩ |...
+
+program logic
+
+iProp is the type of Iris’s separation logic proposition. Based on higher-order logics, iProp includes
+usual propositions and connectives. But more importantly, an iProp asserts ownership of resources.
+1
+For example, the points-to assertion ℓ ↦→  (shorthand for ℓ
+↦−→ , explained later), represents the
+exclusive ownership of a memory block at location ℓ that contains a value . Such resources can be
+combined with the separating conjunction (∗). For instance, the stack illustrated in Fig. 1b before
+pop() owns the following resource (where {.field = ,...} is a struct value):
+
+ℓhead ↦→ {.head = ℓ1} ∗ ℓ1 ↦→ {.data = 10,.next = ℓ2} ∗ ℓ2 ↦→ {.data = 20,.next = NULL}.
+
+A Hoare triple of the form { }  {.  ()} asserts that given resources satisfying the precondition
+, program  evaluates to  without errors such as null pointer dereferences, and returns the
+resource satisfying the postcondition  (). For example, the owner of ℓ ↦→  can read from, write
+to, and reclaim ℓ:
+
+(PointsTo-Read)
+{ℓ ↦→  *ℓ {. ℓ ↦→  }
+
+(PointsTo-CAS-Success)
+{ℓ ↦→  } CAS(ℓ,, )

@@ -1,0 +1,197 @@
+# # # #   #     # # G# G# #   #. Section intro
+is Geerts, Jan Van Den Bussche, and Timmy Weerwag. 2019a. On the Expressive Power of Query
+
+Languages for Matrices. ACM Trans. Database Syst. 44, 4, Article 15 (oct 2019), 31 pages.
+
+Robert Brijder, Floris Geerts, Jan Van Den Bussche, and Timmy Weerwag. 2019b. On the Expressive Power of Query
+
+Languages for Matrices. ACM Trans. Database Syst. 44, 4, Article 15 (oct 2019), 31 pages.
+
+Peter Buneman, Shamim Naqvi, Val Tannen, and Limsoon Wong. 1995. Principles of Programming with Complex Objects
+
+and Collection Types. Theor. Comput. Sci. 149, 1 (Sept. 1995), 3ś48.
+
+Andrew Carlson, Justin Betteridge, Bryan Kisiel, Burr Settles, Estevam Hruschka, and Tom Mitchell. 2010. Toward an
+architecture for never-ending language learning. In Proceedings of the AAAI Conference on Artificial Intelligence, Vol. 24.
+Zachary R. Chalmers, Caitlin F. Connelly, David Fabrizio, Laurie Gay, Siraj M. Ali, Riley Ennis, Alexa Schrock, Brittany
+Campbell, Adam Shlien, Juliann Chmielecki, Franklin Huang, Yuting He, James Sun, Uri Tabori, Mark Kennedy, Daniel S.
+Lieber, Steven Roels, Jared White, Geoffrey A. Otto, Jeffrey S. Ross, Levi Garraway, Vincent A. Miller, Phillip J. Stephens,
+and Garrett M. Frampton. 2017. Analysis of 100,000 human cancer genomes reveals the landscape of tumor mutational
+burden. Genome Medicine 9, 1 (2017), 34.
+
+Lingjiao Chen, Arun Kumar, Jeffrey Naughton, and Jignesh M Patel. 2017. Towards linear algebra over normalized data.
+
+Proceedings of the VLDB Endowment 10, 11 (2017), 1214ś1225.
+
+James Cheney, Sam Lindley, and Philip Wadler. 2014. Query shredding: efficient relational evaluation of queries over nested
+
+multisets. In Proceedings of the 2014 ACM SIGMOD International Conference on Management of Data. 1027ś1038.
+
+Charisee Chiw, Gordon Kindlmann, John Reppy, Lamont Samuels, and Nick Seltzer. 2012. Diderot: A Parallel DSL for Image
+Analysis and Visualization. In Proceedings of the 33rd ACM SIGPLAN Conference on Programming Language Design and
+Implementation (Beijing, China) (PLDI’12). ACM, 111ś120.
+
+Stephen Chou, Fredrik Kjolstad, and Saman Amarasinghe. 2018. Format Abstraction for Sparse Tensor Algebra Compilers.
+
+Proc. ACM Program. Lang. 2, OOPSLA, Article 123 (Oct. 2018), 30 pages.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:29
+
+Shumo Chu, Konstantin Weitz, Alvin Cheung, and Dan Suciu. 2017. HoTTSQL: Proving query rewrites with univalent SQL
+
+semantics. ACM SIGPLAN Notices 52, 6 (2017), 510ś524.
+
+Koen Claessen, Mary Sheeran, and Bo Joel Svensson. 2012. Expressive Array Constructs in an Embedded GPU Kernel Pro-
+gramming Language. In Proceedings of the 7th Workshop on Declarative Aspects and Applications of Multicore Programming
+(DAMP ’12). ACM, NY, USA, 21ś30.
+
+E. F. Codd. 1970. A Relational Model of Data for Large Shared Data Banks. Commun. ACM 13, 6 (June 1970), 377ś387.
+National Research Council (US) Committee. 2005. On the Nature of Biological Data. In Catalyzing Inquiry at the Interface of
+
+Computing and Biology, John C. Wooley and Herbert S. Lin (Eds.). National Academies Press (US), Chapter 3.
+
+Keith Conrad. 2018. Tensor products. Notes of course, available on-line (2018).
+Ezra Cooper, Sam Lindley, Philip Wadler, and Jeremy Yallop. 2007. Links: Web Programming Without Tiers. In Proceedings of
+the 5th International Conference on Formal Methods for Components and Objects (Amsterdam, The Netherlands) (FMCO’06).
+Springer-Verlag, Berlin, Heidelberg, 266ś296.
+
+Thomas H Cormen, Charles E Leiserson, Ronald L Rivest, and Clifford Stein. 2009. Introduction to algorithms. MIT press.
+Duncan Coutts, Roman Leshchinskiy, and Don Stewart. 2007. Stream Fusion. From Lists to Streams to Nothing at All. In
+
+ICFP ’07.
+
+Andrew Crotty, Alex Galakatos, Kayhan Dursun, Tim Kraska, Ugur Çetintemel, and Stanley B Zdonik. 2015. Tupleware:"
+
+Big" Data, Big Analytics, Small Clusters.. In CIDR.
+
+Stephen Dolan. 2013. Fun with Semirings: A Functional Pearl on the Abuse of Linear Algebra. In Proceedings of the 18th
+ACM SIGPLAN International Conference on Functional Programming (Boston, Massachusetts, USA) (ICFP ’13). Association
+for Computing Machinery, New York, NY, USA, 101ś110.
+
+Kento Emoto, Sebastian Fischer, and Zhenjiang Hu. 2012. Filter-embedding semiring fusion for programming with
+
+MapReduce. Formal Aspects of Computing 24, 4 (2012), 623ś645.
+
+Laura Fancello, Sara Gandini, Pier Giuseppe Pelicci, and Luca Mazzarella. 2019. Tumor mutational burden quantification
+from targeted gene panels: major advancements and challenges. Journal for ImmunoTherapy of Cancer 7, 1 (2019), 183.
+https://doi.org/10.1186/s40425-019-0647-4
+
+Corporacion Favorita. 2017. Corp. Favorita Grocery Sales Forecasting: Can you accurately predict sales for a large grocery
+
+chain?
+
+Leonidas Fegaras and David Maier. 2000. Optimizing Object Queries Using an Effective Calculus. ACM Trans. Database Syst.
+
+25, 4 (Dec. 2000), 457ś516.
+
+Xixuan Feng, Arun Kumar, Benjamin Recht, and Christopher Ré. 2012. Towards a Unified Architecture for in-RDBMS
+Analytics. In Proceedings of the 2012 ACM SIGMOD International Conference on Management of Data (Scottsdale, Arizona,
+USA) (SIGMOD ’12). ACM, New York, NY, USA, 325ś336.
+
+Robert Fink, Larisa Han, and Dan Olteanu. 2012. Aggregation in Probabilistic Databases via Knowledge Compilation. 5, 5
+
+(jan 2012), 490ś501.
+
+Floris Geerts, Thomas Muñoz, Cristian Riveros, Jan Van den Bussche, and Domagoj Vrgoč. 2021. Matrix Query Languages.
+
+ACM SIGMOD Record 50, 3 (2021), 6ś19.
+
+Jeremy Gibbons, Fritz Henglein, Ralf Hinze, and Nicolas Wu. 2018. Relational Algebra by Way of Adjunctions. Proc. ACM
+
+Program. Lang. 2, ICFP, Article 86 (July 2018), 28 pages. https://doi.org/10.1145/3236781
+
+Andrew Gill, John Launchbury, and Simon L Peyton Jones. 1993. A short cut to deforestation. In Proceedings of the conference
+
+on Functional programming languages and computer architecture (FPCA). ACM, 223ś232.
+
+Michel Gondran and Michel Minoux. 2008. Graphs, dioids and semirings: new models and algorithms. Vol. 41. Springer
+
+Science & Business Media.
+
+G. Graefe. 1994. Volcano-an extensible and parallel query evaluation system. IEEE Transactions on Knowledge and Data
+
+Engineering 6, 1 (1994), 120ś135.
+
+Todd J Green, Grigoris Karvounarakis, and Val Tannen. 2007. Provenance semirings. In Proceedings of the twenty-sixth ACM
+
+SIGMOD-SIGACT-SIGART symposium on Principles of database systems. 31ś40.
+
+Clemens Grelck and Sven-Bodo Scholz. 2006. SACÐA Functional Array Language for Efficient Multi-threaded Execution.
+
+Int. Journal of Parallel Programming 34, 4 (2006), 383ś427.
+
+Torsten Grust, Jan Rittinger, and Tom Schreiber. 2010. Avalanche-safe LINQ Compilation. PVLDB 3, 1-2 (Sept. 2010),
+
+162ś172.
+
+Torsten Grust and MarcH. Scholl. 1999. How to Comprehend Queries Functionally. Journal of Intelligent Information Systems
+
+12, 2-3 (1999), 191ś218.
+
+Joseph M Hellerstein, Christoper Ré, Florian Schoppmann, Daisy Zhe Wang, Eugene Fratkin, Aleksander Gorajek, Kee Siong
+Ng, Caleb Welton, Xixuan Feng, Kun Li, et al. 2012. The MADlib analytics library: or MAD skills, the SQL. Proceedings of
+the VLDB Endowment 5, 12 (2012), 1700ś1711.
+
+Troels Henriksen, Niels GW Serup, Martin Elsman, Fritz Henglein, and Cosmin E Oancea. 2017. Futhark: purely functional
+GPU-programming with nested parallelism and in-place array updates. In Proceedings of the 38th ACM SIGPLAN Conference
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:30
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+on Programming Language Design and Implementation. ACM, 556ś571.
+
+Dylan Hutchison, Bill Howe, and Dan Suciu. 2017. LaraDB: A minimalist kernel for linear and relational algebra computation.
+
+In Proceedings of the 4th ACM SIGMOD Workshop on Algorithms and Systems for MapReduce and Beyond. 1ś10.
+
+S Idreos, F Groffen, N Nes, S Manegold, S Mullender, and M Kersten. 2012. Monetdb: Two decades of research in column-
+
+oriented database. IEEE Data Engineering Bulletin (2012).
+
+Kenneth E Iverson. 1962. A Programming Language. In Proceedings of the May 1-3, 1962, spring joint computer conference.
+
+ACM, 345ś351.
+
+Hayden Jananthan, Ziqi Zhou, Vijay Gadepally, Dylan Hutchison, Suna Kim, and Jeremy Kepner. 2017. Polystore mathematics
+
+of relational algebra. In 2017 IEEE International Conference on Big Data (Big Data). IEEE, 3180ś3189.
+
+Simon Peyton Jones, Andrew Tolmach, and Tony Hoare. 2001. Playing by the rules: rewriting as a practical optimisation
+
+technique in GHC. In Haskell workshop, Vol. 1. 203ś233.
+
+Simon Peyton Jones and Philip Wadler. 2007. Comprehensive comprehensions. In Proceedings of the ACM SIGPLAN workshop
+
+on Haskell workshop. 61ś72.
+
+Manohar Jonnalagedda and Sandro Stucki. 2015. Fold-based Fusion As a Library: A Generative Programming Pearl. In
+
+Proceedings of the 6th ACM SIGPLAN Symposium on Scala (Portland, OR, USA). ACM, 41ś50.
+
+Konstantinos Karanasos, Matteo Interlandi, Doris Xin, Fotis Psallidas, Rathijit Sen, Kwanghyun Park, Ivan Popivanov, Supun
+Nakandal, Subru Krishnan, Markus Weimer, et al. 2020. Extending relational query processing with ML inference. In
+CIDR.
+
+Manos Karpathiotakis, Ioannis Alagiannis, Thomas Heinis, Miguel Branco, and Anastasia Ailamaki. 2015. Just-in-time data
+
+virtualization: Lightweight data management with ViDa. In CIDR.
+
+Grigoris Karvounarakis and Todd J Green. 2012. Semiring-annotated data: queries and provenance? ACM SIGMOD Record
+
+41, 3 (2012), 5ś14.
+
+Gabriele Keller, Manuel MT Chakravarty, Roman Leshchinskiy, Simon Peyton Jones, and Ben Lippmeier. 2010. Regular,
+
+shape-polymorphic, parallel arrays in Haskell. ACM Sigplan Notices 45, 9 (2010), 261ś272.
+
+Jeremy Kepner, Peter Aaltonen, David Bader, Aydin Buluç, Franz Franchetti, John Gilbert, Dylan Hutchison, Manoj Kumar,
+Andrew Lumsdaine, Henning Meyerhenke, et al. 2016. Mathematical foundations of

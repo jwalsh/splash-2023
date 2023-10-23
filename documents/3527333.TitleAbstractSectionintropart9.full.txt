@@ -1,0 +1,167 @@
+Title-Abstract. Section intro
+��2(cid:3) and�� = (cid:2)𝑏0
+ 8. Consider the following matrix 𝑀 of size 2 × 4: (cid:20)�
+
+0
+
+0
+𝑐2
+
+0
+0
+
+𝑐10(cid:21). This matrix
+
+SDQL as {<row=col=0> ->��0,<row=0=3> -> 𝑐1,=1,col=1> -> �2}. The expression 𝑀 · 𝑉
+ to the following dictionary after translating to SDQL: { 0 -> 𝑐0*�0+𝑐1*𝑎2, 1 -> 𝑐2*0 }.
+This expression is the dictionary representation of the following which is the result of the
+
+0(cid).
+
+matrix-vector multiplication: (cid:2)𝑐0𝑎0 + 𝑐1𝑎2
+
+cid:3).
+
+Example 9. Computing the covariance matrix is an essential technique in machine learning, and
+is useful for training various models [Abo Khamis et al. 2018]. The covariance matrix of a matrix 𝐴
+
+Pro ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:
+Vertical Loop Fusion:
+let y=sum(<x,x_v> in e1){f1)->x_v}
+
+in sum(<x,x_v y){f2(x)->x_v}
+
+let y=<x,x_v> in e1){x->(x_v)}
+
+in sum(<x,x_v> in y){x->f2(v)}
+
+Horizontal Loop Fusion:
+let y1=sum(x1) f1(x) in
+
+;
+
+;
+
+sum(<x,x_v> in e
+
+{ f2(f1(x)) -> x_v }
+
+sum(<x,x_v>1)
+
+{ x -> f2(f1(x_v)) }
+
+let tmp = sum(x in e1)
+
+let y2=sum(x in e1) f2(x) in
+
+;
+
+<y1 = f1(x), y2 = f2(x) >
+
+f3(y1, y2)
+
+Loop Factorization:
+sum(x in e1) e2 * f(x)
+
+sum(x in e1) f(x) * e2
+
+Loop-Invariant Code Motion:
+sum(x in e1) let y = e2 in f(x, y)
+
+Loop Memoization:
+sum(x in e1)
+
+if(p(x) == e2) then g(x, e3)
+
+sum(x in e1)
+
+if(p(x) == e2) then f(x)
+
+in f3(tmp.y1, tmp.y2)
+
+; e2 * sum(x in e1) f(x)
+
+; (sum(x in e1) f(x)) * e2
+
+; let y = e2 in sum(x in e1) f(x, y)
+
+let tmp=sum(x in e1){p(x)->{x.key->x.val}}
+
+;
+
+;
+
+in sum(x in tmp(e2)) g(x, e3)
+
+let tmp=sum(x in e1) {p(x)->f(x)}
+
+in tmp(e2)
+
+Fig. 8. Transformation rules for loop optimizations.
+
+is computed as 𝐴𝑇 𝐴. In our biomedical example, computing the covariance matrix enables us to
+train different machine learning models such as linear regression on top of the Variant dataset.
+Point-wise Operations. In many machine learning applications, it is necessary to support point-
+wise application of functions such as 𝑐𝑜𝑠, 𝑠𝑖𝑛, and 𝑡𝑎𝑛 on matrices. SDQL can easily support these
+operators by adding the corresponding scalar functions and using sum to apply them at each point.
+Inefficiency of Operators. Note that the presented operators are highly inefficient. For example,
+matrix-matrix multiplication requires iterating over every combination of elements, whereas with
+a more efficient representation, this can be significantly improved. This improved representation is
+shown later in Section 6.1.
+
+5 EFFICIENCY
+In this section, we present loop optimizations of SDQL. Figure 8 summarizes the transformation
+rules required for such optimizations.
+
+5.1 Loop Fusion
+5.1.1 Vertical Loop Fusion. One of the essential optimizations for collection programs is defor-
+estation [Coutts et al. 2007; Gill et al. 1993; Svenningsson 2002; Wadler 1988]. This optimization
+can remove an unnecessary intermediate collection in a vertical pipeline of operators, and is thus
+named as vertical loop fusion. The benefits of this optimization are manifold. The-
+age is improved thanks to the removal of intermediate memory, and the run time is improved
+because the removal of the corresponding loop query processing engines, pull and push-based
+pipelining [Neumann 2011; Ramakrishnan and Gehrke 2000 the same role as vertical loop
+fusion [Shaikhha et al. 2018a]. Similarly, in functional array processing languages arrays and
+push arrays [Anker and Svenningsson 2013; Claessen et al. 2012; Svensson and Sven 2014]
+are responsible for fusion of arrays. However, none of the existing approaches support fusion for
+dictionaries. Next, we show how vertical fusion in SDQL subsumes the existing techniques.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:12
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+let R1 = sum(<r,r_v> in R) { f1(r) -> r_v }
+
+sum(<r,r_v> in R)
+
+;
+
+in sum(<r1,r1_v> in R1) { f2(r1) -> r1_v }
+
+{ f2(f1(r)) -> r_v }
+
+(a) Vertical fusion of maps in functional collections.
+
+let R1 = sum(<r,r_v> in R) if(p1(r)) then { r -> r_v }
+
+;
+
+in sum(<r1,r1_v> in R1) if(p2(r1)) then { r1 -> r1_v }
+
+let R1 = sum(<r,r_v> in R) { r1(r)*r_v }
+
+sum(<r,r_v> in R)
+
+;
+
+in sum(<r1,_v> in R1) { r1 -> p2(r1)*r1_v }
+
+{ r -> p1)*p2(r)*r_v }

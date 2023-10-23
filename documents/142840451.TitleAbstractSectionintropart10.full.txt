@@ -1,0 +1,149 @@
+Title-Abstract. Section intro
+.
+
+Each generated program has between 6000 and 10000 lines of code, including
+whitespace and braces. Fig. 8 shows a (simplified) excerpt from an example in the
+benchmark set, where function chainTarget106 is returned from a function via
+returnAFunc100, the return value of which is invoked in fun57. The benchmarks
+contain between 600 and 900 functions, with higher-order call chains of up to
+length 4. We leave an investigation of typical usage patterns of higher-order
+functions in JavaScript for future work.
+
+Results. We ran the experiments on an AWS EC2 instance of type c5.4xlarge
+with Intel Xeon Platinum 8124M CPU with 16 cores and 32 GiB memory. We
+use Correto version 17.0.6.10.1 with a stack size limit of 512 MiB and heap size
+limit of 16 GiB. For each program, Merlin’s analysis is run multiple times, with
+increasing the number of initial call graph queries in each iteration. The set of
+initial call graph queries is constructed by randomly selecting call sites occurring
+in the benchmark programs. This simulates a client analysis that issues queries
+
+
+1 function fun57 ( arg57 ) {
+2
+
+);
+
+(( chainTarget106 ) (( fun57 ) (( retAFunc100 )( someIdentifier ))))( someIdentifier
+
+18
+
+Schoepe et al.
+
+3 }
+4 function retAFunc100 ( arg615 ) {
+5
+6 }
+7 function chainTarget106 ( arg614 ) {}
+
+return chainTarget106 ;
+
+Fig. 8. Example output by QuickCheck-based benchmark generator
+
+for a subset of all call sites in the program. In the limit, issuing a query for
+every function call approximates a whole-program analysis. Our experiments
+also simulate a whole-program analysis by querying all call sites in the program.
+The results of running Merlin on the synthetic benchmarks are shown in
+Fig. 9. Overall, the wall clock time (Fig. 9a) grows super-linearly with the number
+of resolved queries. The number of queries that need to be resolved (Fig. 9d)
+increases with the number of initial queries, matching the intuitive expectation
+that on-demand call graph construction explores only a part of the program on
+our benchmark set. Similarly, the wall clock time increases with the number of
+resolved queries, albeit to a lesser extent due to the use of parallelism. Memory
+consumption (Fig. 9b) remains relatively constant, indicating a significant fixed
+memory cost in our implementation.
+
+As shown in Fig. 9a, whole-program analysis results (indicated by black
+boxes) often require less wall clock time to resolve than smaller initial sets of
+queries. This effect is due to the use of parallelism in the prototype: As demon-
+strated by Fig. 9c, whole-program analysis runs require as much or more CPU
+time to be resolved. However, but due to starting the analysis for all queries
+in parallel, they make better use of available CPU cores in the same span of
+wall clock time. This effect is somewhat in line with intuitive expectations: If a
+smaller set of queries is requested, there are less unrelated data flows to analyze,
+lowering the opportunities for parallelism. On the contrary, a whole-program
+analysis benefits from parallelism because many paths through a program can be
+analyzed independently. We double-check this explanation by reporting single-
+threaded results on the same benchmark set in Appendix A. This observation
+allows client analyses to fine-tune the strategy for call graph construction de-
+pending on the scenario. On an end-user machine, using all available CPU cores
+may degrade the overall system performance too much to be viable, making
+on-demand analysis preferable. Electricity usage, environmental concerns, and
+battery life are other factors that make reducing CPU time relevant.
+
+While the reduction in wall clock time based on the number queries to be
+resolved is often not significant compared to a whole-program analysis with the
+same technique, this data provides evidence that only a part of the program
+needs to be explored in order to answer a limited set of call graph queries. This
+effect may become more relevant in very large code bases or when using highly
+precise, expensive data flow analyses.
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+19
+
+(a) Wall clock time
+
+(b) Memory usage per set of initial queries
+
+(c) CPU time
+
+(d) Average number of queries resolved
+
+Fig. 9. Running Merlin on synthetic benchmarks. The x-axis shows the size of each
+initial query set. The data points depict executions on different benchmark files. For
+each initial query set size, the same file is randomly sampled multiple times. Each initial
+query set is run independently without keeping intermediate results between runs.
+
+Threats to Validity. The memory usage reported in Fig. 9 is subject to mea-
+surement inaccuracies. CPU time and memory usage were measured using JVM
+internals with varying levels of guarantees. For example, memory usage is mea-
+sured by first asking the JVM to perform garbage collection via System.gc(),
+but this is not guaranteed to garbage-collect all unreachable objects in the JVM
+heap. As a result, memory usage may include state produced by previous analysis
+batches. Additionally, while all the internal state of all SPDS solvers is retained
+when measuring the memory consumption, there may be temporary data that
+is garbage-collected before the memory measurement is taken.
+
+Limitations. As supporting the whole JavaScript langauge in SPDS is out of
+scope for this paper, Merlin currently does not support all JavaScript lan-
+guage features, motivating evaluation on synthetic benchmarks that may not
+be representative of real-world JavaScript code. Instead, Merlin presents an
+initial evaluation of whether this approach can be implemented using a realistic
+state-of-the-art data flow analysis. As a result, the above experiments do not
+
+05001000150020002500# queries resolved0.51.01.52.02.5wall clock time (s)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries05001000150020002500# queries resolved100200300400500600700memory (MiB)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries05001000150020002500# queries resolved020004000600080001000012000CPU time (ms)all initial queries1000 initial queries500 initial queries250 initial queries100 initial queries50 initial queries10 initial queries5 initial queries1 initial queries1510501002505001000allinitial queries05001000150020002500queries resolved
+20
+
+Schoepe et
+
+ much time is saved on real-world code, given the fact that-
+mon JavaScript features are deliberately not used in the synthetic benchmark
+code, and the generated use patterns that may not translate to
+patterns found in real-world code. Nevertheless, the subset of JavaScript that
+Merlin supports and the set of synthetic benchmarks is sufficient to show the
+usefulness of on-demand call graph construction. We list the current limitations
+of Merlin below, and consider addressing them as part of future work.
+
+In the current implementation, Merlin does not support dynamic property
+access, prototype inheritance, reflection, and JavaScript builtins. This may pro-
+duce unsound results in practice. Moreover, context sharing between different
+queries is limited, this is in principle supported by the SPDS ap-
+proach; this results in lower precision of our necessary. Since Merlin
+re TAJS [17] intermediate it can only directly analyze Ec-
+maScript 5 [11] programs, which in practice can be mitigated by transpiling code
+written in newer EcmaScript dialects using tools such as Babel [1].
+
+Finally, Merlin produces a large number of conceptually unnecessary queries,
+SPDS represents possible call stacks abstractly using a push-down system, where
+the system’s stack contains program locations. To avoid querying for call sites
+when reaching a function boundary, the pushdown system could be consulted to
+approximate the possible elements at the top of the stack at this location. While
+SPDS constructs another automaton encoding the reachable configurations of
+the pushdown system using an existing approach [3, 13], unclear whether
+this automaton allows extracting the required information. We leave leveraging
+call stack abstraction of SPDS to support this as future work.
+
+5 Related Work
+
+Demand Control-Flow

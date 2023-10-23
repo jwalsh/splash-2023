@@ -1,0 +1,161 @@
+Title-Abstract. Section intro
+�let X = 𝑒1 in 𝑒2⟧ = let X = ⟦𝑒1⟧ in ⟦𝑒2⟧
+
+Name
+Let Binding
+Empty Bag
+Singleton Bag
+Flattening
+Monadic Bind ⟦for x in 𝑒1 union 𝑒2⟧ = sum(<x,x_v> in⟦𝑒1⟧) x_v * ⟦𝑒2⟧
+Union
+Cartesian
+Product
+
+⟦flatten(𝑒)⟧ = sum(<k,v> in⟦𝑒⟧) v * k
+
+⟦∅𝑇 ⟧ = { } 𝑇,int
+
+⟦sng(𝑒)⟧ = { ⟦𝑒⟧-> 1 }
+
+⟦𝑒1 ⊎ 𝑒2⟧ = ⟦𝑒1⟧ + ⟦𝑒2⟧
+⟦𝑒1 × 𝑒2⟧ = sum(<x,x_v> in ⟦𝑒1⟧ ) sum(<y,y_v> in ⟦𝑒2⟧ )
+
+{ <fst=x,snd=y> -> x_v * y_v }
+
+Fig. 5. Translation from NRC+ (positive NRC with bag semantics) [Koch et al. 2016] to SDQL.
+
+Variants
+
+contig
+
+start
+
+reference
+
+alternate
+
+genotypes
+
+17
+
+43093817
+
+1
+
+119967501
+
+C
+
+G
+
+A
+
+C
+
+sample
+
+call
+
+TCGA-AN-A046
+TCGA-BH-A0B6
+
+0
+1
+
+sample
+
+call
+
+TCGA-AN-A046
+TCGA-BH-A0B6
+
+1
+2
+
+This nested relation is represented as follows in SDQL:
+
+{ <contig=17, start=43093817, reference="C", alternate="A", genotypes=
+
+{ <sample="TCGA-AN-A046", call=0> -> 1, <sample="TCGA-BH-A0B6", call=1> -> 1 } > -> 1,
+
+<contig=1, start=119967501, reference="G", alternate="C", genotypes=
+
+{ <sample="TCGA-AN-A046", call=1> -> 1, <sample="TCGA-BH-A0B6", call=2> -> 1 } > -> 1 }
+
+Example 5. The gene burden analysis uses data from Variants to calculate the mutational burden
+for every gene within every sample. The program first iterates over the top-level of Variants,
+iterates over the top-level of Genes, then assigning a variant to a gene if the variant lies within the
+mapped position on the genome. The program then iterates into the nested genotypes information
+of Variants to return sample, gene, and burden information; here, the call attribute provides the
+count of mutated alleles in that sample. This expression is represented as follows in NRC+:
+
+for v in vcf union for g in genes union
+
+if (v.contig = g.contig && g.start <= v.start && g.end >= v.start)
+
+then for c in v.genotypes union
+
+{sample := c.sample, gene := g.name, burden := c.call}
+
+This expression is equivalent to the following SDQL expression (after pushing the multiplication of
+multiplicities of Variants and Genes inside the inner singleton dictionary construction):
+
+sum(<v,v_v> in Variants) sum(<g,g_v> in Genes)
+
+if(g.contig==v.contig&&g.start<=v.start&&g.end>=v.start)
+
+then sum(<c,c_v> in v.genotypes)
+
+{ <sample = c.sample, gene = g.name, burden = c.call> -> v_v * g_v * c_v }
+
+The type of this output is { <sample:string, gene:string, burden:real> -> int }.
+
+3.3 Aggregation
+An essential operator used in workloads is aggregation. Both relational algebra
+and nested relational calculus need to be extended in order to support this operator. The former
+is extended with the group-by aggregate operator Γ𝑔;𝑓, where 𝑔 specifies the set of keys that are
+partitioned by, and 𝑓 specifies the aggregation function. NRC𝑎𝑔𝑔 is an extended version of the latter
+𝑓
+with support for two aggregation operators; sumBy
+𝑔 is similar to group-by aggregates in relational
+algebra, whereas groupBy𝑔 only performs partitioning without performing any aggregation.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:9
+
+Name
+
+Translation
+
+Relational Algebra:
+Scalar Agg.
+Group-by
+Aggregate
+NRC𝑎𝑔𝑔:
+Scalar Agg.
+Group-by
+Aggregate
+Nest
+
+⟦Γ∅;𝑓 (𝑒)⟧ = sum(<x,x_v> in ⟦𝑒⟧) x_v * ⟦𝑓 ⟧(x)
+⟦Γ𝑔;𝑓 (𝑒)⟧ = let tmp=sum(<x,x_v> in ⟦𝑒⟧) {⟦𝑔⟧(x)->x_v*⟦𝑓 ⟧(x)}
+in sum(<x,x_v> in tmp) { <key=x, val=x_v> -> 1 }
+
+⟦sumBy
+⟦sumBy
+
+𝑓
+(𝑒)⟧ = sum(<x,x_v> in ⟦𝑒⟧) x_v * ⟦𝑓 ⟧(x)
+∅
+𝑓
+𝑔 (𝑒)⟧ = let tmp=sum(<x,x_v> in ⟦𝑒⟧) { ⟦𝑔⟧(x) -> x_v*⟦𝑓 ⟧(x) }
+
+⟦groupBy�(𝑒)⟧ = let tmp=sum(<x,x_v> in ⟦𝑒⟧) { ⟦𝑔⟧(x) -> {x -> x_v} }
+
+in sum(<x,x_v> in tmp) { <key=x, val=x_v> -> 1 }
+
+Fig. 6. Translation

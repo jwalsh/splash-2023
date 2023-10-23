@@ -1,0 +1,3 @@
+
+
+This section introduces a method for formal verification of concurrent data structures, which is designed to increase confidence in the correctness of the algorithm and help improve it. The authors propose modular specifications of hazard pointers and RCU, and formally verify realistic implementations of them in concurrent separation logic. They demonstrate that the specifications facilitate modular verification in three criteria: compositional verification, general applicability, and easy integration. The authors report the Coq mechanization of all their results in the Iris separation logic framework.

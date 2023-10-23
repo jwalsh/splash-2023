@@ -1,0 +1,133 @@
+Title-Abstract. Section intro
+ The expression { k_1 -> v_1,..., k_n -> v_n }, constructs a dictionary of n
+elements with keys k_1,..., k_n and values v_1,..., v_n. The expression {}K,V constructs an
+empty dictionary of type { K -> V }, and we might drop the type subscript when it is clear from
+the context. The expression dict(k) performs a lookup for key k in the dictionary dict.
+
+If the value elements with type V form a semi-ring structure, then the dictionary also forms a
+semi-ring structure, referred to as a semi-ring dictionary (SD) where the addition is point-wise,
+that is the values of elements with the same key are added. The elements of an SD with 0V as values
+are made implicit and can be removed from the dictionary. This means that two SDs with the same
+set of k_i and v_i pairings are equivalent regardless of their 0V-valued k_js.
+
+The multiplication dict * s, where dict is an SD with k_i and v_i as keys and values, results
+in an SD with k_i as the keys, and v_i * s as the values. For the expression s * dict, where s is
+not an SD and dict is an SD with keys k_i and values v_i, the result is an SD with k_i as keys and
+s * v_i as values. Note that the multiplication operator is not commutative by default.
+Example 2. Consider the following two SDs: { "a"->2, "b"->3 } named as dict1 and { "a"->4,
+"c"->5 } named as dict2. The result of dict1+dict2 is { "a"->6, "b"->3, "c"->5 }. This is because
+dict1 is equivalent to { "a"->2, "b"->3, "c"->0 } and dict2 is equivalent to { "a"->4, "b"->0,
+"c"->5 }, and element-wise addition of them results in { "a"->2+4, "b"->3+0, "c"->0+5 }.
+
+2To be more precise, the scalar * is commutative, but the tensor product * is commutative up to reordering.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:6
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+Extension
+if e_0 then e_1
+
+{ e_0,..., e_k }
+
+Definition
+
+Description
+
+dom(e)
+
+sum(x in e) { x.key }
+
+if e_0 then e_1 else 0T where e_1: T
+{ e_0 -> true,..., e_k -> true }
+
+One-Branch Conditional
+Set Construction
+Key Dictionary
+sum(<k,v> in e)e_1 sum(x in e) let k=x.key in let v=x.val in e_1 Sum Paired Iteration
+Range Construction
+range(dn)
+Array Construction
+
+{ 0 -> true,..., dn-1 -> true }
+
+[| e_0,...,e_k |]
+
+{ 0 -> e_0,..., k -> e_k }
+
+{ T }
+
+[| T |]
+
+{ T -> bool }
+
+{ dense_int -> T }
+
+Set Type
+Array Type
+
+Fig. 3. Extended constructs of SDQL.
+
+The result of dict1 * dict2 is { "a"->2 * dict2, "b"->3 * dict2 }. The expression 2 * dict2
+is evaluated to { "a"->2*4, "c"->2*5 }. By performing similar computations, dict1 * dict2 is eval-
+uated toa"->{ "a"->8, "c"->10 }, "b"->{ "a"->12, "c"->15 } }. On the other hand, dict2
+* dict1 is { "a"->4 * dict1, "c"->5 * dict1 }. After performing similar computations, the ex-
+pression is evaluated to { "a"->{ "->8, "b"->12 }, "c"->{ "a"->10, "b"->15 } }.
+Records. Records are constructed using < a_1 = e_1,..., a_n = e_n > and a_i of record
+rec can be accessed using rec.a_i. When all the fields of a record are S-semi-modules, the record
+also forms an S-semi-module.
+Example 1 (Cont.). Assume the dictionary d with the value { "a"->2, "b"->3 }, and the record r
+with the value < c=4 >. The expression d * r is evaluated as { "a" -> <c=8>, "b" -> <c=12> }.
+
+2.4 Dictionary Summation
+The expression sum(x in d) e specifies iteration over the elements of dictionary d, where each
+element x is a record with the attribute x.key specifying the key and x.val specifying the value. One
+can alternatively use the syntactic sugar sum(<k,v> in d) e that binds k to x.key and v to x.val
+(cf. Figure 3). This iteration computes the summation of the result of the expression e using the
+corresponding addition operator, and by starting from an appropriate additive identity element. In
+the case that e has a scalar type, this expression computes the summation using the corresponding
+scalar addition operator. If the expression e is an SD, then the SD addition is used.
+Example 1 (Cont.). Consider the expression sum(x in d) x.val where d is a dictionary with
+value of { "a" -> 2, "b" -> 3 }. This expression is evaluated to 5, which is the result of adding
+the values (2 + 3) in dictionary d. Let us consider the expression sum(<k,v> in d) { k -> v * 2 },
+with the same value as before for d. This expression is evaluated to { "a" -> 4, "b" -> 6 }, which
+is the result of the addition of { "a" -> 2*2 } and { "b" -> 3*2 }.
+
+2.5 Set and Array
+Collection types other than dictionaries, such as arrays and sets, can be defined in terms of
+dictionaries (cf. Figure 3). Arrays can be obtained by using dense integers (dense_int), which are
+continuous integers ranging from 0 to 𝑘, as keys and the elements of the array as values. Sets can
+be obtained by using the elements of the set as keys and Booleans as values. Arrays and sets of
+elements of type T are represented as [| T |] and { T }, respectively.
+
+3 EXPRESSIVENESS FOR DATABASES
+This section analyzes the expressive power of SDQL for database workloads. We start by showing
+the translation of relational algebra to SDQL (Section 3.1). Then we show the translation of nested
+relational calculus to SDQL (Section 3.2), followed by the translation of aggregations (Section 3.3).
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:7
+
+Name
+Selection
+Projection
+Union
+Intersection
+Difference
+Cartesian Product
+Join
+
+Translation
+
+⟦𝜎𝑝(R)⟧ = sum(x in ⟦R⟧ ) if p(x.key) then.key }
+⟦𝜋𝑓 (R)⟧ = sum(x in ⟦R⟧ ) { f(x.key) }
+⟦R ∪ S⟧ = ⟦R⟧ + ⟦S⟧
+⟦R ∩ S⟧ = sum(x in ⟦R⟧ ) if ⟦S⟧(x.key) then { x.key }
+⟦R − S⟧ = sum(x in ⟦

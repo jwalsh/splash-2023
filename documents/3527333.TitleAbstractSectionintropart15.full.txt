@@ -1,0 +1,155 @@
+Title-Abstract. Section intro
+ supplementary materials.
+□
+
+7.3 Correctness of Optimizations
+The denotational semantics allows us to easily prove correctness of the optimizations of Figure 8.
+
+In particular, the formal notation in the semantics mechanically provides an efficient and sound
+
+calculus that is reminiscent of the algebra of polynomials. We make use of this calculus in the
+following proofs.
+
+Proposition 7. The vertical loop fusion rules of Figure 8 are sound.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:19
+. We prove the. The second rule is proved similarly.
+
+⟦let y = sum(x in e1) {f1(x.key)->x.val} in sum(x in y){f2(x.key)->x.val}⟧𝛾
+⟦sum(x in y){f2(x.key).val}⟧𝛾 ′��sum(x in y){f2(x.key)->x.val}⟧𝛾 ′
+
+(𝛾 ′ = 𝛾[⟦sum(x in e1) {f1(x.key)->x.val}⟧𝛾 / y]) =
+
+𝑎𝑘 • 𝑘) =
+
+=
+
+(𝛾 ′ = 𝛾[ 𝑘 ∈𝑋
+𝑎𝑘 • 𝑘) = 𝑘 ∈𝑋
+
+𝑎𝑘 •⟦f1⟧𝛾 (𝑘)/ y], ⟦e1⟧𝛾 = 𝑘 ∈𝑋
+
+𝑎𝑘 •⟦f2◦f1⟧𝛾 (𝑘))
+
+(⟦e1⟧𝛾 = 𝑘 ∈𝑋
+
+(⟦e1⟧𝛾 = 𝑘 ∈𝑋
+
+𝑎𝑘 •⟦f2⟧� (⟦f1⟧𝛾 (𝑘))
+
+𝑘𝑋
+
+⟦sum(x in e1){f2(f1(x.key))->x.val}⟧𝛾
+
+𝑎𝑘 • 𝑘) =
+
+□
+
+𝑎𝑘 • 𝑘) =
+
+�
+Proposition 7.6. The loop factorization rules of Figure 8 are sound.
+
+Proof. We prove the first rule, and the second rule is proved similarly.
+
+⟦e2 * f(x)⟧𝛾 ′
+
+𝑎𝑘 • 𝑘) = (bilinearity)
+
+(𝛾 ′ = 𝛾[<𝑘, 𝑎𝑘 >/ x], ⟦e1⟧𝛾 = 𝑘 ∈𝑋
+
+⟦sum(x in e1) e2 * f(x)⟧𝛾
+
+= 𝑘 ∈𝑋
+𝑘 ∈𝑋
+⟦e2⟧𝛾 ∗ ⟦f⟧𝛾 <𝑘, 𝑎𝑘 > (⟦e1⟧𝛾 = 𝑘 ∈𝑋
+⟦e2⟧𝛾 ∗ 𝑘 ∈𝑋
+⟦f⟧𝛾 <𝑘, 𝑎𝑘 > (⟦e1⟧𝛾 = 𝑘 ∈𝑋
+⟦e2⟧𝛾 ∗ 𝑘 ∈𝑋
+
+⟦e2⟧𝛾 ∗ ⟦sum(x in e1) f(x)⟧𝛾
+
+⟦f(x)⟧𝛾 ′
+
+𝑎𝑘 • 𝑘) =
+
+(𝛾 ′ = 𝛾[<𝑘, 𝑎𝑘 >/ x], ⟦e1⟧𝛾 = 𝑘 ∈𝑋
+
+𝑎𝑘 • 𝑘) =
+
+= ⟦e2 * sum(x in e1) f(x)⟧𝛾
+
+The correctness proofs of the remaining optimizations, horizontal fusion, loop-invariant code
+motion, and loop memoization, based on both operational and denotational arguments can be
+found in the supplementary materials.
+
+8 IMPLEMENTATION
+SDQL is implemented as an external domain-specific language. The entire compiler tool-chain is
+written in Scala. The order of rewrite rules are applied as follows until a fix-point is reached: 1) loop
+fusion, 2) loop-invariant code motion, 3) loop factorization, and 4) loop memoization. After each
+optimization, generic optimization such as DCE, CSE, and partial evaluation are also applied. Note
+that we currently expect the loop order to be specified correctly by the user. Finally, the optimized
+program is translated into C++.
+
+8.1 C++ Code Generation
+The code generation for SDQL is mostly straightforward, thanks to the first-order nature of most of
+its constructs. we do not face the of compiling polymorphicorder
+functional languages.g., all objects areallocated, hence there need for GC
+key challenging sum which is translated into for-loops. Furthermore, for the case of
+ations that produce dictionaries, the generated loop performs destructive updates to the
+collection improve the performance [Henriksen et al. 2017].
+
+8.2 C++ Runtime C++ runtime employs an efficient hash table implementation based on closed hashing for dictio-aries.3 For dictionaries withint keys, the runtime either uses std::array or std::vector
+depending on whether the size is statically known during compilation time, for implement-
+ing records, SDQL uses std::tuple.
+
+3https://github.com/greg7mdp/parallel-hashmap
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:20
+
+ Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+SDQL[ring]
+-(-e)
+
+e + (-e)
+
+SDQL[closure]
+1 + e(e)
+
+1 + closure(e) * e
+
+; e
+
+; 0
+
+; closure(e)
+
+; closure(e)
+
+SDQL[prod]
+(prod(x in e1) f1(x)) * (prod(x in e1) f2(x)) ; prod(x in e1) f1(x) * f2(x)
+
+SDQL[rec]
+rec(x => let y= in f(x,y))(e2)
+
+; let y=e1 in rec(x => f(x,y))(e2)
+
+Fig. 14. Additional transformation rules for language extensions of SDQL.
+
+8.3 Semi-ring Extensions
+Scalar Semi-rings. Throughout the paper, we only focused on three important scalar semi-rings,
+and the corresponding record and dictionary semi-rings. FAQ [Abo Khamis et al. 2016] introduced
+several semi-ring structures with applications on graphical models, coding theory, and logic. Also,
+semi-rings were used for language recognition, reachability, and shortest path problems [Dolan
+2013; Shaikhha and Parreaux 2019]. SDQL can support such applications by including additional
+scalar semi-rings, a subset of which are presented in Table 1. The promote construct can be used to
+annotate numeric values with the type of the appropriate types in such cases.

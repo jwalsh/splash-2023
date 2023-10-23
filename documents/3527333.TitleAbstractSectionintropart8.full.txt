@@ -1,0 +1,149 @@
+Title-Abstract. Section intro
+ operators of relational algebra and NRC𝑎𝑔𝑔 [Smith et al. 2020] to SDQL.
+
+in sum(<x,x_v> in tmp) { <key=x, val=x_v> -> 1 }
+
+Figure 6 shows the translation of aggregations in relational algebra and NRC𝑎𝑔𝑔 to SDQL. The
+
+explanation of these operators can be found in the supplementary materials.
+Generalized Aggregates. Both scalar and group-by aggregate operators can be generalized to
+support other forms of aggregates such as minimum and maximum by supplying appropriate semi-
+ring structure (i.e., addition, multiplication, zero, and one). For example, in the case of maximum,
+the maximum function is supplied as the addition operator, and the numerical addition needs to
+be supplied as the multiplication operator [Mohri 2002]. An extended set of semi-rings for scalar
+values are presented in Table 1. To compute aggregates such as average, one has to compute both
+summation and count using two aggregates. The performance of this expression can be improved
+as discussed later in Section 5.1.2.
+Inefficiency of Group-by. The translated group-by aggregates are inefficient. This is because
+relational algebra and NRC need to have an internal implementation utilizing dictionaries for the
+grouping phase (i.e., the creation of the variable tmp in the second, fourth, fifth rules of Figure 6).
+Nevertheless, as there is no first-class support for dictionaries, the grouped structure is thrown
+away when the final aggregate result is produced. This additional phase involves an additional
+iteration over the elements, as illustrated in the next example.
+Example 6. As the final step for computing gene burden, one has to perform sum-aggregate of the
+genotype call (now denoted burden) for each sample corresponding to that gene. By naming the
+previous NRC expression as gv, the following NRC𝑎𝑔𝑔 expression specifies the full burden analysis:
+
+let gmb = groupBy𝑠𝑎𝑚𝑝𝑙𝑒 (gv)
+for x in union
+
+{sample := x.key, burdens := sumBy𝑔𝑒𝑛𝑒 (x.val)}
+
+This expression is translated as the following SDQL expression:
+
+let tmp = sum(<x,x_v> in gv) { x.sample -> { x -> x_v } } in
+let gmb = sum(<x,x_v> in tmp) { <key=x, val=x_v> -> 1 } in
+sum(<x,x_v> in gmb) { <sample = x.key, burdens =
+
+let tmp1 = sum(<b,b_v> in x.val) { b.gene -> x_v * b_v * b.burden } in
+sum(<t,t_v> in tmp1) { <key=t, val=t_v> -> 1 } > -> 1 }
+
+This expression is of type { <sample:string,burdens:{<key:string,val:real> -> int}> -> int }.
+
+4 EXPRESSIVENESS FOR LINEAR ALGEBRA
+In this section, we show the power of SDQL for expressing linear algebra workloads. We first show
+the representation of vectors in SDQL, followed by the representation of matrices in SDQL. We also
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date:.
+
+
+89:10
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+Name
+
+Translation
+
+Vector Operations:
+Addition
+Scal-Vec. Mul.
+Hadamard Prod.
+Dot Prod.
+Summation
+
+Matrix Operations:
+Transpose
+
+⟦𝑉1 + 𝑉2⟧ = ⟦𝑉1⟧ + ⟦𝑉2⟧
+
+⟦𝑎 · 𝑉 ⟧ = ⟦𝑎⟧ * ⟦𝑉 ⟧
+
+⟦𝑉1 ◦ 𝑉2⟧ = sum(x in ⟦𝑉1⟧ ) { x.key->x.val*⟦𝑉2⟧(x.key) }
+⟦𝑉1 · 𝑉2⟧ = sum(x in ⟦𝑉1⟧ ) x.val * ⟦𝑉2⟧(x.key)
+
+⟦𝑎 ∈𝑉 𝑎⟧ = sum(x in ⟦𝑉 ⟧ ) x.val
+
+⟦𝑀𝑇 ⟧ = sum(x in ⟦𝑀⟧ )
+
+{ <row=x.key.col, col=x.key.row> -> x.val }
+
+Eins
+-
+
+,i->i
+
+i,i->i
+
+i,i->
+
+i->
+
+ij->ji
+
+⟦𝑀1 + 𝑀2⟧ = ⟦𝑀1⟧ + ⟦𝑀2⟧
+
+Addition
+Scal-Mat. Mul.
+,ij->ij
+ard Prod. �𝑀1 ◦ 𝑀2⟧ = sum(x in ⟦𝑀1⟧ ) { x.key -> x.val * ⟦𝑀2⟧(x.key) } ij,ij
+Matrix-Matrix
+ij,jk->ikiplication
+
+���1 × 𝑀2⟧ = sum(x in ���1⟧ ) sum(y in ���2⟧ )
+if(x.col == y.row) then
+
+⟦� · 𝑀⟧ = ⟦𝑎⟧ * ���⟧
+
+-
+
+Mat-Vec.
+Trace
+
+{ <row=x.key.row=y.key.col> ->val*y.val }
+⟦𝑀 · 𝑉 ⟧ = sum( ⟦𝑀⟧) {x.key.x.val*⟦𝑉 ⟧.key.col)}
+⟦𝑇 � (𝑀)⟧ = sum(<k,v> in ⟦𝑀� if(k.row==k.col) then v
+
+ij,j->i
+
+ii->Fig. 7. Translation of linear algebra operations to SDQL.
+ the translation of linear algebra operators to SDQL expressions their Einstein
+summation notation, referred to as einsum in libraries suchumpy.
+
+0 𝑎1
+��1
+
+𝑏2
+
+4.1 Vectors
+SDQL represents vectors as diction indices to the element values; thus, vectors with
+elements of type SDQL expressions of type { int -> S This representation is similar to
+functional pull arrays processing languages [Keller et al. 2010 key difference is that
+the size of the array is not stored separately.
+
+Example 7. Consider two vectors defined as 𝑉cid:2)𝑎0
+
+These vectors are represented in SDQL as { 0 -> �0, 2 -> 𝑎1, 3 -> � } and { 0 -> 𝑏0, 1 -> 𝑏1
+, 2 -> 𝑏2 }. The expression 𝑉 ◦ 𝑈 is evaluated to { 0 -> 𝑎0*�0, 2 -> 𝑎1*𝑏2, 3 -> 𝑎2*0 }. As the
+value associated with the key 3 is zero, this dictionary is equivalent to { 0 -> 𝑎0*𝑏0, 2 -> 𝑎1*𝑏2 }.
+
+This value corresponds to the result of evaluating 𝑉 ◦ 𝑈 is the vector (cid:2)�0�
+
+0(cid:3).
+ 𝑎1𝑏2
+
+4.2 Matrices
+Matrices are considered as dictionaries mapping the row and column indices to the element value.
+This means that mat elements of type S are SDQL expressions with { <row:
+int, col: int> -> S }. Figure 7 shows the translation of vector and to SDQL.
+We give a detailed explanation of these operators in the supplementary material.

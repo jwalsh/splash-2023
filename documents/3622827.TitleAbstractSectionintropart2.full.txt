@@ -1,0 +1,104 @@
+Title-Abstract. Section intro
+ 2 loads the pointer ℓ1 (line C4); 1
+detaches and reclaims ℓ1 (line C10); and 2 accesses ℓ1 (line C8) that is already reclaimed by 1.
+• ABA Problem (Fig. 1c): Suppose another thread 3 concurrently invokes pop() to take ℓ1. Then
+its result would not be stack-like (i.e., not linearizable [Herlihy and Wing 1990]) in the following
+scenario: 3 accesses ℓ1 and the node’s value 10 (line C4-8); 1 invokes pop() twice, each of
+which detaches and reclaims ℓ1 (resp. ℓ2) and returns 10 (resp. 20); 1 invokes push(11), which
+allocates a block that happens to be the recycled ℓ1, and inserts ℓ1 with the new value 11 at
+the top; 3 successfully performs a CAS(ℓhead, ℓ1, ℓ2) (line C9), and returns 10. This behavior
+is invalid for a stack because 3’s pop() returns 10 which is already popped by 1. At the
+
+Proc. ACM Program. Lang. 7, No. OOPSLA2, Article 251.: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:3
+
+high level, this error occurs because 3 cannot distinguish ℓ1 between the older and the newer
+allocations.
+
+To prevent such errors, pop() should defer the deallocation of ℓ1 until all the other threads have
+ﬁnished referencing it, so that each thread’s accesses are safe and the logical identities of pointers
+do not change within an operation. The simplest solution is to use tracing garbage collectors (GC)
+that automatically reclaim memory blocks when it is safe to do so. While programmers do not need
+to care about reclamation when using GC, it is usually unavailable for low-level systems, and even
+if available, it may not be the best option due to its performance overhead. However, it is diﬃcult
+to design a correct and eﬃcient manual memory management method for each case.
+
+1.1 Modular Implementation of Memory Reclamation
+
+To alleviate the diﬃculty of manual memory management, various semi-automatic safe memory
+reclamation schemes (SMR schemes from now on) have been proposed, e.g., hazard pointers [Michael
+et al. 2023; Michael 2004], RCU [Fraser 2004; Harris 2001; Hart et al. 2007; McKenney and Slingwine
+1998; McKenney et al. 2023], and theirAlistarh et al. 2017, 2018; Brown 2015; Kang and
+Jung 2020; Nikolaev and Ravindran 2020, 2021; Sheﬃ et al. 2021; Singh et al. 2021; Wen et al. 2018].
+SMR schemes modularize memory management by separating concerns between data structure
+operation and reclamation. They provide an abstraction layer consisting of (1) a function to protect
+pointers to prevent their deallocation; and (2) a function to retire pointers so that they can later be
+reclaimed when no threads are protecting them. Concurrent data structures only need to use these
+functions (without understanding their implementation) to protect pointers before accessing and to
+retire pointers after detaching. Then the synchronization between the protection and reclamation
+is automatically undertaken by the SMR scheme.
+
+Hazard Pointers. For instance, hazard pointers ensures safe memory reclamation in Treiber’s
+stack as follows (green lines marked with H in Fig. 1a). (1) At line C4, we replace the load instruction
+(*st).head of the head pointer with a function call protect(tid, &(*st).head) that loads a
+protected pointer h to the head block for the current thread tid.1 This ensures that the thread can
+safely dereference h at line C8. (2) At lines C6 H and C10 H, before returning from the function, we
+invoke unprotect(tid) to revoke the protection of the pointer h. (3) At line C10 H, after detaching
+h from the stack, we invoke retire(h) to schedule the reclamation of h. The protect() function
+achieves its goal by publishing the pointer value to the thread’s protected pointer slot, and the
+reclaimer frees a retired pointer only if it is not written in any of those slots.
+
+RCU. For another example, RCU provides a coarse-grained protection for all pointers accessible
+inside a critical section delimited by rcu_lock(tid) and rcu_unlock(tid). RCU ensures safe
+memory reclamation in pop() as follows (blue lines marked in Fig. 1a). (1) We ﬁrst enter a
+critical section with rcu_lock(tid) (line C2 R). (2) All pointers obtained inside the critical section,
+e.g., h at line C4 are protected in the critical section. Therefore, the accesses to h at line C8 are safe
+without any further action. (3)aching h from the stack (line C10 R), we call retire(h).
+(4) Finally, before returning from pop() (lines C6 R and C10 R), we call rcu_unlock(tid) to exit
+the critical section and thus revoke the protection. RCU implements protection by deferring the
+reclamation of each retired pointer until all threads end their critical section in which the pointer
+may be accessed.
+
+1For concise presentation, we use a of hazard pointers in which each thread can protect a single pointer. In
+our formalized veriﬁcation, we use the generalized version that allows each thread to protect an unbounded number of
+pointers. In that version, protection is identiﬁed by slot ID instead of thread ID.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication October 2023.
+
+
+4
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+1.2 Problem: Non-Modular Verification of Memory Reclamation
+
+However, the modularity of the SMR schemes has not been carried over to formal veriﬁcation of
+concurrent data structuresclamation. Speciﬁcally, each of the state-the-art ver��eﬀGotsman et 2013; Tass et al; Wol�] lacks at least the followingired properties1) veriﬁ Concurrent data structures and schemes
+should be individuallyﬁ then composed without understanding each other’s implemen-ation. (2)ability: The veriﬁcation method should be powerful enough to
+variety of concurrent data structures with SMR schemes. (3) Easy integration: The veriﬁcation of
+concurrent data SMR schemes should be easily adapted from the veriﬁcation
+version without reclamation. With these criteria, we brie�y discuss the existing veriﬁcation e�
+in the following (see §8 for more detail).
+
+G et al. [2013] veriﬁ structures integrated with hazard pointers and RCU using
+a temporal separation logic. They use temporal invariants enforcing that the pointers which
+“have been they were reachable” are still allocated. However, their approach is not
+compositional as it tightly couples the implementation SMR schemes and data structures.
+Speciﬁcally, the two sub-propositions �” and “reachable” are about implementation details
+of SMR scheme and data structure, respectively. While seems to be generally applicable
+in principle, it is not demonstrated for a wide range of examples.
+
+Tassarotti. [2015] veriﬁed a single-writerreader linked list integrated with quiescent-
+state-based RCU [Desnoyers et al. 2012; Hart et al. 2007]. Their method models manual memory
+management purely in terms of ownership transfer, without relying on temporal logic. In addition,
+their veriﬁcation assumes a more realistic relaxed memory model [Batty et al. 2011; Kang et al.
+2017; Lahav et al. 2017] in which memory accesses can be reordered due to hardware and com-
+piler optimizations, whereas most of the prior work assumes the sequentially consistent memory
+model [Lamport 1979]. their approach is not compositional, because they did not use a
+generalﬁcation of to verify the. Instead monolithically veriﬁed a linked
+list integrated with an RCU an invariant couples thehistory of list and RCU internals and assumes the uniqueness of the writer thread. In
+addition, while the

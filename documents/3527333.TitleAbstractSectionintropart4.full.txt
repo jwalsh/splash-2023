@@ -1,0 +1,199 @@
+Title-Abstract. Section intro
+
+
+<a1:T1,..., an:Tn> ⊗S T0 ≜ <a1:T1 ⊗ST0,...,an:Tn⊗ST0>
+
+Fig. 2. Kind System and Type System of SDQL.
+
+a + (b + c) = (a + b) + c
+
+0 + a = a + 0 = a
+
+1 * a = a * 1 = a
+
+a + b = b + a
+
+a * (b * c) = (a * b) * c
+
+0 * a = a * 0 = 0
+
+a * (b + c) = a * b + a * c
+
+(a + b) * c = a * c + b * c
+
+The last two rules are distributivity laws, and are the base of many important optimizations for semi-
+ring structures [Aji and McEliece 2000]. Semi-rings with commutative multiplications (a*b=b*a)
+are called commutative semi-rings.
+Semi-module. The generalization of commutative semi-rings for containers results in-
+module. A semi-module over a semi-ring of S (a S-semi-module) is defined with an addition
+operator between two semi-modules, and a multiplication between a semi-ring element and the
+semi-module. An example is the vector of real numbers with vector addition and scalar-vector
+multiplication. The hold for all the elements u and v in a S-semodule:
+
+a * (u + v) = a * u + a * v
+
+(u) * a = u * a + v * a
+
+(a + b) * u = a * u + b * u
+
+(a * b) = a * (b * u)
+
+Tensor product. For two types T1 and T2 that are S-semi-modules, the tensor product T1⊗ST2
+is another S-semi-module. It comes equipped with a canonical map which we also denote using
+*: T1×T2→ T1⊗ST2 with the following laws for all elements u1,u2:T1 and v1,v2:T2:
+(u1 + u2) * v1 = u1 * v1 + u2 * v1
+
+u1 * (v1 + v2) = u1 * v1 + u1 * v2
+
+(u1 * a) * v1 = u1 * (a * v1)
+
+1 * u1 = u1
+
+2.2 Kind System and Type System
+Figure 2 shows the kind/type system of SDQL. The types with a semi-ring structure have the kind
+SM(S); semi-ring dictionaries with S-semi-module value types are also S-semi-modules (i.e., they
+have the kind SM(S)). However, dictionaries with value types of the ordinary kind Type are of kind
+Type. Similar patterns apply to records.
+Example 1. Both types { string -> int } and <c: int> are of kind SM(int). However, the types
+{string -> string} and <d: string> are of kind Type.
+
+The addition of two expressions requires both operands to have the same type of kind SM(S).
+This means that the body of summation also needs to have a type of kind SM(S). The type system
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:5
+
+Table 1. Different semi-ring structures for scalar types.
+
+Type Domain Addition Multiplication Zero One Ring
+real
+
+✓
+
+R
+
+0
+
+1
+
+Name
+Real Sum-Product
+Integer Sum-Product
+Natural Sum-Product
+Min-Product
+Max-Product
+Min-Sum
+Max-Sum
+Max-Min
+Boolean
+
+int
+
+nat
+
+mnpr
+
+mxpr
+
+mnsm
+
+mxsm
+
+mxmn
+
+bool
+
+Z
+
+N
+
+(0, ∞]
+[0, ∞)
+
+(−∞, ∞]
+[−∞, ∞)
+[−∞, ∞]
+{𝑇, 𝐹 }
+
++
++
++
+
+min
+max
+min
+max
+max
+
+∨
+
+×
+×
+×
+×
++
++
+
+min
+∧
+
+0
+
+1
+
+1
+
+1
+
+1
+
+0
+∞
+0
+∞
+−∞
+0
+−∞ +∞
+false
+true
+
+0
+
+✓
+
+✗
+
+✗
+
+✗
+
+✗
+
+✗
+�
+
+✗
+
+rules for the multiplication operator are defined inductively. Multiplying a scalar with a dictionary
+results in a dictionary with the same keys, but with the values multiplied with the scalar value.
+Multiplying a dictionary with another term also results in a dictionary with the same keys, and
+values multiplied with that term. Note that the multiplication operator is not commutative in
+general.2 The typing rules for the multiplication of record types are defined similarly.
+Example 1 (Cont.). Assume a dictionary term d with type { string -> int }, and a record term
+r with type <c: int>. The type of the expression d * r is { string -> int }⊗int<c: int>, which
+is { string -> <c: int> }, as can be confirmed by the typing rules.
+
+2.3 Semi-ring Constructs
+Scalars. Values of type bool form the Boolean Semi-Ring, with disjunction and conjunction as
+binary operators, and false and true as identity elements. Values of type int and real form Integer
+Semi-Ring (Z) and Real Semi-Ring (R), respectively. Table 1 shows an extended set of semi-rings for
+scalar values. Both addition and multiplication only support elements of the same scalar type.
+Promotion. Performing multiplications between elements of different scalar data types requires
+explicitly promoting the operands to the same scalar type. Promoting a scalar term s of type S1 to
+type S2 is achieved by promoteS1,S2(s).
+Dictionaries. A dictionary with keys of type K, and values of type V is represented by the data
+type { K -> V

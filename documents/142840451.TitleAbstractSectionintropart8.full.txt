@@ -1,0 +1,161 @@
+Title-Abstract. Section intro
+ to issue: When reaching a call in either forward
+or backward direction, the call target needs to be resolved through an additional
+query (rules ReachedCallBwds and ReachedCallds); these
+ the same difference regarding enter and call events as for adding call
+edges to the call graph. Lastly, when reaching of going
+backwards or the end of a function going forwards, call sites of the containing
+function need to be resolved through another query to make progress.
+
+The transition system is intentionally non-deterministic: At each point, multiple rules may be applicable to make progress. The rules can be applied in any
+order to reach an overapproximation of the relevant parts of the real.
+We prove soundness of the approach by stating that once the algorithm reaches
+a fixed point, the call graph is on-demand sound w.r.t. the answered queries.
+
+Theorem 1 (On-Demand Soundness). For any call state
+(G, C, F ), if (G, C, F ) ⇝∗ (G′, C ′, F ′) ̸⇝, then G′ is (C ′, F ′)-sound.
+
+
+14
+
+Schoepe et al.
+
+AddFwdCallEdge
+f ∈ F
+
+τ · enter(c, f ) ∈ F (G, f )
+(G, C, F ) ⇝ ({(c, f )} ∪ G, C, F )
+
+(c, f ) ̸∈ G
+
+AddBwdCallEdge
+c ∈ C
+
+ref (f, r ) · τ · call(c, f, r ) ∈ B(G, c)
+(G, C, F ) ⇝ ({(c, f )} ∪ G, C, F )
+
+(c, f ) ̸∈ G
+
+ReachedCallFwds
+f ∈ F τ · call(c
+′
+, r
+
+) ∈ F (G, f )
+(G, C, F ) ⇝ (G, C ∪ {c
+
+, f
+
+′
+
+′
+
+′}, F )
+
+ReachedCallBwds
+c ∈ C
+′
+return(c
+, f
+(G, C, ⇝ (G, C ∪ {c
+
+) · τ ∈ B(G, c)
+′}, F )
+
+′
+
+ReachedEnterBwds
+c ∈ C
+′
+
+, f
+
+′
+
+′ ∈ B(G, c)
+enter(c
+(G, C, F ) ⇝ (G, C, F ∪ {f
+′})
+
+) · τ
+
+′
+
+c
+
+/∈ C
+
+′ ̸∈ C
+
+c
+
+′
+
+f
+
+/∈ F
+
+ReachedExitFwds
+f ∈ F
+τ · exit(c, f
+
+) ∈ F (G, f )
+(G, C, F ) ⇝ (G, C, F ∪ {f
+
+′
+
+′
+
+f
+
+/∈ F
+
+′})
+
+Fig. 7. On-Demand Call Graph Construction as a transition system
+
+The analysis starts with an empty call graph and non-empty query sets,
+relying on the special case of the theorem where G = ∅. As ⇝ is monotone
+(discussed below), any queries issued as part of C or F are still present in C ′
+or F ′. Based on the intuitions presented in Section 2.2, we present a proof sketch
+summarizing the key techniques. Some definitions and lemma statements are
+simplified. The full details can be found in the Isabelle/HOL formalization [27].
+
+Proof (sketch). The proof proceeds in four main steps:
+1. We first define an intermediate collecting semantics ↣ that adds subtraces
+and new queries in the same order as ⇝ adds call edges and queries. The in-
+termediate collecting semantics maintains the state of forward queries (resp.
+backward queries) as partial maps F (resp. B) from functions f ∈ Func
+(resp. c ∈ CallSite) to subsets of fwd -traces(f ) (resp. bwd -traces(c)). Each
+step (F,B) ↣ (F′,B′) either adds an event to the end (resp. beginning) of
+a set in the co-domain of either map. If the event requires no other queries
+(such as an ref (f, r ) event), then it is added directly. If the new event re-
+quires resolving another query (such as function call events), then it is only
+added if the query it depends on has made enough progress. Alternatively, a
+step may issue an additional query under similar conditions as ⇝. Note that
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+15
+
+this intermediate semantics is more precise as only real events are added to
+traces. This also renders it not computable.
+2. We proceed by proving that ⇝ overapproximates ↣. Concretely, we show
+that if (F,B) ↣ (F′,B′), and γ((G, C, F )) = (F,B), then there exists a new
+call graph construction state (G′, C ′, F ′ that (G, C, F ) ⇝ (G′, C ′, F ′)
+and (F′,B′) ⊑ γ((G′, C ′, F ′)), where we write γ conc of a
+call graph construction state (G, C, F ) into subsets of traces for each forward
+and backward query (F,B) and ⊑ for a lifting of subset inclusion of traces
+for each forward and backward query. This is proven using a straightforward
+induction on (F,B) ↣ (F′,B′).
+3. Next, we show that a fixed point of ↣ approximates all subtraces for the
+queries that were generated. For this, we need an intermediate definition of
+well-formedness on the events in the subtraces being discovered. Formally, if
+(F,B) ̸↣, and (F,B) is well-formed, then for each f such that F(f ) = Tf,
+we have fwd -traces(f ) ⊆ Tf. Similarly, if B(c) = Tb, then it holds that
+bwd -traces(c) ⊆ Tb. Well-formedness for forward queries requires that all
+singleton traces [ref (f,·)] are included in Tf and that Tf is prefix-closed.
+Similarly, well-formed backward sets Tb need to include the singleton suffixes
+of bwd -traces(c) in addition to being suffix-closed. To show that a fixed point
+of ↣ approximates all subtraces

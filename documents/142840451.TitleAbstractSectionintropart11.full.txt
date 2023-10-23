@@ -1,0 +1,133 @@
+Title-Abstract. Section intro
+15] (Demand-CFA) tackles the problem of per-
+forming the functional equivalent of on-demand call graph construction for a
+purely functional lambda calculus, and similarly divides its approach into inter-
+dependent forward and backward queries. The key distinguishing feature of our
+work is providing a parameterized construction leveraging data flow analyses to
+support impure languages with non-functional features. In contrast, Demand-
+CFA fixes the specific analyses used for resolving expressions and finding call
+sites. This approach is sufficient in the context of a purely functional language,
+but translation to a language with imperative features introduces a large design
+space of how to trade-off precision and scalability. By providing a parameterized
+approach, we sidestep such trade-offs and provide a modular building block.
+
+Another line of work aims to make whole-program call graph construction
+scalable enough to apply to large code bases. A prominent example is Class-
+Hierarchy Analysis [7] (CHA) and subsequent work [2] in the context of object-
+oriented languages. CHA achieves scalability by making use of nominal typing to
+resolve higher-order behavior resulting from dynamic dispatch. Since all subtyp-
+ing relationships are explicit in the syntax (for example, in the form of extends
+and implements clauses in Java), this is straightforward to compute efficiently.
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+21
+
+However, this approach is harder to apply to languages that use functions as
+first-class values without potentially introducing a large amount of imprecision.
+For example, given a higher-order function accepting a function of type int ->
+int as input, considering each function with this type (out of potentially many)
+as a potential callee in the body of the higher-order function might lead to many
+spurious call edges in practice. Using functions as first-class values is common
+practice in JavaScript, and is becoming common in more languages, for exam-
+ple through Java’s introduction of lambda expressions [25] and streams [24].
+Similarly, fast and scalable approaches exist for whole-program JavaScript call
+graph construction. Feldthaus et al. [14] present an underapproximate call graph
+construction algorithm for JavaScript that scales to usage inside an integrated
+development environment (IDE), which places strict requirements on how fast
+the analysis can be performed. However, in order to achieve this level of per-
+formance, the approach is intentionally unsound and misses call edges. Nielsen
+et. al [22] also present a highly scalable approach to call graph construction
+sacrificing soundness in some cases. While our implementation is also unsound
+in the presence of the same features that cause unsoundness in their work, our
+theoretical approach provides strong soundness guarantees.
+
+Another well-known approach is variable-type analysis (VTA) [33], which
+produces reasonably scalable whole-program call graphs in the presence of higher-
+order functions and heap objects without requiring deep interleavings between
+the call graph construction and the data flow analysis. However, VTA’s perfor-
+mance may render it too slow in certain contexts, e.g. for in-IDE use on large
+applications. To achieve this level of scalability, VTA’s precision is constrained
+by its heap abstraction, while our approach allows for the use of more precise
+heap abstractions while hopefully remaining scalable for large code bases.
+
+A key motivation for our work is the common theme of other analysis ap-
+proaches assuming a precomputed call graph. Such examples include practical
+bug detection tools such as Infer [4], as well as theoretical results on Demanded
+Abstract Interpretation [32] that allow turning whole-program analyses into
+demand-driven analyses transparently. The latter example in particular may
+allow turning a whole-program data flow analysis into a fully demand-driven
+analysis by (i) obtaining an on-demand, but still call-graph-dependent, data
+flow analysis by applying Demanded Abstract Interpretation, and (ii) lifting the
+call graph requirement using the approach presented in this paper.
+
+Our work relies on the existence of sufficiently precise on-demand data flow
+analyses, an area that has seen improvements recently. Notably, Synchronized
+Push-Down Systems [30] reconcile between precise tracking of field
+accesses and calling contexts. Boomerang [31] provides another on-demand data
+flow analysis supporting exactly the same forward and backward queries required
+to instantiate our approach.
+
+Our approach of issuing additional queries that allow each other to make
+progress in a mutually recursive fashion is inspired by Datalog-based analyses
+such as Doop [29] and CodeQL [16]. Datalog analyses, however, directly build a
+call graph together with a specific points-to analysis and do not typically allow
+
+
+22
+
+Schoepe et al.
+
+plugging in another points-to analysis instead. Further, we are not aware of on-
+demand analyses implemented in Datalog. The formalization of our approach
+may also provide a starting point to reason about soundness of Datalog-based
+analyses, which has not been extensively studied formally.
+
+6 Conclusions
+
+We present an approach for bootstrapping an on-demand call graph, leveraging
+underlying forward and backward data flow analyses. Our approach is para-
+metric in the underlying analyses assuming only a notion of soundness up to a
+partial call graph. Based on this notion of soundness, we formalize our call graph
+construction and prove it sound (mechanized in Isabelle/HOL). Our prototype
+Merlin implements this approach for a subset of JavaScript using Synchronized
+Push-Down Systems [30] for both forward and backward data flow analysis. We
+evaluate Merlin on a synthetic benchmark set. The results indicate that on-
+demand call graph construction indeed has the potential to improve scalability
+by only exploring the relevant part of programs in the benchmark.
+
+Acknowledgments. This paper describes work performed in part while David
+Seekatz was an Applied Scientist Intern at Amazon. Franco Raimondi holds
+concurrent appointments at Middlesex University and as an Amazon Scholar.
+Bor-Yuh Evan Chang holds concurrent appointments at the University of Col-
+orado Boulder and as an Amazon Scholar. This paper describes work performed
+at Amazon and is not associated with Middlesex University nor the University
+of Colorado Boulder.
+
+We are particularly grateful to Fangyi Zhou and Martin Schaef for their
+discussions and feedback on several drafts of this paper. We thank the anonymous
+reviewers for their helpful comments and feedback. This research was conducted
+in the Prime Video Automated Reasoning team and we are grateful to the entire
+team for their support.
+
+A Single-Threaded Performance Results
+
+Fig. 10 shows the benchmark results when run on a single core, demonstrating
+that the faster whole-program results are caused by better CPU utilization.
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+23
+
+(a) Wall clock time
+
+(b) Memory usage per set of initial
+queries
+
+(c) CPU time
+
+(d) Average number of queries resolved
+
+Fig. 10. Single-threaded performance results

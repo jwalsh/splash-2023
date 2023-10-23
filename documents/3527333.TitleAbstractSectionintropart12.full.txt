@@ -1,0 +1,94 @@
+Title-Abstract. Section intro
+ not allow any mutation and global side effect.
+• Dictionary lookup: the dictionaries support a constant-time look up operation.
+• Dictionary summation: iteration over dictionaries allows for both scalar aggregates and
+
+dictionary construction in the style of monoid comprehensions [Fegaras and Maier 2000].
+
+• Semi-ring: SDQL has constructs with such structure including semi-ring dictionaries.
+• Compositional: semi-ring dictionaries accept semi-ring dictionaries as both keys and values.
+
+Table 2 shows the features that are leveraged by each loop optimization. The compositionality
+feature is essential for expressing various data layout representations, which is presented next.
+
+6 DATA LAYOUT REPRESENTATIONS
+In this section, we investigate various data representations supported by SDQL, and show their
+correspondence to existing data formats used in query engines and linear algebra frameworks.
+
+6.1 Flat vs. Curried Representation
+Currying a function of type T1×T2 => T3 results in a function of type T1 => (T2 => T3). Similarly,
+dictionaries with a pair key can be curried into a nested dictionary. More specifically, a dictionary of
+type { <a: T1, b: T2> -> T3 } can be curried into a dictionary of type { T1 -> { T2 -> T3 } }.
+
+Factorized Relations. Relations can be curried following a specified order for their attributes.
+6.1.1
+In the database community, this representation is referred to as factorized representation [Olteanu
+and Schleich 2016] using a variable order. In practice, a trie data structure can be used for factor-
+ized representation, and has proved useful for computational complexity improvements for joins,
+resulting into a class of join algorithms referred to as worst-case optimal joins [Veldhuizen 2014].
+Consider a relation 𝑅(𝑎1,..., 𝑎𝑛) (with bag semantics), the representation of which is a dictionary of
+type { <𝑎1:𝐴1,...,𝑎𝑛:𝐴𝑛> -> int } in SDQL. By using the variable order of [𝑎1,..., 𝑎𝑛], the factor-
+ized representation of this relation in SDQL is a nested dictionary of type {𝐴1->{...->{𝐴𝑛->int}...}}.
+
+6.1.2 Curried Matrices. Matrices can also be curried as a dictionary with row as key, and another
+dictionary as value. The inner dictionary has column as key, and the element as value. Thus, a
+curried matrix with elements of type S is an SDQL expression of type { int -> { int -> S } }.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:16
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+⟦𝑀1 × 𝑀2⟧ = sum(row in ⟦𝑀1⟧ ) { row.key ->
+
+sum(x in row.val) sum(y in ⟦𝑀2⟧(x.key)) { y. x.val * y.val } }
+
+Fig. 11. Translation of matrix-matrix multiplication for curried matrices to SDQL.
+
+Example 8 (Cont.). Consider matrix 𝑀 from Example 8. The curried representation of this matrix
+in SDQL is { 0 -> { 0 -> 𝑐0, 3 -> 𝑐1 }, 1 -> { 1 -> 𝑐2 } }.
+The flat encoding of matrices presented in Section 4.2 results implementation for
+various matrix operations, as explained before. By using a curried representation instead, one can
+provide more efficient implementations for matrix operations.
+
+As an example, Figure 11 shows the translation of curried matrix-matrix multiplication. Instead
+of iterating over every combination of elements of two matrices, the curried representation allows a
+direct lookup on the elements of a particular row of the second matrix. the dimension
+of the is 𝑚 × 𝑛, and the second matrix is of dimension 𝑛 × 𝑘, this improvement reduces
+the complexity from 𝑂 (𝑚𝑛2𝑘) down to 𝑂 (�𝑛𝑘).
+Example 9 (Cont.). The computation of the covariance by curried matrices optimized as:
+
+let At = sum(row in A) sum(x.val) { x.key -> {row -> x.val } } in
+sum(row){ row.key -> sum in row.val) sum(y in A(x.key)){y.key->x*y.val} }
+
+Furthermore, performing vertical loop fusion results in the following optimized program:
+
+sum(row in A) sum(x in row.val) { x.key -> sum(y in row.val){y.key->x.val*y.val} }
+
+Correspondence to Formats. The flat representation corresponds to the COO format of
+sparse tensors, whereas the curried one corresponds to CSF using hash tables [Chou et al. 2018].
+
+6.2 Sparse vs. Dense Layouts
+
+Sparse Layout. So far, all collections were encoded as dictionaries with hash table as their
+6.2.1
+underlying implementations. This representation is appropriate for sparse structures, but it is
+suboptimal for dense ones; typically linear algebra frameworks use arrays to store dense tensors.
+
+6.2.2 Dense Layout. SDQL can leverage dense_int type in order to use array for implementing
+collections. As explained in Section 2, arrays are the special case of dictionaries with dense_int
+keys. The runtime environment of SDQL uses native array implementations for such dictionaries
+instead of hash-table data-structures. Thus, by usingint as the index for tensors, SDQL can
+have a more efficient layout for dense vectors and matrices. In this way, a vector is encoded
+array of elements and a matrix as a nested array of elements.
+
+Next see how dense layout and in particular arrays can be used to implement row and
+
+columnar layout for query engines.
+
+6 Row vs. Columnar
+6.3.1 Row In cases where input relations do not have duplicates, there is to keep
+the boolean multiplicity information in the corresponding dictionaries. Instead, relations canstored as dictionaries where the key is an index, and the value is the corresponding row means
+that the relation 𝑅(𝑎1,..., 𝑎𝑛) can be represented as a dictionary of type { idx

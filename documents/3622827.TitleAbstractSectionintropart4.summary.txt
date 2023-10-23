@@ -1,0 +1,3 @@
+
+
+This section discusses the challenges in designing and verifying modular specifications of hazard pointers and RCU. It reviews the necessary technical background on hazard pointers, RCU, and separation logic-based verification of concurrent data structures. It then proposes a specification of hazard pointers, discussing the key ideas for verifying the specification. It generalizes the specification to mutable memory blocks and proposes a specification of RCU. It evaluates the modularity of the specifications of hazard pointers and RCU with three criteria. Finally, it concludes with related and future work.

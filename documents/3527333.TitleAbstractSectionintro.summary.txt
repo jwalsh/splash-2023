@@ -1,0 +1,3 @@
+
+
+This paper introduces semi-ring dictionaries, a powerful class of compositional and purely functional collections that can be used to express relational algebra with aggregations, linear algebra, and functional collections over data such as relations and matrices. The authors developed SDQL, a statically typed language that unifies a wide range of optimizations commonly used in databases and linear algebra. This enables efficient processing of hybrid DB and LA workloads, and the authors show experimentally that a handful of DB and LA workloads can take advantage of the SDQL language and optimizations. SDQL can be competitive with or outperform a host of systems.

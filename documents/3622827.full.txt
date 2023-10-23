@@ -1,0 +1,2652 @@
+Modular Verification of Safe Memory Reclamation in
+Concurrent Separation Logic
+
+JAEHWANG JUNG, KAIST, Republic of Korea
+JANGGUN LEE, KAIST, Republic of Korea
+JAEMIN CHOI, KAIST, Republic of Korea
+JAEWOO KIM, KAIST, Republic of Korea
+SUNHO PARK, KAIST, Republic of Korea
+JEEHOON KANG, KAIST, Republic of Korea
+
+251
+
+Formal veriﬁcation is an eﬀective method to address the challenge of designing correct and eﬃcient con-
+current data structures. But veriﬁcation eﬀorts often ignore memory reclamation, which involves nontrivial
+synchronization between concurrent accesses and reclamation. When incorrectly implemented, it may lead to
+critical safety errors such as use-after-free and the ABA problem. Semi-automatic safe memory reclamation
+schemes such as hazard pointers and RCU encapsulate the complexity of manual memory management in
+modular interfaces. However, this modularity has not been carried over to formal veriﬁcation.
+
+We propose modular speciﬁcations of hazard pointers and RCU, and formally verify realistic implementations
+of them in concurrent separation logic. Speciﬁcally, we design abstract predicates for hazard pointers that
+capture the meaning of validating the protection of nodes, and those for RCU that support optimistic traversal
+to possibly retired nodes. We demonstrate that the speciﬁcations indeed facilitate modular veriﬁcation in
+three criteria: compositional veriﬁcation, general applicability, and easy integration. In doing so, we present
+the ﬁrst formal veriﬁcation of Harris’s list, the Harris-Michael list, the Chase-Lev deque, and RDCSS with
+reclamation. We report the Coq mechanization of all our results in the Iris separation logic framework.
+
+CCS Concepts: • Theory of computation → Separation logic; Program veriﬁcation; Concurrent
+algorithms.
+
+Additional Key Words and Phrases: safe memory reclamation, separation logic, Iris
+
+ACM Reference Format:
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang. 2023. Modular
+Veriﬁcation of Safe Memory Reclamation in Concurrent Separation Logic. Proc. ACM Program. Lang. 7,
+OOPSLA2, Article 251 (October 2023), 29 pages. https://doi.org/10.1145/3622827
+
+1 INTRODUCTION
+
+It is challenging to design correct and eﬃcient concurrent data structures. An eﬀective method
+to address the challenge is formal veriﬁcation, which not only increases our conﬁdence in the
+correctness of the algorithm but also help us improve it. As such, various concurrent data structures
+have been formally veriﬁed.
+
+Authors’ addresses: Jaehwang Jung, jaehwang.jung@kaist.ac.kr, KAIST, Daejeon, Republic of Korea; Janggun Lee, janggun.
+lee@kaist.ac.kr, KAIST, Daejeon, Republic of Korea; Jaemin Choi, jaemin.choi98@kaist.ac.kr, KAIST, Daejeon, Republic
+of Korea; Jaewoo Kim, jaewoo.kim@kaist.ac.kr, KAIST, Daejeon, Republic of Korea; Sunho Park, sunho.park@kaist.ac.kr,
+KAIST, Daejeon, Republic of Korea; Jeehoon Kang, jeehoon.kang@kaist.ac.kr, KAIST, Daejeon, Republic of Korea.
+
+This work is licensed under a Creative Commons Attribution 4.0 International License.
+
+© 2023 Copyright held by the owner/author(s).
+2475-1421/2023/10-ART251
+https://doi.org/10.1145/3622827
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:2
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+C1 fun pop(st):
+
+C2 R
+
+C3
+
+C4 N
+
+C4 H
+
+C4 R
+
+C5
+
+C6 H
+
+C6 R
+
+C7
+
+C8
+
+C9
+
+C10 N
+
+C10 H
+
+C10 R
+
+C11
+
+rcu_lock(tid)
+
+loop:
+
+h := (*st).head
+
+h := protect(tid, &(*st).head)
+
+h := (*st).head
+
+if h == NULL:
+
+unprotect(tid)
+
+rcu_unlock(tid)
+
+return None
+
+x := (*h).data; n := (*h).next
+
+if CAS(&(*st).head, h, n):
+
+// free(h) incurs errors
+
+retire(h); unprotect(tid)
+
+retire(h); rcu_unlock(tid)
+
+return Some(x)
+
+(a) pop() code without reclamation (red lines with N),
+with hazard pointers (green lines with H), and with
+RCU (blue lines with R).
+
+(4) free(ℓ1)
+ℓ1
+
+ℓhead
+
+(1)
+
+10
+
+2: use-after-free
+
+(2)
+
+ℓ2
+
+20
+
+(3) CAS(ℓhead, ℓ1, ℓ2)
+
+(b) 2 accesses ℓ1 already reclaimed by 1.
+
+ℓhead
+
+ℓ1 (recycled)
+
+11
+
+ℓ2
+
+20
+
+3: ABA CAS(ℓhead, ℓ1, ℓ2)
+
+(c) 3 uses stale values for CAS.
+
+Fig. 1. Problems of immediately reclaiming detached block illustrated in Treiber’s stack [Treiber 1986].
+
+However, the existing veriﬁcations of concurrent data structures often ignore memory reclamation,
+which involves nontrivial synchronization between concurrent accesses and reclamation of the
+same memory block. For instance, consider Treiber’s concurrent stack [Treiber 1986] presented in
+Fig. 1a. (For now, ignore those lines marked with H or R.) A Treiber’s stack is essentially a linked list
+of elements with its head being the stack top. Fig. 1b illustrates the procedure of the pop() method.
+When a thread invokes pop() of a stack at address st, it (1) reads the pointer to the ﬁrst block ℓ1
+from st’s head ﬁeld (line C4); (2) if ℓ1 is NULL, returns None (C5-7); (3) otherwise, reads ℓ1’s data
+and the pointer to its next block ℓ2 (line C8); and (4) detaches ℓ1 by performing compare-and-swap
+(CAS) on head that atomically replaces ℓ1 with ℓ2 (line C9). If successful, pop() returns ℓ1’s data
+(line C11), and otherwise, it retries from the beginning (line C3). (5) To avoid memory leaks, it
+should eventually reclaim the detached block ℓ1. What if pop() immediately reclaims ℓ1 at line
+C10? Then the following critical errors would occur:
+
+• Use-A(cid:30)er-Free (Fig. 1b): Suppose threads 1 and 2 concurrently invoke pop() to take ℓ1. Then
+a use-after-free error would occur in the following scenario: 2 loads the pointer ℓ1 (line C4); 1
+detaches and reclaims ℓ1 (line C10); and 2 accesses ℓ1 (line C8) that is already reclaimed by 1.
+• ABA Problem (Fig. 1c): Suppose another thread 3 concurrently invokes pop() to take ℓ1. Then
+its result would not be stack-like (i.e., not linearizable [Herlihy and Wing 1990]) in the following
+scenario: 3 accesses ℓ1 and the node’s value 10 (line C4-8); 1 invokes pop() twice, each of
+which detaches and reclaims ℓ1 (resp. ℓ2) and returns 10 (resp. 20); 1 invokes push(11), which
+allocates a block that happens to be the recycled ℓ1, and inserts ℓ1 with the new value 11 at
+the top; 3 successfully performs a CAS(ℓhead, ℓ1, ℓ2) (line C9), and returns 10. This behavior
+is invalid for a stack because 3’s pop() returns 10 which is already popped by 1. At the
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:3
+
+high level, this error occurs because 3 cannot distinguish ℓ1 between the older and the newer
+allocations.
+
+To prevent such errors, pop() should defer the deallocation of ℓ1 until all the other threads have
+ﬁnished referencing it, so that each thread’s accesses are safe and the logical identities of pointers
+do not change within an operation. The simplest solution is to use tracing garbage collectors (GC)
+that automatically reclaim memory blocks when it is safe to do so. While programmers do not need
+to care about reclamation when using GC, it is usually unavailable for low-level systems, and even
+if available, it may not be the best option due to its performance overhead. However, it is diﬃcult
+to design a correct and eﬃcient manual memory management method for each case.
+
+1.1 Modular Implementation of Memory Reclamation
+
+To alleviate the diﬃculty of manual memory management, various semi-automatic safe memory
+reclamation schemes (SMR schemes from now on) have been proposed, e.g., hazard pointers [Michael
+et al. 2023; Michael 2004], RCU [Fraser 2004; Harris 2001; Hart et al. 2007; McKenney and Slingwine
+1998; McKenney et al. 2023], and their hybrids [Alistarh et al. 2017, 2018; Brown 2015; Kang and
+Jung 2020; Nikolaev and Ravindran 2020, 2021; Sheﬃ et al. 2021; Singh et al. 2021; Wen et al. 2018].
+SMR schemes modularize memory management by separating concerns between data structure
+operation and reclamation. They provide an abstraction layer consisting of (1) a function to protect
+pointers to prevent their deallocation; and (2) a function to retire pointers so that they can later be
+reclaimed when no threads are protecting them. Concurrent data structures only need to use these
+functions (without understanding their implementation) to protect pointers before accessing and to
+retire pointers after detaching. Then the synchronization between the protection and reclamation
+is automatically undertaken by the SMR scheme.
+
+Hazard Pointers. For instance, hazard pointers ensures safe memory reclamation in Treiber’s
+stack as follows (green lines marked with H in Fig. 1a). (1) At line C4, we replace the load instruction
+(*st).head of the head pointer with a function call protect(tid, &(*st).head) that loads a
+protected pointer h to the head block for the current thread tid.1 This ensures that the thread can
+safely dereference h at line C8. (2) At lines C6 H and C10 H, before returning from the function, we
+invoke unprotect(tid) to revoke the protection of the pointer h. (3) At line C10 H, after detaching
+h from the stack, we invoke retire(h) to schedule the reclamation of h. The protect() function
+achieves its goal by publishing the pointer value to the thread’s protected pointer slot, and the
+reclaimer frees a retired pointer only if it is not written in any of those slots.
+
+RCU. For another example, RCU provides a coarse-grained protection for all pointers accessible
+inside a critical section delimited by rcu_lock(tid) and rcu_unlock(tid). RCU ensures safe
+memory reclamation in pop() as follows (blue lines marked with R in Fig. 1a). (1) We ﬁrst enter a
+critical section with rcu_lock(tid) (line C2 R). (2) All pointers obtained inside the critical section,
+e.g., h at line C4 are protected in the critical section. Therefore, the accesses to h at line C8 are safe
+without any further action. (3) After detaching h from the stack (line C10 R), we call retire(h).
+(4) Finally, before returning from pop() (lines C6 R and C10 R), we call rcu_unlock(tid) to exit
+the critical section and thus revoke the protection. RCU implements protection by deferring the
+reclamation of each retired pointer until all threads end their critical section in which the pointer
+may be accessed.
+
+1For concise presentation, we use a simple version of hazard pointers in which each thread can protect a single pointer. In
+our formalized veriﬁcation, we use the generalized version that allows each thread to protect an unbounded number of
+pointers. In that version, protection is identiﬁed by slot ID instead of thread ID.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:4
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+1.2 Problem: Non-Modular Verification of Memory Reclamation
+
+However, the modularity of the SMR schemes has not been carried over to formal veriﬁcation of
+concurrent data structures with reclamation. Speciﬁcally, each of the state-of-the-art veriﬁcation
+eﬀorts [Gotsman et al. 2013; Tassarotti et al. 2015; Wolﬀ 2021] lacks at least one of the following
+desired properties. (1) Compositional veriﬁcation: Concurrent data structures and SMR schemes
+should be individually veriﬁed and then composed without understanding each other’s implemen-
+tation. (2) General applicability: The veriﬁcation method should be powerful enough to verify a
+variety of concurrent data structures with SMR schemes. (3) Easy integration: The veriﬁcation of
+concurrent data structures with SMR schemes should be easily adapted from the veriﬁcation of the
+version without reclamation. With these criteria, we brieﬂy discuss the existing veriﬁcation eﬀorts
+in the following (see §8 for more detail).
+
+Gotsman et al. [2013] veriﬁed data structures integrated with hazard pointers and RCU using
+a temporal separation logic. They use temporal invariants enforcing that the pointers which
+“have been protected since they were reachable” are still allocated. However, their approach is not
+compositional as it tightly couples the implementation details of SMR schemes and data structures.
+Speciﬁcally, the two sub-propositions “protected” and “reachable” are about implementation details
+of SMR scheme and data structure, respectively. While this method seems to be generally applicable
+in principle, it is not demonstrated for a wide range of examples.
+
+Tassarotti et al. [2015] veriﬁed a single-writer multi-reader linked list integrated with quiescent-
+state-based RCU [Desnoyers et al. 2012; Hart et al. 2007]. Their method models manual memory
+management purely in terms of ownership transfer, without relying on temporal logic. In addition,
+their veriﬁcation assumes a more realistic relaxed memory model [Batty et al. 2011; Kang et al.
+2017; Lahav et al. 2017] in which memory accesses can be reordered due to hardware and com-
+piler optimizations, whereas most of the prior work assumes the sequentially consistent memory
+model [Lamport 1979]. However, their approach is not compositional, because they did not use a
+general speciﬁcation of RCU to verify the linked list. Instead, they monolithically veriﬁed a linked
+list integrated with an RCU implementation using an invariant that tightly couples the operation
+history of the linked list and RCU internals and assumes the uniqueness of the writer thread. In
+addition, while the core idea of their method is generally applicable, it is not applied to other SMR
+schemes and data structures.
+
+Meyer and Wolﬀ [2019a,b]; Wolﬀ [2021] developed an automatic linearizability checker for
+concurrent data structures with SMR schemes. Their veriﬁcation is compositional as it is parametric
+over the speciﬁcations for each SMR scheme. Their method is easy to integrate as their veriﬁer
+automatically checks whether a given linearizable concurrent data structure without reclamation
+can be adapted to that with reclamation. However, their method is not generally applicable because
+it relies on a linearizability checker that does not scale to sophisticated non-blocking data structures
+such as Harris’s list [Harris 2001].
+
+1.3 Contributions: Modular Verification of Memory Reclamation
+
+We propose modular speciﬁcations of hazard pointers and RCU, formally verify realistic implemen-
+tations of them, and demonstrate that the speciﬁcations indeed facilitate modular veriﬁcation of
+memory reclamation. Speciﬁcally, we make the following contributions.
+
+• In §2, we describe the challenges in designing and verifying modular speciﬁcations of hazard
+pointers and RCU, which include the subtleties in validating protection of nodes in hazard
+pointers, and RCU’s support for optimistic traversal to possibly retired nodes. In doing so, we
+review the necessary technical background on hazard pointers, RCU, and separation logic-based
+veriﬁcation of concurrent data structures.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:5
+
+C11 fun protect(tid, src):
+
+C31 fun retire(p):
+
+p := *src
+
+loop:
+
+protected[tid] := p
+
+C32
+
+C33
+
+C34
+
+retired.push(p)
+
+if /* some condition */:
+
+do_reclamation()
+
+C12
+
+C13
+
+C14
+
+C15
+
+C16
+
+C17
+
+C18
+
+p’ := *src
+
+if p’ == p:
+
+return p’
+
+p := p’
+
+C21 fun unprotect(tid):
+
+C22
+
+protected[tid] := NULL
+
+C41 fun do_reclamation():
+
+C42
+
+C43
+
+C44
+
+C45
+
+C46
+
+for r in retired.pop_all():
+
+if r in protected:
+
+retired.push(r)
+
+else:
+
+free(r)
+
+Fig. 2. A simplified implementation of hazard pointers.
+
+• In §3, we propose a speciﬁcation of hazard pointers. The key idea lies in designing abstract
+predicates to precisely capture the meaning of validating protection. For presentation purposes,
+we make a simplifying assumption that a memory block’s contents are immutable in this
+section and lift the assumption in §5.
+
+• In §4, we discuss the key ideas for verifying the above speciﬁcation.
+• In §5, we generalize the above speciﬁcation to mutable memory blocks.
+• In §6, we propose a speciﬁcation of RCU. The key idea lies in designing abstract predicates to
+precisely capture the guarantees provided by a critical section and to encapsulate the reasoning
+about the link structure for optimistic traversal.
+
+• In §7, we evaluate the modularity of our speciﬁcations of hazard pointers and RCU with the three
+criteria discussed in §1.2. Speciﬁcally, we have compositionally veriﬁed realistic implementations
+of hazard pointers and RCU (based on Meta’s Folly library [Meta 2023] and the non-blocking
+epoch-based algorithm by Parkinson et al. [2017], respectively) and the functional correctness
+of 9 non-blocking data structures with reclamation (general applicability). We observe that,
+compared to their counterparts without reclamation, the veriﬁcation overhead is roughly
+proportional to the implementation overhead (easy integration).
+
+In §8 and 9, we conclude with related and future work. In the supplementary material [Jung et al.
+2023], we report the Coq mechanization of all our results in the Iris separation logic framework [Iris
+Team 2023b; Jung et al. 2018, 2015; Krebbers et al. 2017].
+
+2 BACKGROUND AND CHALLENGES
+
+2.1 Hazard Pointers
+
+Fig. 2 shows a simpliﬁed implementation of hazard pointers. To ensure safe use of protected pointers,
+it defers the reclamation of retired pointers until they are no longer protected by any threads.
+
+On the one hand, retire(p) adds p to the retired pointer list (retired, line C32). When some
+implementation-speciﬁc conditions are met—e.g., the number of retired pointers exceeds a certain
+threshold (line C33), retire() calls do_reclamation() to reclaim those retired pointers that are
+not currently protected (line C34). The do_reclamation() function ﬁrst atomically removes all
+pointers from the retired pointer list (line C42). Then it checks if each pointer is in the protected
+pointer list (protected, line C43). If so, the pointer is added back to the retired pointer list (line
+C44). Otherwise, the pointer is reclaimed (line C46).
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:6
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+1: Is traversing ℓ1 → ℓ2 safe?
+
+ℓhead
+
+ℓ1
+
+10
+
+ℓ2
+
+20
+
+ℓ3
+
+30
+
+2: Detaching and retiring ℓ1 and ℓ2
+
+Fig. 3. Traversing possibly retired nodes.
+
+On the other hand, protect(tid, src) loads a pointer, say p, from src (line C12), and stores p
+in the thread tid’s slot of the protected pointer list (line C14). However, it is not yet safe to use p
+because it could have already been retired and then freed by other threads. Therefore, one should
+validate that the pointer is not retired. This is usually done by checking that the memory block is
+still reachable from the data structure, assuming that only detached (i.e., unreachable) blocks are
+retired. For example, protect() validates the protection by checking whether src still points to p
+(line C15-16).2 If validation fails, protect() retries from the beginning (line C13-18).
+
+Veriﬁcation Challenges. Validation makes hazard pointers more diﬃcult to apply (and verify)
+than it seems in two aspects.
+
+(1) The requirement for validation is fundamentally incompatible with optimistic traversal to
+possibly retired nodes, a common optimization pattern in concurrent data structure design.
+For instance, in Fig. 3 where 2 detaches and retires ℓ1 and ℓ2, is it safe for 1 to traverse from
+ℓ1 to ℓ2? This is unsafe when using hazard pointers because ℓ2 could have been retired and
+reclaimed before 2 tried protecting it. Then the only reasonable option for 2 is to restart the
+traversal from ℓhead, possibly incurring performance degradation. Therefore, when applying
+hazard pointers, the data structure must be modiﬁed to handle such scenarios. For example,
+the Harris-Michael list [Michael 2002] is an adaptation of Harris’s lock-free list [Harris 2001]
+that forgoes optimistic traversal for compatibility with hazard pointers.
+
+(2) But still, how can 1 detect that ℓ2 may have been retired? In general, protect()’s validation
+does not work: protect((*ℓ1).next) would return ℓ2 despite that it might have been already
+retired. Therefore, sophisticated data structures resort to custom validation strategies that
+exploit the data structures’ complex invariant. For example, the Harris-Michael list requires
+collaboration from the deleting thread: before 2 detaches ℓ1, it ﬁrst marks the link ℓ1 → ℓ2
+by setting the least signiﬁcant bit (LSB) of the pointer value. Then, if 1 sees that ℓ1 → ℓ2 is
+marked, the validation of ℓ2 fails conservatively.3 This is because if ℓ2 is detached and yet ℓ1
+still links to ℓ2, then ℓ1 must have been detached too, by the deﬁnition of “detaching”.
+
+These subtleties are sometimes misunderstood even by experienced programmers and lead to
+critical bugs [Anderson et al. 2021]. In §3 and §5, we will capture such subtleties within a powerful
+yet modular speciﬁcation of hazard pointers.
+
+2The comparison of pointers at this point may involve an invalid (dangling) pointer, which is an undeﬁned behavior in
+C/C++’s provenance-based pointer semantics. Since the comparison of invalid pointers is unavoidable in SMR schemes and
+many other low-level concurrent algorithms, there is a proposal to introduce a special pointer type that is exempted from
+this strict semantics [McKenney et al. 2021]. We assume the proposed lenient semantics.
+3The marking process, called logical deletion, is required even when hazard pointer is not used. This is a common technique in
+concurrent data structure design for synchronizing concurrent updates in linked data structures. Hazard pointers piggyback
+on this mechanism for validation.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:7
+
+2.2 RCU
+
+RCU is more straightforward to use than hazard pointers thanks to critical section-based protection:
+a pointer is protected throughout a critical section if it were not retired before the beginning of
+the critical section [McKenney et al. 2023]. Speciﬁcally, in Fig. 3, it is safe to perform optimistic
+traversal from ℓ1 to ℓ2 because RCU’s protection condition implies that all memory blocks reachable
+by traversing the data structure—including just retired ℓ2—are protected. Therefore, users can
+seamlessly integrate RCU into existing data structures such as Harris’s list without worrying about
+validation and restarting.
+
+Veriﬁcation Challenges. However, the formal veriﬁcation of the safety of optimistic traversal
+using RCU is challenging. To guarantee the protection of reachable blocks, one should deduce that
+they were not retired before the beginning of the critical section by reasoning about the history of
+updates of links among memory blocks and their retirement. This has been tackled by Tassarotti
+et al. [2015] for a ﬁxed data structure with the simplifying assumption that updates are done by a
+single writer thread.4 In §6, we will generalize their approach and encapsulate this reasoning in a
+modular speciﬁcation for RCU.
+
+2.3 Verification of Treiber’s Stack without Reclamation
+
+We review a separation logic-based veriﬁcation of Treiber’s stack without reclamation. We will
+adapt this proof to the version with hazard pointers (§3) and RCU (§6).
+
+Separation Logic Primer. First, we brieﬂy overview the fragment of the Iris separation logic we
+will be using. Some concepts not explained here will be gradually introduced along the way. We
+refer the reader to Jung et al. [2018, §2] for a more detailed overview.
+
+,  ∈ iProp ::=  |  ∧  |  ∨  |  ⇒  | ∃ .  | ∀ .  | . . .
+
+higher-order logic
+
+
+↦−→  | 
+
+ℓ
+
+
+Z==⇒  |  | . . .
+
+separation logic resources
+
+ ∗  |  −∗  | 
+
+ | 2  | . . .
+
+separation logic connectives
+
+{ }  { .  ()} | ⟨ .  ()⟩  ⟨ .  (, )⟩ | . . .
+
+program logic
+
+iProp is the type of Iris’s separation logic proposition. Based on higher-order logics, iProp includes
+usual propositions and connectives. But more importantly, an iProp asserts ownership of resources.
+1
+For example, the points-to assertion ℓ ↦→  (shorthand for ℓ
+↦−→ , explained later), represents the
+exclusive ownership of a memory block at location ℓ that contains a value . Such resources can be
+combined with the separating conjunction (∗). For instance, the stack illustrated in Fig. 1b before
+pop() owns the following resource (where {.field = , . . .} is a struct value):
+
+ℓhead ↦→ {.head = ℓ1} ∗ ℓ1 ↦→ {.data = 10, .next = ℓ2} ∗ ℓ2 ↦→ {.data = 20, .next = NULL} .
+
+A Hoare triple of the form { }  { .  ()} asserts that given resources satisfying the precondition
+, program  evaluates to  without errors such as null pointer dereferences, and returns the
+resource satisfying the postcondition  (). For example, the owner of ℓ ↦→  can read from, write
+to, and reclaim ℓ:
+
+(PointsTo-Read)
+{ℓ ↦→  } *ℓ { . ℓ ↦→  }
+
+(PointsTo-CAS-Success)
+{ℓ ↦→  } CAS(ℓ,, ) {true. ℓ ↦→  }
+
+(PointsTo-Free)
+{ℓ ↦→ _} free(ℓ) {True} .
+
+However, in the stack example, threads do not exclusively own the resources, but share them. Iris
+to describe a shared resource  that can be accessed
+
+provides the invariant assertion of the form 
+
+4Though note that Tassarotti et al. [2015] assume a more realistic relaxed memory model while we focus on the SC model.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:8
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+by multiple threads. In particular, invariants provide the access rule:
+
+(Inv-Acc)
+{ ∗  }  { ∗  }
+
+ is physically atomic
+
+ ⊢ { }  { }
+
+The rule says that, if  holds, then during the duration of an atomic instruction  that evaluates in
+a single step, the program can temporarily open the invariant to use the content  , and it should
+close the invariant by reestablishing  after the execution.5 Invariant assertions are duplicable, i.e.,
+(entailment in both directions), so they can be freely shared.6 In the stack example,
+ ⊣⊢  ∗ 
+threads share the invariant containing the stack nodes.
+
+Speciﬁcation. In this paper, we focus on proving the following simple safety speciﬁcation of
+pop(), where IsStack( ) is an invariant that describes the shared resources in a Treiber’s stack
+located at  (deﬁned below).
+
+IsStack( ) ⊢ {True} pop( ) { . True} .
+
+In our Coq development, we prove a much stronger speciﬁcation based on logically atomic Hoare
+triples [da Rocha Pinto et al. 2014; Jacobs and Piessens 2011; Jung 2019; Jung et al. 2015; Svendsen
+and Birkedal 2014]:
+
+ = None ∧  =  ′ = []
+
+∃ .  = Some() ∧  =  ::  ′
+
+⟩ .
+
+⟨. Stack(, )⟩ pop( )⟨ . ∃ ′. Stack(,  ′) ∗
+
+A logically atomic triple of the form ⟨ .  ()⟩  ⟨ .  (, )⟩ is a special Hoare triple (indicated by
+⟨angle brackets⟩) that says  behaves as if it were an atomic instruction. Speciﬁcally, it reads: at
+’s commit point (an atomic instruction inside ),  takes  () as precondition, evaluates to , and
+returns postcondition  (, ). Logically atomic triples encode linearizability [Herlihy and Wing
+1990] in program logic. For example, the above speciﬁcation implies that pop() is a linearizable
+implementation of stack’s pop method: at the commit point, i.e., the linearization point, pop()
+atomically transforms the stack’s state from  to  ′, and the result is either None if  was empty
+(the ﬁrst disjunct) or Some() where  is the head of  (the second disjunct).
+
+Logically atomic triples can be used with the following rules.
+
+(LAT-Hoare)
+⟨ ⟩  ⟨⟩
+
+{ }  { }
+
+(LAT-Inv-Acc)
+⟨ ∗  ⟩  ⟨ ∗ ⟩
+
+ ⊢ ⟨ ⟩  ⟨⟩
+
+Clearly, a logically atomic triple implies the ordinary counterpart (LAT-Hoare). More importantly,
+logical atomicity of  means that  can access invariants as if it were an atomic instruction (LAT-Inv-
+Acc). Therefore, speciﬁcations with logically atomic triples allow clients to atomically access the
+current state of the object under question, enabling them to build sophisticated protocols around
+them. We take advantage of this for specifying SMR schemes in §3 and 6. However, proving logically
+atomic triples involves many technicalities orthogonal to this work. So, for a concise presentation,
+we discuss the details in the appendix [Jung et al. 2023].
+
+5For a concise presentation, we omit Iris’s mechanisms for preventing opening the same invariant twice.
+6More precisely, invariants are persistent. Persistent propositions represent some knowledge that holds forever, rather than
+asserting ownership of resources.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+LinkedList(ℎ, ) :=
+
+ℎ = NULL ∧  = []
+∃,  ′, .  =  ::  ′
+
+∗ ℎ ↦→? {.data = , .next = } ∗ LinkedList(,  ′)
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:9
+
+Fractional and Leaking Points-To Predicates. We now formally deﬁne IsStack using a predicate
+describing the valid states of Treiber’s stack.
+
+IsStack( : Loc) := ∃ℎ : Loc,  : List(Val).  ↦→ {.head = ℎ} ∗ LinkedList(ℎ, )
+
+As expected, the content of IsStack is a generalization of the stack resource discussed above. In
+particular, LinkedList(ℎ, ) consists of the points-to assertions of every memory block in the linked
+list of elements  starting from the head node ℎ.
+
+However, notice that LinkedList uses a variant of points-to assertion ℓ ↦→?  which we call
+leaking points-to. ℓ ↦→?  represents a read-only permission to an immutable location ℓ that never
+
+gets reclaimed. The notation ℓ ↦→?  is a shorthand for ∃. ℓ
+↦−→ , the fractional points-to [Bornat
+et al. 2005; Boyland 2003] with some unknown fraction . Fractional points-to allows splitting
+ownership into fractional parts that allow read accesses only and can be combined back to the full
+ownership ℓ
+
+1
+↦−→  to recover the right to write and reclaim:
+
+(FPointsTo-Fractional)
+1
+↦−→  ∗ ℓ
+ℓ
+
+1+2
+↦−−−−→  ⊣⊢ ℓ
+
+2
+↦−→ 
+
+(FPointsTo-Agree)
+ℓ
+
+1
+↦−→  1 ∗ ℓ
+
+2
+↦−→  2 ⊢  1 =  2
+
+(FPointsTo-Read)
+
+↦−→  }
+{ℓ
+
+
+↦−→  } *ℓ { . ℓ
+
+However, if the fraction is unknown, the full ownership cannot be recovered, leading to permanent
+loss of write and reclamation permission (hence “leaking” the memory). Despite such a big disad-
+vantage, leaking points-to has been widely used [Iris Team 2023a] for its duplicability in addition
+to immutability and read permission:
+
+(LPointsTo-Duplicable)
+ℓ ↦→?  ⊣⊢ ℓ ↦→?  ∗ ℓ ↦→? 
+
+(LPointsTo-Agree)
+ℓ ↦→?  ∗ ℓ ↦→?  ′ ⊢  =  ′
+
+(LPointsTo-Read)
+{ℓ ↦→? } *ℓ { . ℓ ↦→? }
+
+As we will see shortly, duplicability is crucial for reasoning about safe dereference in pop().
+
+Veriﬁcation. We prove the safety of pop() as illustrated in Fig. 4. In particular, we prove the safety
+of its memory accesses at C4,8,9 as follows.
+
+• C4: We open the invariant IsStack to get its contents. On the ﬁrst conjunct  ↦→ {.head = ℎ1},
+we use PointsTo-Read to dereference  .head and get the pointer value ℎ1. Furthermore, if ℎ1 is
+not NULL, we use LPointsTo-Duplicable to obtain a copy of ℎ1 ↦→? {.data = 1, .next = 1}
+from LinkedList for some 1 and 1. This is necessary for proving the safety of dereferencing
+ℎ1 at C8, because there is no guarantee that ℎ1 will still be present in the stack (and thus in the
+invariant) at that point. Finally, we close the invariant IsStack.
+
+• C8: Since ℎ1 is not NULL, we can use the copied ℎ1 ↦→? {.data = 1, .next = 1} to ensure that
+
+it is safe to dereference ℎ1 (LPointsTo-Read).
+
+• C9: We open the invariant and obtain ∃ℎ2.  ↦→ {.head = ℎ2}. Consider the case where ℎ1 = ℎ2
+holds. We use PointsTo-CAS-Success to update the head pointer to the next node, and reestablish
+the invariant with the head node detached.
+
+For pop() to satisfy the logical atomicity speciﬁcation, its successful CAS should be free of the
+ABA problem (Fig. 1c). This is indeed the case because locations are not recycled for new nodes if
+memory is not reclaimed, and the nodes added to the stack are immutable. Formally, this argument
+corresponds to the use of LPointsTo-Agree at lines V9.1-9.2: the two ℎ1 ↦→? . . . assertions (obtained
+from C4 and C9) contain the same value.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:10
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+V0 {IsStack( ) }
+
+C1 fun pop( ):
+
+loop:
+
+{IsStack( ) }
+
+C3
+
+V3.1
+
+V3.2
+
+V3.3
+
+C4
+
+V4.1
+
+C5
+
+C7
+
+V7.1
+
+C8
+
+V8.1
+
+V8.2
+
+C9
+
+V9.1
+
+V9.2
+
+V9.3
+
+C11
+
+
+
+
+
+ℎ1 := (* ).head
+
+ℎ1 = NULL
+
+1
+
+1
+
+
+
+∃1, 1. ℎ1 ↦→? {.data = 1, .next = 1 }
+
+ℎ1 = NULL ∗ 1 = [ ]
+∃1,  ′
+
+1, 1. 1 = 1 ::  ′
+
+ℎ1 = NULL ∗ 1 = [ ]
+∃1,  ′
+
+1, 1. 1 = 1 ::  ′
+
+∗ ℎ1 ↦→? {. . .} ∗ ℎ1 ↦→? {. . .} ∗ LinkedList(1,  ′
+1 )
+
+∗ ℎ1 ↦→? {.data = 1, .next = 1 } ∗ LinkedList(1,  ′
+1 )
+
+∃ℎ1, 1.  ↦→ {.head = ℎ1 } ∗
+
+∃ℎ1, 1.  ↦→ {.head = ℎ1 } ∗
+
+
+IsStack( ) ∗
+(cid:8)IsStack( ) ∗ ∃1, 1. ℎ1 ↦→? {.data = 1, .next = 1 }(cid:9)
+(cid:8)IsStack( ) ∗ ℎ1 ↦→? {.data = 1, .next = 1 }(cid:9)
+ℎ1 ↦→? {. . .} ∗ ∃ℎ2, 2.  ↦→ {.head = ℎ2 } ∗
+
+(cid:8)ℎ1 ↦→? {. . .} ∗  ↦→ {.head = ℎ1 } ∗ ℎ1 ↦→? {.data = 2, .next = 2 } ∗ LinkedList(2,  ′
+2 )(cid:9)
+(cid:8)ℎ1 ↦→? {.data = 1, .next = 1 } ∗ IsStack( )(cid:9)
+
+ℎ2 = NULL ∗ 1 = [ ]
+∃2,  ′
+
+2, 2. 2 = 2 ::  ′
+
+2
+
+{1 = 2 ∧ 1 = 2 ∧ . . .}
+
+return Some(1)
+
+if CAS(&(* ).head, ℎ1, 1):
+
+if ℎ1 == NULL:
+
+return None
+
+1 := (*ℎ1).data; 1 := (*ℎ1).next
+
+∗ ℎ2 ↦→? {.data = 2, .next = 2 } ∗ LinkedList(2,  ′
+2 )
+
+
+
+Fig. 4. Verification of Treiber’s stack without reclamation.
+
+Veriﬁcation Challenges for Memory Reclamation. The above proof is fundamentally limited
+to concurrent data structures without reclamation due to its reliance on leaking points-to. To use
+LPointsTo-Duplicable at C4, the proof exploits the fact that the stack’s memory blocks are never
+reclaimed. However, veriﬁcation of concurrent data structures with reclamation requires an ability
+to grant access permission to protected pointers like LPointsTo-Duplicable, but only temporarily
+so that retired pointers can later be reclaimed. In §3 and §4, we will characterize such temporary
+grant of access permission with new abstract predicates representing partial ownership of pointers.
+
+3 SPECIFICATION OF HAZARD POINTERS
+
+We ﬁrst introduce two predicates, Managed and Protected, that replace leaking points-to assertions.
+Fig. 5 presents their signatures and associated proof rules. For presentation purposes, we assume
+that the contents of memory blocks are immutable and lift this assumption in §5.
+
+Managed Pointer. The managed pointer predicate of the form Managed(ℓ, ) represents the
+ownership of the pointer ℓ managed by hazard pointers.
+
+Like the ordinary points-to predicates, the managed pointer assertion implies that ℓ is a valid
+pointer to a memory block containing the value . Managed pointer assertions replace the leaking
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:11
+
+Predicates
+
+Managed(ℓ : Loc,  : Val) : iProp
+
+Protected( : ThreadId, ℓ : Loc,  : Val) : iProp
+
+HPSlot( : ThreadId, ℓ : Loc) : iProp
+
+HPSlot() := HPSlot(, NULL)
+
+Basic rules
+(Managed-New)
+ℓ ↦→ 
+
+Managed(ℓ, )
+
+(Protect)
+
+(Managed-Access)
+{Managed(ℓ, )} *ℓ { . Managed(ℓ, )}
+
+(HP-Retire)
+{Managed(ℓ, _)} retire(ℓ) {True}
+
+⟨ℓ,  .  ↦→ ℓ ∗ Managed(ℓ, )
+
+∗ HPSlot()
+
+⟩ protect(,)⟨ℓ .  ↦→ ℓ ∗ Managed(ℓ, )
+
+∗ Protected(, ℓ, )
+
+⟩
+
+(Protected-Access)
+{Protected(, ℓ, )} *ℓ { . Protected(, ℓ, )}
+
+(Unprotect)
+{Protected(, _, _)} unprotect() {HPSlot()}
+
+Low-level rules
+
+(HPSlot-Set)
+{HPSlot(, _)} protected[] := ℓ {HPSlot(, ℓ)}
+
+(Protected-Managed-Agree)
+Protected(_, ℓ, ) ∗ Managed(ℓ,  ′) ⊢  =  ′
+
+(HPSlot-Validate)
+Managed(ℓ, ) ∗ HPSlot(, ℓ)
+
+Managed(ℓ, ) ∗ Protected(, ℓ, )
+
+Fig. 5. A specification of hazard pointers.
+
+points-to assertions in data structure invariants. For instance, in the invariant of Treiber’s stack,
+the LinkedList predicate is changed as follows:
+
+ℎ = NULL ∧  = []
+
+∃,  ′, . Managed(ℎ, {.data = , .next = }) ∗ LinkedList(,  ′) .
+
+LinkedList(ℎ, ) :=
+
+Here, Managed(ℎ, {.data = , .next = }) replaces ℎ ↦→? {.data = , .next = } in §2.3.
+Similarly to leaking points-to, managed pointer predicates permit read access via Managed-Access.
+A managed pointer assertion is introduced from a full points-to via Managed-New. Here, a view
+
+shift assertion 
+
+ says that  can be transformed into  while proving a Hoare triple:
+
+(Hoare-VS)
+
+
+ ′
+
+{ ′}  { ′}
+
+ ′
+
+
+
+{ }  { }
+
+For example, the proof of stack push() method (not shown here) converts the points-to of the newly
+pushed node into a managed pointer assertion with Managed-New and prepends it to LinkedList.
+Unlike leaking points-to, the managed pointer assertion represents the unique permission to
+retire a pointer. To show the safety of retiring a pointer, one should provide its Managed to HP-
+Retire as a precondition. This precondition reﬂects the requirement that the retirer must ﬁrst
+detach the memory block from the data structure. By detaching the block, one can take Managed
+out of the data structure invariant, obtaining the exclusive right to retire it. For instance, in Fig. 6,
+Managed(ℎ1, _) is detached from the stack’s invariant by the CAS at C9, which is then used for
+retire(h) at C10. Note that retirement consumes Managed, so multiple retirement of the same
+pointer is prevented (thus preventing double-free in do_reclamation()).
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:12
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+C1 fun pop( ):
+
+C3
+
+V3.1
+
+V3.2
+
+C4
+
+V4.1
+
+V4.2
+
+· · ·
+
+V7.1
+
+C8
+
+V8.1
+
+C9
+
+V9.1
+
+V9.2
+
+C10
+
+loop:
+
+{HPSlot( ) ∗ IsStack( ) }
+
+ℎ1 := protect(, &(* ).head)
+
+
+
+
+
+
+ℎ1 = NULL ∗ HPSlot( )
+
+∗ Managed(ℎ1, {. . .} ) ∗ . . .
+
+1
+
+1, 1. 1 = 1 ::  ′
+
+1
+
+ℎ1 = NULL ∗ 1 = [ ]
+∃1, ′
+
+1, 1. 1 = 1 ::  ′
+
+ℎ1 = NULL ∗ 1 = [ ] ∗ HPSlot( )
+∃1, ′
+
+HPSlot( ) ∗ ∃ℎ1, 1.  ↦→ {.head = ℎ1 } ∗
+∃ℎ1, 1.  ↦→ {.head = ℎ1 } ∗
+IsStack( ) ∗
+Protected(ℎ1, {. . .} ) ∗ ∃ℎ2, 2.  ↦→ {.head = ℎ2 } ∗
+(cid:8)Protected(ℎ1, {. . .} ) ∗  ↦→ {.head = ℎ1 } ∗ Managed(ℎ1, {. . .} ) ∗ LinkedList(2,  ′
+2 )(cid:9)
+
+∃1, 1. Protected(, ℎ1, {.data = 1, .next = 1 } )
+
+ℎ2 = NULL ∗ 1 = [ ]
+∃2,  ′
+
+2, 2. 2 = 2 ::  ′
+
+
+
+2
+
+{IsStack( ) ∗ ∃1, 1. Protected(, ℎ1, {.data = 1, .next = 1 } ) }
+
+1 := (*ℎ1).data; 1 := (*ℎ1).next
+
+· · ·
+
+if CAS(&(* ).head, ℎ1, 1):
+
+retire(ℎ1); unprotect()
+
+
+
+
+
+∗ Managed(ℎ1, {. . .} ) ∗ Protected(, ℎ1, {. . .} ) ∗ . . .
+
+∗ Managed(ℎ2, {.data = 2, .next = 2 } ) ∗ . . .
+
+
+
+{Protected(ℎ1, {.data = 1, .next = 1 } ) ∗ Managed(ℎ1, {.data = 1, .next = 1 } ) ∗ IsStack( ) }
+
+V10.1
+
+{HPSlot( ) ∗ IsStack( ) }
+
+Fig. 6. Verification of Treiber’s stack with hazard pointers.
+
+Protected Pointer. When a thread  successfully protects a pointer ℓ, it obtains the protected
+pointer predicate of the form Protected(, ℓ, ), which represents the temporary permission for
+ to access ℓ. Similarly to managed pointer predicate, Protected(, ℓ, ) implies that ℓ is a valid
+pointer to a memory block with value .
+
+Protected(, ℓ, ) can be introduced by calling the protect() function (Protect). It returns a
+protected pointer assertion for ℓ loaded from  when Managed(ℓ, _) is available. In other words,
+protection is established only when the user shows that the pointer is not retired. Protect is formu-
+lated as a logically atomic triple so that the user can access the data structure invariant (LAT-Inv-Acc)
+to provide  ↦→ ℓ and Managed(ℓ, _) as the precondition. It additionally takes HPSlot(), the
+permission for  to protect a pointer, which is created when the  is spawned. The unprotect()
+function eliminates the protected pointer and returns back the protection permission (Unprotect).
+The protected pointer assertion replaces the leaking points-to assertion used by each thread to
+reason about the safety of using the pointer. In Fig. 6, the thread obtains Protected(, ℎ1, _) at C4
+via Protect and uses it to show the safety of dereference at C8 via Protected-Access (analogous to
+LPointsTo-Read). To show that the protection prevents the ABA problem in the successful CAS at
+C9, we use Protected-Managed-Agree (analogous to LPointsTo-Agree) to conclude that the node
+protected at C4 has not changed (V9.1-9.2).
+
+For sophisticated data structures with custom validation strategies, low-level rules for writing to
+the protected pointer list slot and validation are needed. As shown in HPSlot-Set, HPSlot(, ℓ)
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:13
+
+Fig. 7. The life cycle of pointer ownership in hazard pointers.
+
+records the value written in the thread’s protected pointer list slot (HPSlot() is abbrevia-
+tion of HPSlot(, NULL)). After ℓ is written to the slot, HPSlot-Validate transforms HPSlot to
+Protected(, ℓ, ) given Managed(ℓ, ). This rule is applied after running a validation check that
+conﬁrms that ℓ is not retired. For example, Protect is proved by applying HPSlot-Set at C14 (Fig. 2)
+and HPSlot-Validate at C16 when the condition evaluates to true (see appendix [Jung et al. 2023]).
+We discuss its application to the validation strategy of the Harris-Michael list in §5.
+
+4 VERIFICATION OF HAZARD POINTERS
+
+We verify the speciﬁcation of hazard pointers (§3) in concurrent separation logic. Essentially,
+hazard pointers is a mechanism to distribute and recollect the partial ownerships of pointers in
+the form of managed pointer assertion and the protected pointer assertions for each thread. Fig. 7
+overviews the life cycle of a points-to assertion (ℓ ↦→ ) transferred and shared among the memory
+allocator, the data structure, the protecting threads, and the reclaiming thread. In cyan area ,
+Managed-New splits ℓ ↦→  into a Managed assertion and Protected assertions for each thread.
+Then, Protected assertions are transferred to the protected pointer list of the invariant HPInv of
+hazard pointers (see below for details). In purple area , Protect passes the Protected assertion
+from the protected pointer list to the protecting thread in the presence of the Managed assertion,
+and in pink area , Unprotect returns the Protected assertion back. In yellow area , HP-Retire
+transfers the Managed assertion detached from the data structure’s invariant to the retired pointer
+list. After all the protected pointer assertions for a retired block are returned from the threads, in
+green area , do_reclamation() reconstructs the points-to assertion from them and reclaims it.
+
+4.1 Fractional Ownership of Pointer
+
+To model the per-thread ownership of a pointer, we use a variant of fractional points-to assertion
+equipped with a permission algebra [Vafeiadis 2011]. Given a set, say  , the fractional points-to
+assertion of its powerset algebra with disjoint union, ℘( )⊎, satisﬁes the following proof rules:
+
+ℓ ↦→  ⊣⊢ ℓ
+
+
+↦−→ 
+
+1⊎2
+↦−−−−→  ⊣⊢ ℓ
+
+1↦−→  ∗ ℓ
+
+2↦−→ 
+
+ℓ
+
+For hazard pointers, we use the permission algebra ℘(ThreadId∪{★})⊎, where each  ∈ ThreadId
+
+represents the thread ’s protected pointer and ★ represent the managed pointer:
+
+Protected(, ℓ, ) := ℓ
+
+{ }
+↦−−−−→  ∗ . . .
+
+Managed(ℓ, ) := ℓ
+
+{★}
+↦−−−→  ∗ . . . .
+
+The rules Managed-Access, Protected-Access, and Protected-Managed-Agree immediately follow
+from the analogous rules for fractional points-to.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:14
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Invariant:
+
+∃, ,  , .
+
+1/2
+↦−−→  ∗ 
+
+
+
+1/2
+↦−−→  ∗ v
+
+1/2
+Z===⇒  ∗ r
+
+1/2
+Z===⇒  ∗
+
+¬( ∧  ) ∗ (¬( ∨  ) ⇒ ( ↦→ false) ) ∗ ( ⇒  ) ∗ ( ⇒  )
+
+V10
+
+C11
+
+V11
+
+C12
+
+V12
+
+C13
+
+V13
+
+C14
+
+V14
+
+1
+
+1/2
+↦−−→ false ∗ v
+
+* := true
+
+1/2
+↦−−→ true ∗ v
+
+if !*:
+1/2
+↦−−→ true ∗ v
+
+assert (!* )
+
+{. . .}
+
+* := false
+
+1/2
+↦−−→ false ∗ v
+
+(cid:8)
+(cid:8)
+(cid:8)
+
+(cid:8)
+
+1/2
+
+1/2
+
+Z===⇒ false(cid:9)
+Z===⇒ false(cid:9)
+Z===⇒ true ∗  ↦→ false(cid:9)
+
+1/2
+
+1/2
+
+Z===⇒ false(cid:9)
+
+2
+
+1/2
+↦−−→ false ∗ r
+
+V20
+
+V21
+
+C21 * := true
+
+1/2
+↦−−→ true ∗ r
+
+C22 if !*:
+1/2
+↦−−→ true ∗ r
+
+V22
+
+C23
+
+V23
+
+* := true
+
+1/2
+↦−−→ true ∗ r
+
+(cid:8)
+(cid:8)
+(cid:8)
+(cid:8)
+
+1/2
+
+1/2
+
+Z===⇒ false(cid:9)
+Z===⇒ false(cid:9)
+Z===⇒ true ∗  ↦→ false(cid:9)
+Z===⇒ true ∗  ↦→ true(cid:9)
+
+1/2
+
+1/2
+
+Fig. 8. The essence of the synchronization between protection and reclamation
+
+4.2 The Essence of Synchronization between Protection and Reclamation
+
+Fig. 7 shows that there is a contention for protected pointer predicates owned by the protected
+pointer list between the protection of threads (Protect) and the reclamation (the do_reclamation()
+function). We reason about the synchronization between protection and reclamation as follows.
+
+The program in Fig. 8 schematically illustrates the essence of the synchronization between the
+protecting thread and the reclaiming thread contending for a single memory block. (For now, please
+ignore the invariant and the proof lines.) The program consists of three locations , , and  that
+record the status of the block: (1)  for whether the block is detached from the data structure; (2) 
+for whether the block is protected; and (3)  for whether the block is reclaimed. The left thread (1)
+represents a thread that protects and accesses a memory block. It protects the block and validates
+if the block is not detached yet (Protect, corresponding to C11-12). If validated, it accesses the
+block (Protected-Access, corresponding to succesful assert at C13), and ﬁnally, terminates the
+protection (Unprotect, corresponding to C14). The right thread (2) represents a thread that retires
+and reclaims the memory block. It detaches the block (HP-Retire, corresponding to C21), checks if
+the block is not protected, and in that case, reclaims the block (the do_reclamation() function,
+corresponding to C22-23).
+
+We can informally reason about the above program’s safety by case analysis. (1) If C11 is executed
+before C21,  is set before C22, so 2 does not reach C23 and set  ; and (2) if C21 is executed before
+C11,  is set before C12, so 1 does not reach C13 and assert that  is not set. In either case, the
+access to the block (C13) must happen before the reclamation (C23), thereby proving the assertion.
+We formalize this informal reasoning by adopting Mével et al. [2020, §5.4]’s approach for verifying
+Peterson’s mutual exclusion algorithm to the context of safe memory reclamation. The key idea is
+to introduce ghost locations v and r that record whether protection of the block is validated and
+whether the block is reclaimed, and relate them to physical locations  and  , respectively. To this
+end, we maintain the following invariant which we call mutual exclusion protocol:
+
+• Introduce four variables:  and  for the value stored in physical locations  and ; and  and
+ for the values recorded in v and r.  and  are tracked using the ghost variable assertions
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:15
+
+HPInv := ∃. protected
+
+1/2
+↦−−−→  ∗ (Managed and resource of retired pointers) ∗
+
+∗
+
+ ∃. d (ℓ)
+
+1/2
+
+Z===⇒  ∗∗  ∃ , . v (ℓ, )
+↦−−−→ ℓ ∗∗
+
+1/2
+Z===⇒ false
+
+v (ℓ, )
+
+r (ℓ, )
+
+1/2
+
+1/2
+Z===⇒  ∗
+
+Z===⇒  ∗ . . .!! ∗ . . .
+
+1/2
+
+HPSlot(, ℓ) := protected[]
+
+Protected(, ℓ, ) := ℓ
+
+{ }
+↦−−−−−→  ∗ protected[]
+
+1/2
+↦−−−→ ℓ ∗ v (ℓ, )
+
+v (ℓ, )
+
+1/2
+Z===⇒ false
+
+Managed(ℓ, ) := ℓ
+
+{★}
+↦−−−→  ∗ d (ℓ)
+
+1/2
+
+Z===⇒ false ∗ ∗ ∈N
+
+r (ℓ, )
+
+1/2
+Z===⇒ false
+
+1/2
+
+Z===⇒ true ∗∗ℓ ′ ≠ℓ
+
+Fig. 9. Definition of the predicates and invariant of hazard pointers.
+
+which behave like (fractional) points-to assertions for ghost locations:
+
+(Ghost-Var-Agree)
+
+
+
+Z==⇒  ∗ 
+
+ ′
+Z==⇒  ′ ⊢  =  ′
+
+(Ghost-Var-Fract)
+
+
+
+Z==⇒  ∗ 
+
+ ′
+Z==⇒  ⊣⊢ 
+
+ + ′
+Z====⇒ 
+
+(Ghost-Var-Update)
+1
+Z==⇒ 
+
+
+1
+Z==⇒ 
+
+
+
+• Distribute the ownership of , , v, and r to the invariant and threads. 1 can write to  and
+
+v and read from the other two by opening the invariant, and the other way around for 2.
+
+• Require the condition ¬( ∧ ), i.e., mutual exclusion of validation and reclamation. When
+neither is true, the invariant keeps ownership of  with the condition ¬( ∨) ⇒ ( ↦→ false).
+When 1 validates the protection, it knows that the block is not reclaimed thanks to mutual
+exclusion, hence the ownership of  will move to 1, and vice versa for reclamation in 2.
+
+• Require ( ⇒  ): to validate the protection, 1 should have announced the protection already;
+and ( ⇒ ): to reclaim the block, 2 should ensure that the block has been detached already.
+
+Using the invariant, proof of 1’s safety proceeds as follows (proof for 2 is similar).
+• V11: We open the invariant to get the half ownership of , combine it with the other half owned
+
+by 1, and write true to it. Then, we split it in half to close the invariant.
+
+• V12: We consider the case where the block is not detached yet and thus the validation succeeds.
+We open the invariant to get the full ownership of v. Since  = false, we derive  = false
+from ( ⇒ ). We take  ↦→ false out of the invariant by setting v Z⇒ true (via Ghost-Var-
+1/2
+Update), so that it does not have to be returned to the invariant. Since 
+↦−−→ true, ( ⇒  ) is
+maintained, and we can close the invariant.
+
+• V12-13: We read from  using  ↦→ false. The assertion succeeds.
+• V14: We open the invariant to get the full ownership of  and v; write to ; set v Z⇒ false
+
+and return  ↦→ false back if necessary; and close the invariant.
+
+4.3 Generalization to Multiple Pointers and Threads
+
+Fig. 9 presents the deﬁnition of the predicates and invariant of hazard pointers supporting multiple
+pointers and threads. The invariant HPInv of hazard pointers is assumed in every proof rule
+presented in Fig. 5. The invariant generalizes that in Fig. 8 by collecting mutual exclusion protocols
+{ }
+↦−−−−→ _ for each pointer ℓ and thread . More speciﬁcally,
+that govern ownership transfer of ℓ
+each slot protected[] corresponds to  (in Fig. 8), the per-pointer per-thread ghost locations
+v (ℓ, ) and r (ℓ, ) to v and r, and the per-pointer ghost location d (ℓ) to , respectively.
+HPSlot(, _) carries ’s v ﬂags for all possible pointers, and Managed(ℓ, _) asserts that d (ℓ)
+ﬂag is false. The veriﬁcation of the speciﬁcation proceeds as follows.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:16
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Types and predicates
+
+BlockRes := Loc → Val → BlockId → iProp
+
+Managed(ℓ : Loc,  : BlockId,  : BlockRes) : iProp
+
+Protected( : ThreadId, ℓ : Loc,  : BlockId,  : BlockRes) : iProp
+
+Rules
+
+(Managed-New-Full)
+ℓ ↦→  ∗ (∀.  fresh
+
+ (ℓ, , ))
+
+∃.  fresh ∗ Managed(ℓ, ,  )
+
+(HPSlot-Validate-Full)
+Managed(ℓ, ,  ) ∗ HPSlot(, ℓ)
+
+Managed(ℓ, ,  ) ∗ Protected(, ℓ, ,  )
+
+(Protected-Access-Full)
+{∃ . ℓ ↦→  ∗  (ℓ, , )}  {ℓ ↦→  ′ ∗  (ℓ,  ′, )}
+
+ physically atomic
+
+{Protected(, ℓ, ,  )}  {Protected(, ℓ, ,  )}
+
+(Protected-Managed-Agree-Full)
+Protected(, ℓ, ,  ) ∗ Managed(ℓ, ′,  ) ⊢  = ′
+
+Fig. 10. Excerpt from the full specification of hazard pointers.
+
+• HPSlot-Validate: When  validates protection of ℓ, v (ℓ, ) is set and the partial ownership
+
+of ℓ is granted to Protected(, ℓ, _).
+
+• HP-Retire: d (ℓ) ﬂag is set, and its resources are temporarily stored in HPInv.
+• Safety of do_reclamation(): It picks up the resources of retired pointers and collects each
+thread’s ownership by scanning the protected pointer list. If a retired pointer is not in the
+protected pointer list, it is guaranteed that do_reclamation() has collected the full ownership
+of the pointer, thus it is safe to reclaim it.
+
+5 REASONING ABOUT MUTABLE MEMORY BLOCKS
+
+The speciﬁcations from §3 are only applicable to simple data structures like Treiber’s stack in which
+the contents of memory blocks do not change. In this section, we generalize the speciﬁcation to
+enable veriﬁcation of sophisticated data structures with mutable memory blocks. The key idea is
+replacing read-only fractional points-to assertions in the Managed and Protected predicates with
+a per-block invariant that governs the evolution of the contents of each block. Fig. 10 shows the
+updated signatures of each predicate and the new proof rules.
+
+Block Resource and ID. To represent per-block invariants, we introduce block resource predicate
+and parameterize Managed and Protected predicates with it, replacing the ﬁxed value parameter. A
+block resource predicate of the form  (ℓ, , ) depends not only on the block’s address ℓ and contents
+, but also on its block ID . Block IDs are abstract values that uniquely identify diﬀerent allocations
+of blocks. That is, if a memory block is reclaimed and reallocated, it is assigned a diﬀerent block
+ID. Managed and Protected are also parameterized by the current block ID in order to relate each
+block’s resource and data structure’s global invariant. In veriﬁcation ignoring reclamation, such
+relation typically is expressed only with physical pointer values, exploiting the fact that the pointer
+values are unique since they are not reused.
+
+Proof Rules. When registering a managed pointer with block resource predicate  (Managed-
+New-Full), the user should additionally show that  (ℓ, , ) can be created given a globally fresh
+. During validation (HPSlot-Validate-Full), the knowledge about the block ID and resource are
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:17
+
+transferred from managed pointer to the new protected pointer predicate. Once validated, the user
+can temporarily access the memory block’s full points-to assertion (on the current value) as well
+as its block resource via Protected-Access-Full while executing an atomic instruction, in a style
+similar to the usual invariant access rule Inv-Acc.7 Finally, Protected-Managed-Agree-Full says
+that managed and protected pointer assertions of the same pointer agree on their block ID, hence
+protected pointers are free from the ABA problem. Intuitively, the rule holds because the presence
+of a protected pointer guarantees that the pointer cannot be reclaimed and reallocated, and the
+block ID of a block does not change as long as they are not reallocated.
+
+Application to the Harris-Michael List. Using the above speciﬁcation, we have formally veriﬁed
+the Harris-Michael list with manual reclamation for the ﬁrst time. Here, we sketch the veriﬁcation
+of its validation method discussed in §2.1. We use the following block resource and global invariant:
+
+1/2
+Z===⇒ ( .next, Unmarked) ∗ LSB( .next) = 0
+
+ Z⇒? ( .next, Marked) ∗ LSB( .next) = 1
+
+
+
+HMLBlock(ℓ, , ) := . . . ∗
+∗↦→(ℓ, ) ∈
+IsHML := ∃, .©(cid:173)«
+Managed(ℓ, , HMLBlock)! ∗ . . .
+  ∗(,ℓ ) ∈
+
+ Z⇒? ( .next, Marked) ∗ · · ·
+
+1/2
+Z===⇒ ( .next, Unmarked) ∗ (, ℓ) ∈  ∗ (_, .next) ∈  ∗ · · ·
+
+
+
+∗
+
+ª®¬
+
+In HMLBlock, we use the block ID  as the name for a ghost variable8 recording the state of the
+next ﬁeld. The next ﬁeld is either not marked yet or marked permanently. The invariant IsHML
+holds the state of all nodes that have been added to the list (), and Managed of blocks that are
+not detached (). Speciﬁcally, IsHML maintains that the target block of an unmarked link is not
+detached ((_, .next) ∈ ).
+
+In the validation stage of the Harris-Michael list, we use Protected-Access-Full to access the
+block resource of the current node; if its next ﬁeld is unmarked, open IsHML to learn that the
+next node is not detached; and ﬁnd its Managed to validate the protection of next node with
+HPSlot-Validate-Full.
+
+Veriﬁcation of the Speciﬁcation. To accommodate per-block invariants, we replace fractional
+points-to assertions with fractionally owned ghost mapping from address to block ID, and put the
+full points-to into a per-pointer cancellable invariant [Jung et al. 2018], which is also fractionally
+ownable. If one collects full ownership of a cancellable invariant, one can deactivate it and reclaim
+its content. We change HPInv accordingly to govern the ownership transfer of ghost mapping and
+cancellable invariants.
+
+6 SPECIFICATION OF RCU
+
+We present two modular speciﬁcations of RCU: a general speciﬁcation that captures the protection
+of critical sections (§6.1), and a reﬁned speciﬁcation tailored towards optimistic traversal (§6.2).
+Using these speciﬁcations, we have formally veriﬁed Harris’s list with RCU for the ﬁrst time. We
+discuss the implementation and veriﬁcation of RCU in the appendix [Jung et al. 2023].
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:18
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Types and predicates
+
+Guard( : ThreadId,  : ℘(BlockId)) : iProp
+
+RCUState( : BlockId
+
+ﬁn
+−−⇀ Loc × BlockStatus) : iProp
+
+BlockStatus := Active | Retired | . . .
+
+BlockInfo( : BlockId, ℓ : Loc,  : BlockRes) : iProp
+
+Rules
+(RCU-Lock)
+⟨ . RCUState( ) ∗ RCUSlot()⟩ rcu_lock() ⟨RCUState( ) ∗ Guard(, { ∈ BlockId |  [] = Retired}⟩
+
+(RCU-Unlock)
+{Guard(, _)} rcu_unlock() {RCUSlot()}
+
+(Managed-Protected)
+Guard(_, ) ∗ Managed(ℓ, ,  ) ⊢  ∉ 
+
+(RCU-Retire)
+⟨ . RCUState( ) ∗ Managed(ℓ, , _)⟩ retire(ℓ) ⟨RCUState( [ ↦→(ℓ, Retired)])⟩
+
+(Managed-BlockInfo)
+Managed(ℓ, ,  ) ⊢ 2 BlockInfo(, ℓ,  )
+
+(Guard-Managed-Agree)
+
+ ∉ 
+
+BlockInfo(, ℓ,  ) ∗ Guard(_, ) ∗ Managed(ℓ, ′,  ) ⊢  = ′
+
+(Guard-Access)
+{∃ . ℓ ↦→  ∗  (ℓ, , )}  {ℓ ↦→  ′ ∗  (ℓ,  ′, )}
+
+ ∉ 
+
+ physically atomic
+
+BlockInfo(, ℓ,  ) ⊢ {Guard(, )}  {Guard(, )}
+
+Fig. 11. RCU base specification.
+
+6.1 General Specification Characterizing Critical Sections
+
+RCU diﬀers from hazard pointers in that it protects all accesses inside a critical section. More
+precisely, access to a pointer is protected throughout a critical section if its retirement does not
+happen before the beginning of the critical section [McKenney et al. 2023]. We encode such critical
+section-based protection in the guard predicate of the form Guard(, ) presented in Fig. 11.
+
+The guard predicate ﬁrst represents the fact that thread  is in a critical section: it is introduced
+by RCU-Lock and eliminated by RCU-Unlock. In doing so, it is exchanged with RCUSlot(), which
+is the ’s permission to enter a critical section. When verifying Treiber’s stack with RCU (omitted),
+pop() would own Guard(, _) from C2 to C6 or C10 in Fig. 1a.
+
+The guard predicate also records the set, , of pointers that had been already retired when the
+critical section began. For example, Managed-Protected says that if a block has not been retired
+yet (shown by Managed that serves the same purposes as for hazard pointers), then it was not
+retired also when the critical section began. In our stack veriﬁcation, if pop() loads a non-null head
+pointer h at C4 in Fig. 1a, we use Managed(h, . . .) from the invariant to show that h is not in .
+
+To more precisely track , we introduce the RCU state predicate of the form RCUState( ). The
+parameter  in RCUState( ) describes the current status of all memory block that has been managed
+by RCU. For example, RCU-Retire marks the block as retired in  (other states are omitted). When a
+guard is created by RCU-Lock for thread  from RCUState( ), it records the set of retired pointers
+as the parameter . The RCU-Lock and RCU-Retire rules are formulated as logically atomic triples
+so that the user can build a sophisticated invariant that involves the RCU’s state. In §6.2, we will
+sketch such an invariant to reason about optimistic traversal (§2.2).
+
+7The logically atomic access rule corresponding to LAT-Inv-Acc is omitted.
+8This is possible because block IDs are globally unique.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:19
+
+The guard predicate protects all blocks but the ones in . To give a logical meaning to pro-
+tection, we introduce the block information predicate of the form BlockInfo(, ℓ,  ). Intuitively,
+BlockInfo(, ℓ,  ) is the knowledge extracted from Managed(ℓ, ,  ) (Managed-BlockInfo) that  is as-
+sociated with the physical address ℓ and governed by the block resource .9 Given BlockInfo(, ℓ, )
+and the fact that  is protected by the guard (i.e., it already has access permission for ), Guard-Access
+grants temporary access to the block’s points-to assertion and block resource.10 In addition, a pointer
+value associated with a protected block ID is free from the ABA problem (Guard-Managed-Agree).
+To justify the above proof rules, the guard predicate takes the ’s fractional access permissions
+of all blocks but the ones in  from RCU’s internal invariant (omitted). In our stack veriﬁcation,
+BlockInfo is extracted from Managed at C4 and used to dereference h at C8 to show that a successful
+pop() of h is linearizable.
+
+6.2 Traversal-Friendly Specification
+
+Motivation. We are now able to show the safety of optimistic traversal in Fig. 3. The crux of the
+proof lies in showing that ℓ2 was not retired before the beginning of the critical section. At the
+high level, we prove this by maintaining the traversal loop invariant: for all ℓfrom and ℓto, if ℓfrom
+currently points to ℓto and ℓfrom was not detached before the beginning of a critical section, then ℓto
+also was not detached before the beginning of the critical section. This invariant implies that ℓ2
+was not retired before that point, since its premise is true when the traversal starts from the root
+to the ﬁrst block, and blocks are detached before retirement. The loop invariant follows from the
+following three properties about the links among memory blocks: (L1) by deﬁnition, non-detached
+blocks can only point to non-detached blocks; (L2) data structures maintain invariants that a block
+is detached only once; and (L3) a newly created link does not point to detached blocks (even from
+already detached blocks).
+
+However, such a proof quickly becomes complex for realistic concurrent data structures with
+optimistic traversal. The proof requires a user-level invariant that encodes link properties and
+relates the link topology with RCUState( ) (i.e., only detached blocks are retired). In addition, we
+need to maintain the history of the link topology with which we assert that, when Guard(_, ) was
+created, all non-detached pointers at that moment in history must not be in . Such an invariant is
+quite sophisticated, e.g., for Harris’s list [Harris 2001] where links are concurrently updated and a
+chain of nodes can be detached at once. Even worse, we would have to repeat this kind of reasoning
+for each data structure to apply RCU.
+
+Design. To streamline such proofs, we encapsulate the above complexities in a reﬁned and yet
+general speciﬁcation presented in Fig. 12. The speciﬁcation is built on top of our base speciﬁcation
+(§6.1) to directly capture the traversal loop invariant as follows.
+
+We ﬁrst strengthen the meaning of the guard predicate: Guard(_, ) now records the set  of
+
+pointers that are known to have not been detached before the guard was created.
+
+We then introduce the block points-to predicate of the form BlockPointsTo(ℓ, ,  ) to represent the
+ownership of the fragment of the link topology. BlockPointsTo(ℓ, ,  ) says that the block  currently
+points to another block (if any) and records its information as .11 The new rule Guard-Protect-
+BlockPointsTo reﬂects the intuition that it is safe to traverse the data structure by following the
+links. Speciﬁcally, if 1 is protected by the guard, then its current next node 2 is also protected. A
+
+9BlockInfo(, ℓ,  ) is persistent (indicated by the persistence modality 2), because  is not reused for another location.
+Therefore, the extraction does not consume Managed.
+10The rule for logically atomic  is omitted.
+11For concise presentation, the version presented here only supports singly-linked data structures. Our formalized develop-
+ment lifts this assumption by having BlockPointsTo for each ﬁeld of the memory block.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:20
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Predicates
+
+Rules
+
+BlockPointsTo(ℓ : Loc,  : BlockId,  : Option(Loc × BlockId × BlockRes)) : iProp
+
+Managed(ℓ : Loc,  : BlockId,  : BlockRes,  : ℘
+
++ (BlockId)) : iProp
+
+Detached(ℓ : Loc,  : BlockId,  : BlockRes) : iProp
+
+(Guard-Protect-BlockPointsTo)
+
+1 ∉ 
+
+BlockPointsTo(ℓ1, 1, Some(ℓ2, 2,  2)) ∗ Guard(, ) ⊢ 2 ∉ 
+
+(BlockPointsTo-Update)
+BlockPointsTo(ℓ1, 1, Some(ℓ2, 2,  2)) ∗ Managed(ℓ2, 2,  2, 2) ∗ Managed(ℓ3, 3,  3, 3)
+
+BlockPointsTo(ℓ1, 1, Some(ℓ3, 3,  3)) ∗ Managed(ℓ2, 2,  2, 2 \ {1}) ∗ Managed(ℓ3, 3,  3, 3 ⊎ {1})
+
+(Managed-Detach)
+Managed(ℓ, , , ∅)
+
+Detached(ℓ, ,  )
+
+(Detached-Retire)
+{Detached(ℓ, _, _)} retire(ℓ) {True}
+
+Fig. 12. RCU traversal specification.
+
+block points-to assertion is introduced when registering a managed pointer (rule omitted) and put
+into the block resource to associate the logical link structure with physical points-to assertions. For
+example, the block resource for Harris’s list is deﬁned as follows:
+
+.next = NULL ∗  = None ∗ . . .
+
+∃′.  = Some(.next, ′, HListBlock) ∗ . . .
+
+.
+
+HLBlock(ℓ, , ) := ∃ . BlockPointsTo(ℓ, ,  ) ∗
+
+Roughly speaking, if the node’s next pointer value .next is non-null, the block resource asserts
+that it is possible to traverse to its next node, which is also governed by the same block resource.
+To encapsulate the reasoning about link structure properties (L1-3), we add a new param-
+eter  to Managed and introduce the detached pointer predicate of the form Detached(ℓ, ,  ).
+Managed(_, , _, ) means the block  is currently pointed by the blocks in the multiset  [Madiot
+and Pottier 2022], and Detached(ℓ, ,  ) is a variant of Managed that has been marked detached.
+To maintain (L1), Managed-Detach can mark a block detached only when no other blocks point to
+it.12 To maintain (L2), Managed-Detach is irreversible. To maintain (L3), BlockPointsTo-Update
+updates the target of block points-to assertion only if the new target is not yet detached. Finally, to
+ensure that only detached nodes can be retired, RCU-Retire is replaced with Detached-Retire.
+
+7 EVALUATION
+
+We demonstrate that our speciﬁcations of hazard pointers and RCU indeed facilitate modular
+veriﬁcation of safe memory reclamation in the three aspects discussed in §1.2.
+
+Compositional Veriﬁcation. We veriﬁed implementations of hazard pointers based on that
+of Meta’s Folly [Meta 2023] and epoch-based RCU based on the algorithm by Parkinson et al.
+[2017] w.r.t. their speciﬁcations (§5 and §6) that everyone can use (without understanding their
+implementation) to verify concurrent data structures with reclamation.
+
+12This rule is not applicable to cycles. Cycles can be retired despite that each node pointed by another node, as long as the
+cycle as a whole is detached. This can be supported by adapting the “cloud” assertion by Madiot and Pottier [2022].
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:21
+
+Table 1. (cid:30)antitative analysis of the overhead of adding reclamation to the code and proof. “NR”, “HP”,
+“RCU”: versions without reclamation, with hazard pointers, and with RCU, respectively. “N/A”: Harris’s list is
+not supported by hazard pointers. Lines of code and proof with reclamation are annotated with the percentage
+of overhead over those without reclamation in parentheses. “Total” for “NR”: excluding and including Harris’s
+list for comparison with HP and RCU, respectively.
+
+Data Structure
+
+NR Code
+
+HP Code
+
+RCU Code
+
+NR Proof
+
+HP Proof
+
+RCU Proof
+
+Counter
+
+Treiber’s Stack
+[Treiber 1986]
+
+Elimination Stack
+
+[Hendler et al. 2004]
+Michael-Scott Queue
+
+[Michael and Scott 1996]
+
+DGLM Queue
+
+[Doherty et al. 2004]
+
+Harris’s List
+[Harris 2001]
+
+Harris-Michael List
+
+[Michael 2002]
+
+Chase-Lev Deque
+
+[Chase and Lev 2005]
+
+RDCSS
+
+[Harris et al. 2002]
+
+23
+
+38
+
+54
+
+55
+
+55
+
+30 (+30.4%)
+
+30 (+30.4%)
+
+52 (+36.8%)
+
+51 (+34.2%)
+
+71 (+31.5%)
+
+70 (+29.6%)
+
+76 (+38.2%)
+
+68 (+23.6%)
+
+76 (+38.2%)
+
+68 (+23.6%)
+
+140
+
+199
+
+297
+
+464
+
+463
+
+175 (+25.0%)
+
+168 (+20.0%)
+
+248 (+24.6%)
+
+233 (+17.1%)
+
+404 (+36.0%)
+
+384 (+29.3%)
+
+620 (+33.6%)
+
+578 (+24.6%)
+
+775 (+67.4%)
+
+731 (+57.9%)
+
+113
+
+N/A
+
+144 (+27.4%)
+
+1,389
+
+N/A
+
+1,805 (+29.9%)
+
+96
+
+82
+
+52
+
+146 (+52.1%)
+
+119 (+24.0%)
+
+1,171
+
+1,278 (+ 9.1%)
+
+1,473 (+25.8%)
+
+90 (+ 9.8%)
+
+89 (+ 8.5%)
+
+1,113
+
+1,293 (+16.2%)
+
+1,284 (+15.4%)
+
+75 (+44.2%)
+
+68 (+30.8%)
+
+400
+
+530 (+32.5%)
+
+467 (+16.8%)
+
+Total
+
+455/568
+
+616 (+35.4%)
+
+707 (+24.5%)
+
+4,247/5,636
+
+5,323 (+25.3%)
+
+7,123 (+26.4%)
+
+General Applicability. We veriﬁed 9 concurrent data structures, listed in Table 1, using our
+speciﬁcations of hazard pointers and RCU. To the best of our knowledge, we are the ﬁrst to formally
+verify strong speciﬁcations of Harris’s list, the Harris-Michael list, the Chase-Lev deque, and
+RDCSS with manual memory reclamation. This selection of data structures showcases the wide
+applicability of our speciﬁcations to the following tricky features: (1) mutable memory blocks (§5):
+all except counter and Treiber’s stack; (2) multiple block resources: elimination stack (value and
+oﬀer); (3) complex validation in hazard pointers (§2.1): Michael-Scott queue, Harris-Michael list,
+RDCSS; (4) complex invariant for safe retirement (see below): Michael-Scott queue and DGLM
+queue; (5) prophecy variable [Jung et al. 2019]: Harris’s list, Harris-Michael list, RDCSS; (6) optimistic
+traversal (§2.2): Harris’s list; and (7) dynamically-sized blocks: Chase-Lev deque.
+
+Easy Integration. We argue that our speciﬁcations streamline the additional reasoning for intro-
+ducing memory reclamation to existing concurrent data structures without reclamation. To this
+end, we compare the lines of Coq code for implementation and proof for logical atomicity (§2.3)
+of concurrent data structures with and without reclamation. The result is summarized in Table 1.
+The total code overhead of applying hazard pointers and RCU is 35.4% and 24.5%, respectively.
+Hazard pointers generally incurs higher overhead than RCU because it requires additional code for
+protection, especially for data structures with complex validation such as the Harris-Michael list.
+The total proof overhead of applying hazard pointers and RCU is 25.3% and 26.4%, respectively.
+The total proof overhead for hazard pointers is smaller because of the outlier, Harris-Michael list.
+Overall, the proof overhead is on par with the code overhead across the 9 concurrent data
+structures. Some data structures exhibit moderately higher proof overhead than code overhead for
+the following reasons. (1) Elimination stack with reclamation requires more precise tracking of
+ownership than that without reclamation. When ignoring reclamation, the invariant needs to track
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:22
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+only the most recent oﬀer. On the other hand, with reclamation, the invariant needs to track all
+previous oﬀers to prove the safety of retiring an oﬀer, which may have been overridden by others.
+(2) Michael-Scott queue and DGLM queue with reclamation require capturing additional invariants
+on their head and tail indexes for safe retirement of nodes. For the former, the head index should
+not “overtake” the tail index to ensure every unlinked node is unreachable from the tail; and the
+latter features an optimization that requires more complex invariant on indexes.
+
+It is worth noting that the additional proofs for hazard pointers and RCU resemble each other:
+switching the pointer predicates and proof rules between them almost works. The only exception is
+the validation in hazard pointers, which requires completely new proofs. Interestingly, the Harris-
+Michael list with hazard pointers exhibits signiﬁcantly smaller proof overhead because validation
+simpliﬁes the reasoning related to prophecy variables.
+
+8 RELATED WORK
+
+Program Logic for SMR Schemes. Various program logic-based approaches have been proposed
+to verify concurrent data structures with manual memory management. However, none of them
+support all the three criteria of modular veriﬁcation discussed in §1.2 at the same time.
+
+Parkinson et al. [2007] veriﬁed the safety of Treiber’s stack with hazard pointers in concurrent
+separation logic using ghost variables for the status of protection and reclamation. Their veriﬁcation
+is not generally applicable because it makes a simplifying assumption that the stack’s memory
+blocks are never reclaimed. Therefore, their veriﬁcation result only applies to specialized use cases
+such as using the stack as a component in the memory allocator.
+
+Tofan et al. [2011] veriﬁed linearizability and lock freedom of Treiber’s stack and Michael-Scott
+queue with hazard pointers in temporal logic. Their veriﬁcation is not compositional because it
+crucially relies on a relational invariant over the states of concurrent data structures and SMR
+schemes. For instance, their key invariant, ishazard, depends on the implementation of both the
+pop() function of Treiber’s stack and the scan() function of hazard pointers.
+
+Fu et al. [2010] veriﬁed the safety of Treiber’s stack with hazard pointers in temporal separation
+logic supporting rely-guarantee reasoning. They construct an invariant on the history of execution
+traces using temporal logic connectives. Their method is not compositional because their invariants
+and rely-guarantee conditions tightly couple the implementation details of stack and hazard pointers.
+In addition, their method is not generally applicable because they target a blocking implementation
+of retire() and exploit this fact in their proof to simplify the invariants.
+
+Gotsman et al. [2013] presented a principled approach for applying temporal separation logic
+to SMR schemes. As discussed in §1.2, while their approach is elegant, it is not compositional
+because it exposes the implementation details of SMR schemes. For instance, their veriﬁcation of
+an RCU-based counter [Gotsman et al. 2013, §5] maintains the following invariant:
+
+ΥRCU
+
+:= ∀ℓ, .(cid:16) (, 1) since  ↦→ ℓ ∗ ℓ ↦→ _ (cid:17) =⇒ ℓ ↦→e _ ,
+
+where  (, 1) means that  is in an RCU critical section and  ↦→ ℓ ∗ ℓ ↦→ _ means that the
+memory block is reachable from the counter. In the veriﬁcation of the RCU-based counter, one
+has to show that ΥRCU is stable under RCU’s actions. This means that the RCU-based counter’s
+proof must know the details of RCU’s action and the deﬁnition of the  (, 1) predicate. The client
+of the RCU-based counter has a similar issue. When the clients of the counter set up their own
+rely-guarantee conditions, they should prove that each condition preserves ΥRCU, so the clients also
+need to reason about the implementation details of both the counter and RCU. It is unclear how to
+modularize the proofs conducted with their approach since this invariant inherently intertwines
+concepts of SMR schemes (“protected”) and concurrent data structures (“reachable”). In contrast,
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:23
+
+our modular speciﬁcation of SMR schemes decouples the two concepts with carefully designed
+abstract predicates for protected pointers and others.
+
+In addition, it is unclear whether their approach can be easily integrated, as it was evaluated only
+
+for simple data structures without mutable memory blocks (§5 and §7).
+
+Tassarotti et al. [2015] accounted for RCU’s synchronization purely in terms of ownership
+transfer in a separation logic for relaxed memory [Turon et al. 2014]. A simpliﬁed version of their
+veriﬁcation is mechanized in the Iris separation logic framework [Iris Team 2023b; Jung et al. 2018,
+2015] by Kaiser et al. [2017]. However, as discussed in §1.2, their approach is not compositional,
+because they monolithically veriﬁed a linked list integrated with an implementation of RCU.
+
+Essentially, our contributions are modularization and generalization of their veriﬁcation. Our
+base speciﬁcation for RCU (§6.1) abstracts their reasoning about the transfer of partial ownership of
+pointers for each thread, and the traversal-friendly speciﬁcation (§6.2) encapsulates their reasoning
+about the history of links among memory blocks and generalizes it to multiple writers.
+
+Furthermore, we additionally take account of the following features of general-purpose RCU.
+
+• Temporary Deactivation: Their RCU does not support temporary deactivation of critical section
+and requires each thread to periodically refresh the critical section to guarantee the progress
+of reclamation. This means that all pointers are protected at the start. Therefore, in their proof,
+the ownership ﬂows only from the readers to the writer. In contrast, verifying the general-
+purpose RCU requires reasoning about bidirectional ownership transfer in rcu_lock() and
+rcu_unlock(). To verify it, we use a variant of mutual exclusion protocol presented in §4.2.
+• Non-blocking Reclamation: In their RCU, a designated reclaimer blocks until all retired pointers
+become safe to reclaim. In contrast, the RCU we veriﬁed allows multiple threads to concurrently
+and selectively reclaim safe-to-reclaim pointers without blocking. To verify it, we reason about
+the reclaimability of each retired pointer individually.
+
+These limitations are in part due to the complexity of relaxed memory models. Especially, deac-
+tivation requires SC fence (e.g., atomic_thread_fence(memory_order_seq_cst) in C/C++) in
+relaxed memory model, which is not supported by the logic [Turon et al. 2014] they used.
+
+Automated Veriﬁcation Tools for SMR Schemes. Meyer and Wolﬀ [2019a,b]; Wolﬀ [2021]
+designed an automated linearizability checker, as discussed in §1.2. Given the result that a data
+structure without reclamation is linearizable (checked by the Cave veriﬁer [Vafeiadis 2010a,b]),
+their veriﬁer additionally checks the following, which as a whole implies linearizability of the
+data structure integrated with an SMR scheme: (1) the SMR implementation satisﬁes the SMR
+speciﬁcation, which is an automaton that over-approximates the set of pointers that may be freed;
+and (2) the data structure with SMR scheme does not suﬀer from the ABA problem. The task (2)
+is further broken down into two veriﬁcation tasks: (2-1) type-checking the data structure code
+annotated with invariants and transformed by applying atomicity abstraction; and (2-2) checking
+the invariant annotations using Cave.
+
+While their approach is conceptually compositional and easily integrated, it is not generally
+applicable in practice because of the complexity of the check (2-2). First, it suﬀers from the
+unsoundness of the backend veriﬁer Cave. This resulted in failed veriﬁcation in the DGLM queue,
+the Harris-Michael list, and Harris’s list [Wolﬀ 2021, §8.8]. Second, considering that this check
+takes much more time than the original veriﬁcation task (linearizability under no reclamation)
+for complex data structures, it is likely to time out even if they did not have any unsoundness
+issues. Although this problem can be resolved by applying a stronger backend veriﬁer such as
+Plankton [Meyer et al. 2022], it is unclear whether it can handle complex reasoning required in
+Harris’s list for optimistic traversal and retirement of a chain of detached nodes, which involve
+complex shape invariants.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:24
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+In addition, it is worth noting that their tool is specialized for veriﬁcation of linearizability. While
+linearizability has been considered the de facto standard for concurrent data structure speciﬁcation,
+it is diﬃcult for clients to use linearizability for modular program veriﬁcation: linearizability is
+deﬁned outside program logics so that it is not able to express rely-guarantee conditions between
+the library and client [da Rocha Pinto et al. 2014]; it does not support ownership transfer [Gotsman
+and Yang 2012; Jacobs and Piessens 2011]; and it is not applicable to highly concurrent libraries
+with weaker guarantees [Afek et al. 2010; Derrick et al. 2014; Haas et al. 2016; Henzinger et al.
+2013; Jagadeesan and Riely 2014]. On the other hand, we veriﬁed logically atomic triples, which
+can encode not only linearizability but also other correctness conditions [Dang et al. 2022].
+
+Alglave et al. [2018] proposed a speciﬁcation of RCU and proved the speciﬁcation for an im-
+plementation of RCU in the Linux kernel’s relaxed memory model. They also verify small client
+programs using RCU by model checking. However, they do not verify concurrent data structures,
+and it is unclear whether their model checking-based veriﬁcation scales well to more complex
+concurrent data structures and larger programs consisting of multiple data structures.
+
+Kuru and Gordon [2019] proposed a speciﬁcation of RCU that guarantees memory safety and
+the absence of memory leaks. Their speciﬁcation is formulated as a type system whose derivation
+essentially envelopes a separation logic proof. However, their speciﬁcation is not validated against
+an implementation of RCU and is limited to single-writer and tree-shaped data structures.
+
+Veriﬁcation of Other Memory Management Methods. Dang et al. [2019]; Doko and Vafeiadis
+[2017] veriﬁed an implementation of the atomic reference counter (ARC) under a relaxed memory
+model. ARC is simpler than the other SMR schemes because synchronization is centralized to the
+counter variables. In contrast, the synchronization of hazard pointers and epoch-based RCU is
+decentralized, e.g., to the retired and protected pointer list.
+
+Doherty et al. [2004]; Krishna et al. [2017] veriﬁed concurrent data structures that use free list,
+which is a memory recycling mechanism that keeps retired memory blocks in a list instead of
+returning the memory to the allocator. Since it is trivial to guarantee the safety of dereferencing
+pointers managed by a free list, they essentially do not reason about the safety of reclamation.
+
+Madiot and Pottier [2022] designed a separation logic for reasoning about memory usage in a
+garbage collected language. Speciﬁcally, they reason about logically deallocated memory blocks, i.e.,
+blocks that are unreachable and thus can be reclaimed by GC. To this end, the logic uses pointed-by
+assertion of form ℓ ←[ , which tracks the multiset  of immediate predecessor blocks of block ℓ.
+The design of our traversal-aware speciﬁcation for RCU (§6.2) adapts this interface to reason about
+detached blocks. The notable diﬀerence is that our logic tracks the history of links, while their logic
+only tracks the current state of links. This is necessary to support Guard-Protect-BlockPointsTo,
+which talks about the link status at some moment in the past when the critical section started.
+
+9 FUTURE WORK
+
+Application to Other SMR Schemes. We conjecture that our style of veriﬁcation generalizes to
+many state-of-the-art SMR schemes [Alistarh et al. 2017, 2018; Brown 2015; Kang and Jung 2020;
+Nikolaev and Ravindran 2020, 2021; Sheﬃ et al. 2021; Singh et al. 2021; Wen et al. 2018], since they
+are essentially hybrids of hazard pointer and RCU. As a preliminary evaluation, we have sketched
+a speciﬁcation that commonly characterizes DEBRA+, PEBR, and NBR in the appendix [Jung et al.
+2023].
+
+Proof Automation. We conjecture that the additional proof required for the usage of our SMR
+scheme speciﬁcations can be largely automated using Diaframe [Mulder and Krebbers 2023; Mulder
+et al. 2022], a proof automation framework for Iris. Since our speciﬁcations follow Iris’s convention,
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:25
+
+it would be straightforward to design automation hints. As a preliminary evaluation, we wrote
+such hints for our hazard pointer and RCU speciﬁcation and automatically proved Treiber’s stack.
+
+Relaxed Memory Model. In this work, we have assumed the sequentially consistent memory
+model. As future work, we will adapt our veriﬁcation to the iRC11 [Dang et al. 2019], a separation
+logic for C/C++’s relaxed memory model. We expect to encounter two technical challenges. First,
+the speciﬁcation should be based on partial orders among events. For example, our RCU base
+speciﬁcation (§6.1) should be modiﬁed to track memory blocks whose retirement does not happen-
+before at each moment. To this end, we will make use of the speciﬁcation of RCU by Alglave et al.
+[2018] and the speciﬁcation methodology by Dang et al. [2022]. Second, we need logic for SC
+fences, which are necessary for the implementation of general-purpose SMR schemes (discussed
+above). While an SC fence can be modeled as a combination of release/acquire fences and an atomic
+read-modify-write to a ghost location, which are already supported by existing logics [Vafeiadis
+2017], this approach has not been applied to a substantial case study.
+
+ACKNOWLEDGMENTS
+
+We thank the OOPSLA’23 reviewers for valuable feedback and suggestions for improvements. This
+work was supported by Samsung Research Funding & Incubation Center of Samsung Electronics
+under Project Number SRFC-IT2201-06.
+
+DATA AVAILABILITY STATEMENT
+
+The Coq development and appendix for this paper can be found in [Jung et al. 2023].
+
+REFERENCES
+Yehuda Afek, Guy Korland, and Eitan Yanovsky. 2010. Quasi-Linearizability: Relaxed Consistency for Improved Concurrency.
+In Principles of Distributed Systems - 14th International Conference, OPODIS 2010, Tozeur, Tunisia, December 14-17, 2010.
+Proceedings (Lecture Notes in Computer Science, Vol. 6490). Springer, 395–410. https://doi.org/10.1007/978-3-642-17653-
+1_29
+
+Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and Alan Stern. 2018. Frightening Small Children and
+Disconcerting Grown-Ups: Concurrency in the Linux Kernel. SIGPLAN Not. 53, 2 (March 2018), 405–418. https:
+//doi.org/10.1145/3296957.3177156
+
+Dan Alistarh, William Leiserson, Alexander Matveev, and Nir Shavit. 2017. Forkscan: Conservative Memory Reclamation
+for Modern Operating Systems. In Proceedings of the Twelfth European Conference on Computer Systems (Belgrade, Serbia)
+(EuroSys ’17). Association for Computing Machinery, New York, NY, USA, 483–498. https://doi.org/10.1145/3064176.
+3064214
+
+Dan Alistarh, William Leiserson, Alexander Matveev, and Nir Shavit. 2018. ThreadScan: Automatic and Scalable Memory
+
+Reclamation. ACM Trans. Parallel Comput. 4, 4, Article 18 (may 2018), 18 pages. https://doi.org/10.1145/3201897
+
+Daniel Anderson, Guy E. Blelloch, and Yuanhao Wei. 2021. Concurrent Deferred Reference Counting with Constant-Time
+Overhead. In Proceedings of the 42nd ACM SIGPLAN International Conference on Programming Language Design and
+Implementation (Virtual, Canada) (PLDI 2021). Association for Computing Machinery, New York, NY, USA, 526–541.
+https://doi.org/10.1145/3453483.3454060
+
+Mark Batty, Scott Owens, Susmit Sarkar, Peter Sewell, and Tjark Weber. 2011. Mathematizing C++ Concurrency. In Proceedings
+of the 38th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (Austin, Texas, USA)
+(POPL ’11). Association for Computing Machinery, New York, NY, USA, 55–66. https://doi.org/10.1145/1926385.1926394
+Richard Bornat, Cristiano Calcagno, Peter O’Hearn, and Matthew Parkinson. 2005. Permission Accounting in Separation
+
+Logic. SIGPLAN Not. 40, 1 (jan 2005), 259–270. https://doi.org/10.1145/1047659.1040327
+
+John Boyland. 2003. Checking Interference with Fractional Permissions. In Static Analysis, Radhia Cousot (Ed.). Springer
+
+Berlin Heidelberg, Berlin, Heidelberg, 55–72.
+
+Trevor Alexander Brown. 2015. Reclaiming Memory for Lock-Free Data Structures: There Has to Be a Better Way. In
+Proceedings of the 2015 ACM Symposium on Principles of Distributed Computing (Donostia-San Sebastián, Spain) (PODC
+’15). Association for Computing Machinery, New York, NY, USA, 261–270. https://doi.org/10.1145/2767386.2767436
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:26
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+David Chase and Yossi Lev. 2005. Dynamic Circular Work-Stealing Deque. In Proceedings of the Seventeenth Annual
+ACM Symposium on Parallelism in Algorithms and Architectures (Las Vegas, Nevada, USA) (SPAA ’05). Association for
+Computing Machinery, New York, NY, USA, 21–28. https://doi.org/10.1145/1073970.1073974
+
+Pedro da Rocha Pinto, Thomas Dinsdale-Young, and Philippa Gardner. 2014. TaDA: A Logic for Time and Data Abstraction.
+In ECOOP 2014 – Object-Oriented Programming, Richard Jones (Ed.). Springer Berlin Heidelberg, Berlin, Heidelberg,
+207–231.
+
+Hoang-Hai Dang, Jacques-Henri Jourdan, Jan-Oliver Kaiser, and Derek Dreyer. 2019. RustBelt Meets Relaxed Memory. Proc.
+
+ACM Program. Lang. 4, POPL, Article 34 (Dec. 2019), 29 pages. https://doi.org/10.1145/3371102
+
+Hoang-Hai Dang, Jaehwang Jung, Jaemin Choi, Duc-Than Nguyen, William Mansky, Jeehoon Kang, and Derek Dreyer. 2022.
+Compass: Strong and Compositional Library Speciﬁcations in Relaxed Memory Separation Logic. In Proceedings of the 43rd
+ACM SIGPLAN International Conference on Programming Language Design and Implementation (San Diego, CA, USA) (PLDI
+2022). Association for Computing Machinery, New York, NY, USA, 792–808. https://doi.org/10.1145/3519939.3523451
+John Derrick, Brijesh Dongol, Gerhard Schellhorn, Bogdan Tofan, Oleg Travkin, and Heike Wehrheim. 2014. Quiescent
+Consistency: Deﬁning and Verifying Relaxed Linearizability. In FM 2014: Formal Methods - 19th International Symposium,
+Singapore, May 12-16, 2014. Proceedings (Lecture Notes in Computer Science, Vol. 8442). Springer, 200–214. https://doi.org/
+10.1007/978-3-319-06410-9_15
+
+M. Desnoyers, P. E. McKenney, A. S. Stern, M. R. Dagenais, and J. Walpole. 2012. User-Level Implementations of Read-Copy
+Update. IEEE Transactions on Parallel and Distributed Systems 23, 2 (2012), 375–382. https://doi.org/10.1109/TPDS.2011.159
+Simon Doherty, Lindsay Groves, Victor Luchangco, and Mark Moir. 2004. Formal Veriﬁcation of a Practical Lock-Free Queue
+Algorithm. In Formal Techniques for Networked and Distributed Systems – FORTE 2004, David de Frutos-Escrig and Manuel
+Núñez (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 97–114. https://doi.org/10.1007/978-3-540-30232-2_7
+
+Marko Doko and Viktor Vafeiadis. 2017. Tackling Real-Life Relaxed Concurrency with FSL++. In Programming Languages
+
+and Systems, Hongseok Yang (Ed.). Springer Berlin Heidelberg, Berlin, Heidelberg, 448–475.
+
+Keir Fraser. 2004. Practical lock-freedom. Ph. D. Dissertation.
+Ming Fu, Yong Li, Xinyu Feng, Zhong Shao, and Yu Zhang. 2010. Reasoning about Optimistic Concurrency Using a Program
+Logic for History. In CONCUR 2010 - Concurrency Theory, Paul Gastin and François Laroussinie (Eds.). Springer Berlin
+Heidelberg, Berlin, Heidelberg, 388–402. https://doi.org/10.1007/978-3-642-15375-4_27
+
+Alexey Gotsman, Noam Rinetzky, and Hongseok Yang. 2013. Verifying Concurrent Memory Reclamation Algorithms with
+Grace. In Proceedings of the 22nd European Conference on Programming Languages and Systems (Rome, Italy) (ESOP’13).
+Springer-Verlag, Berlin, Heidelberg, 249–269. https://doi.org/10.1007/978-3-642-37036-6_15
+
+Alexey Gotsman and Hongseok Yang. 2012. Linearizability with Ownership Transfer. In CONCUR 2012 – Concurrency
+Theory, Maciej Koutny and Irek Ulidowski (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 256–271. https:
+//doi.org/10.1007/978-3-642-32940-1_19
+
+Andreas Haas, Thomas A. Henzinger, Andreas Holzer, Christoph M. Kirsch, Michael Lippautz, Hannes Payer, Ali Sezgin,
+Ana Sokolova, and Helmut Veith. 2016. Local Linearizability for Concurrent Container-Type Data Structures. In 27th
+International Conference on Concurrency Theory, CONCUR 2016, August 23-26, 2016, Québec City, Canada (LIPIcs, Vol. 59).
+Schloss Dagstuhl - Leibniz-Zentrum für Informatik, 6:1–6:15. https://doi.org/10.4230/LIPIcs.CONCUR.2016.6
+
+Timothy L. Harris. 2001. A Pragmatic Implementation of Non-Blocking Linked-Lists. In Proceedings of the 15th International
+
+Conference on Distributed Computing (DISC ’01). Springer-Verlag, Berlin, Heidelberg, 300–314.
+
+Timothy L. Harris, Keir Fraser, and Ian A. Pratt. 2002. A Practical Multi-Word Compare-and-Swap Operation. In Proceedings
+of the 16th International Conference on Distributed Computing (DISC ’02). Springer-Verlag, Berlin, Heidelberg, 265–279.
+Thomas E. Hart, Paul E. McKenney, Angela Demke Brown, and Jonathan Walpole. 2007. Performance of Memory Reclamation
+for Lockless Synchronization. J. Parallel Distrib. Comput. 67, 12 (dec 2007), 1270–1285. https://doi.org/10.1016/j.jpdc.
+2007.04.010
+
+Danny Hendler, Nir Shavit, and Lena Yerushalmi. 2004. A Scalable Lock-Free Stack Algorithm. In Proceedings of the Sixteenth
+Annual ACM Symposium on Parallelism in Algorithms and Architectures (Barcelona, Spain) (SPAA ’04). Association for
+Computing Machinery, New York, NY, USA, 206–215. https://doi.org/10.1145/1007912.1007944
+
+Thomas A. Henzinger, Christoph M. Kirsch, Hannes Payer, Ali Sezgin, and Ana Sokolova. 2013. Quantitative relaxation
+of concurrent data structures. In The 40th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming
+Languages, POPL ’13, Rome, Italy - January 23 - 25, 2013. ACM, 317–328. https://doi.org/10.1145/2429069.2429109
+
+Maurice P. Herlihy and Jeannette M. Wing. 1990. Linearizability: A Correctness Condition for Concurrent Objects. ACM
+
+Trans. Program. Lang. Syst. 12, 3 (July 1990), 463–492. https://doi.org/10.1145/78969.78972
+
+Iris Team. 2023a. Iris examples. https://gitlab.mpi-sws.org/iris/examples
+Iris Team. 2023b. The Iris project website. https://iris-project.org/
+Bart Jacobs and Frank Piessens. 2011. Expressive Modular Fine-Grained Concurrency Speciﬁcation. In Proceedings of the
+38th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (Austin, Texas, USA) (POPL ’11).
+Association for Computing Machinery, New York, NY, USA, 271–282. https://doi.org/10.1145/1926385.1926417
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:27
+
+Radha Jagadeesan and James Riely. 2014. Between Linearizability and Quiescent Consistency - Quantitative Quiescent
+Consistency. In Automata, Languages, and Programming - 41st International Colloquium, ICALP 2014, Copenhagen,
+Denmark, July 8-11, 2014, Proceedings, Part II (Lecture Notes in Computer Science, Vol. 8573). Springer, 220–231. https:
+//doi.org/10.1007/978-3-662-43951-7_19
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang. 2023. Modular Veriﬁcation of Safe
+Memory Reclamation in Concurrent Separation Logic (Coq development and appendix). https://doi.org/10.1145/3580418
+Project webpage: https://cp.kaist.ac.kr/gc.
+
+Ralf Jung. 2019. Logical Atomicity in Iris: the Good, the Bad, and the Ugly. Iris Workshop. https://people.mpi-sws.org/
+
+~jung/iris/talk-iris2019.pdf
+
+Ralf Jung, Robbert Krebbers, Jacques-Henri Jourdan, Ales Bizjak, Lars Birkedal, and Derek Dreyer. 2018. Iris from the
+ground up: A modular foundation for higher-order concurrent separation logic. J. Funct. Program. 28 (2018), e20.
+https://doi.org/10.1017/S0956796818000151
+
+Ralf Jung, Rodolphe Lepigre, Gaurav Parthasarathy, Marianna Rapoport, Amin Timany, Derek Dreyer, and Bart Jacobs. 2019.
+The Future is Ours: Prophecy Variables in Separation Logic. Proc. ACM Program. Lang. 4, POPL, Article 45 (dec 2019),
+32 pages. https://doi.org/10.1145/3371113
+
+Ralf Jung, David Swasey, Filip Sieczkowski, Kasper Svendsen, Aaron Turon, Lars Birkedal, and Derek Dreyer. 2015. Iris:
+Monoids and Invariants as an Orthogonal Basis for Concurrent Reasoning. In Proceedings of the 42nd Annual ACM
+SIGPLAN-SIGACT Symposium on Principles of Programming Languages, POPL 2015, Mumbai, India, January 15-17, 2015.
+ACM, 637–650. https://doi.org/10.1145/2676726.2676980
+
+Jan-Oliver Kaiser, Hoang-Hai Dang, Derek Dreyer, Ori Lahav, and Viktor Vafeiadis. 2017. Strong Logic for Weak Memory:
+Reasoning About Release-Acquire Consistency in Iris. In 31st European Conference on Object-Oriented Programming
+(ECOOP 2017) (Leibniz International Proceedings in Informatics (LIPIcs), Vol. 74), Peter Müller (Ed.). Schloss Dagstuhl–
+Leibniz-Zentrum fuer Informatik, Dagstuhl, Germany, 17:1–17:29. https://doi.org/10.4230/LIPIcs.ECOOP.2017.17
+
+Jeehoon Kang, Chung-Kil Hur, Ori Lahav, Viktor Vafeiadis, and Derek Dreyer. 2017. A Promising Semantics for Relaxed-
+
+Memory Concurrency. SIGPLAN Not. 52, 1 (jan 2017), 175–189. https://doi.org/10.1145/3093333.3009850
+
+Jeehoon Kang and Jaehwang Jung. 2020. A Marriage of Pointer- and Epoch-Based Reclamation. In Proceedings of the 41st
+ACM SIGPLAN Conference on Programming Language Design and Implementation (London, UK) (PLDI 2020). Association
+for Computing Machinery, New York, NY, USA, 314–328. https://doi.org/10.1145/3385412.3385978
+
+Robbert Krebbers, Amin Timany, and Lars Birkedal. 2017. Interactive Proofs in Higher-Order Concurrent Separation Logic.
+In Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages (Paris, France) (POPL ’17).
+Association for Computing Machinery, New York, NY, USA, 205–217. https://doi.org/10.1145/3009837.3009855
+
+Siddharth Krishna, Dennis Shasha, and Thomas Wies. 2017. Go with the Flow: Compositional Abstractions for Concurrent
+
+Data Structures. Proc. ACM Program. Lang. 2, POPL, Article 37 (Dec. 2017), 31 pages. https://doi.org/10.1145/3158125
+
+Ismail Kuru and Colin S. Gordon. 2019. Safe Deferred Memory Reclamation with Types. In Programming Languages and
+Systems, Luís Caires (Ed.). Springer International Publishing, Cham, 88–116. https://doi.org/10.1007/978-3-030-17184-1_4
+Ori Lahav, Viktor Vafeiadis, Jeehoon Kang, Chung-Kil Hur, and Derek Dreyer. 2017. Repairing Sequential Consistency in
+C/C++11. In Proceedings of the 38th ACM SIGPLAN Conference on Programming Language Design and Implementation
+(Barcelona, Spain) (PLDI 2017). Association for Computing Machinery, New York, NY, USA, 618–632. https://doi.org/10.
+1145/3062341.3062352
+
+Leslie Lamport. 1979. How to Make a Multiprocessor Computer That Correctly Executes Multiprocess Programs. IEEE
+
+Trans. Computers 28, 9 (1979), 690–691. https://doi.org/10.1109/TC.1979.1675439
+
+Jean-Marie Madiot and François Pottier. 2022. A Separation Logic for Heap Space under Garbage Collection. Proc. ACM
+
+Program. Lang. 6, POPL, Article 11 (jan 2022), 28 pages. https://doi.org/10.1145/3498672
+
+Paul E. McKenney, Maged Michael, Jens Maurer, Peter Sewell, Martin Uecker, Hans Boehm, Hubert Tong, Niall Douglas,
+Thomas Rodgers, Will Deacon, Michael Wong, David Goldblatt, Kostya Serebryany, and Anthony Williams. 2021. P2414R1:
+Pointer lifetime-end zap proposed solutions. https://wg21.link/p2414r1.
+
+P. E. McKenney and J. D. Slingwine. 1998. Read-copy update: Using execution history to solve concurrency problems. In
+
+PDCS ’98.
+
+Paul E. McKenney, Michael Wong, Maged M. Michael, Geoﬀrey Romer, Andrew Hunter, Arthur O’Dwyer, Daisy Hollman, JF
+Bastien, Hans Boehm, David Goldblatt, Frank Birbacher, Erik Rigtorp, Tomasz Kamiński, and Jens Maurer. 2023. P2545R4:
+Read-Copy Update (RCU). https://wg21.link/p2545r4.
+
+Meta. 2023. Folly: Facebook Open-source Library. https://github.com/facebook/folly
+Glen Mével, Jacques-Henri Jourdan, and François Pottier. 2020. Cosmo: A Concurrent Separation Logic for Multicore OCaml.
+
+Proc. ACM Program. Lang. 4, ICFP, Article 96 (aug 2020), 29 pages. https://doi.org/10.1145/3408978
+
+Roland Meyer, Thomas Wies, and Sebastian Wolﬀ. 2022. A Concurrent Program Logic with a Future and History. Proc. ACM
+
+Program. Lang. 6, OOPSLA2, Article 174 (oct 2022), 30 pages. https://doi.org/10.1145/3563337
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:28
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+Roland Meyer and Sebastian Wolﬀ. 2019a. Decoupling Lock-Free Data Structures from Memory Reclamation for Static
+
+Analysis. Proc. ACM Program. Lang. 3, POPL, Article 58 (Jan. 2019), 31 pages. https://doi.org/10.1145/3290371
+
+Roland Meyer and Sebastian Wolﬀ. 2019b. Pointer Life Cycle Types for Lock-Free Data Structures with Memory Reclamation.
+
+Proc. ACM Program. Lang. 4, POPL, Article 68 (dec 2019), 36 pages. https://doi.org/10.1145/3371136
+
+Maged Michael, Maged M. Michael, Michael Wong, Paul McKenney, Andrew Hunter, Daisy S. Hollman, JF Bastien, Hans
+Boehm, David Goldblatt, Frank Birbacher, and Mathias Stearn. 2023. P2530R3: Hazard Pointers for C++26. https:
+//wg21.link/p2530r3.
+
+Maged M. Michael. 2002. High Performance Dynamic Lock-Free Hash Tables and List-Based Sets. In Proceedings of the
+Fourteenth Annual ACM Symposium on Parallel Algorithms and Architectures (Winnipeg, Manitoba, Canada) (SPAA ’02).
+Association for Computing Machinery, New York, NY, USA, 73–82. https://doi.org/10.1145/564870.564881
+
+Maged M. Michael. 2004. Hazard Pointers: Safe Memory Reclamation for Lock-Free Objects. IEEE Trans. Parallel Distrib.
+
+Syst. 15, 6 (June 2004), 491–504. https://doi.org/10.1109/TPDS.2004.8
+
+Maged M. Michael and Michael L. Scott. 1996. Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue
+
+Algorithms. In PODC 1996.
+
+Ike Mulder and Robbert Krebbers. 2023. Proof Automation for Linearizability in Separation Logic. Proc. ACM Program. Lang.
+
+7, OOPSLA1, Article 91 (apr 2023), 30 pages. https://doi.org/10.1145/3586043
+
+Ike Mulder, Robbert Krebbers, and Herman Geuvers. 2022. Diaframe: Automated Veriﬁcation of Fine-Grained Concurrent
+Programs in Iris. In Proceedings of the 43rd ACM SIGPLAN International Conference on Programming Language Design and
+Implementation (San Diego, CA, USA) (PLDI 2022). Association for Computing Machinery, New York, NY, USA, 809–824.
+https://doi.org/10.1145/3519939.3523432
+
+Ruslan Nikolaev and Binoy Ravindran. 2020. Universal Wait-Free Memory Reclamation. Association for Computing Machinery,
+
+New York, NY, USA, 130–143. https://doi.org/10.1145/3332466.3374540
+
+Ruslan Nikolaev and Binoy Ravindran. 2021. Brief Announcement: Crystalline: Fast and Memory Eﬃcient Wait-Free
+Reclamation. In 35th International Symposium on Distributed Computing (DISC 2021) (Leibniz International Proceedings in
+Informatics (LIPIcs), Vol. 209), Seth Gilbert (Ed.). Schloss Dagstuhl – Leibniz-Zentrum für Informatik, Dagstuhl, Germany,
+60:1–60:4. https://doi.org/10.4230/LIPIcs.DISC.2021.60
+
+Matthew Parkinson, Richard Bornat, and Peter O’Hearn. 2007. Modular Veriﬁcation of a Non-Blocking Stack. In Proceedings
+of the 34th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (Nice, France) (POPL ’07).
+Association for Computing Machinery, New York, NY, USA, 297–302. https://doi.org/10.1145/1190216.1190261
+
+Matthew Parkinson, Kapil Vaswani, Dimitrios Vytiniotis, Manuel Costa, Pantazis Deligiannis, Aaron Blankstein, Dylan
+McDermott, and Jonathan Balkind. 2017. Project Snowﬂake: Non-blocking safe manual memory management in .NET. Tech-
+nical Report MSR-TR-2017-32. Microsoft. https://www.microsoft.com/en-us/research/publication/project-snowﬂake-
+non-blocking-safe-manual-memory-management-net/
+
+Gali Sheﬃ, Maurice Herlihy, and Erez Petrank. 2021. VBR: Version Based Reclamation. In Proceedings of the 33rd ACM
+Symposium on Parallelism in Algorithms and Architectures (Virtual Event, USA) (SPAA ’21). Association for Computing
+Machinery, New York, NY, USA, 443–445. https://doi.org/10.1145/3409964.3461817
+
+Ajay Singh, Trevor Brown, and Ali Mashtizadeh. 2021. NBR: Neutralization Based Reclamation. In Proceedings of the 26th
+ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (Virtual Event, Republic of Korea) (PPoPP
+’21). Association for Computing Machinery, New York, NY, USA, 175–190. https://doi.org/10.1145/3437801.3441625
+
+Kasper Svendsen and Lars Birkedal. 2014. Impredicative Concurrent Abstract Predicates. In Programming Languages and
+Systems - 23rd European Symposium on Programming, ESOP 2014, Held as Part of the European Joint Conferences on Theory
+and Practice of Software, ETAPS 2014, Grenoble, France, April 5-13, 2014, Proceedings (Lecture Notes in Computer Science,
+Vol. 8410). Springer, 149–168. https://doi.org/10.1007/978-3-642-54833-8_9
+
+Joseph Tassarotti, Derek Dreyer, and Viktor Vafeiadis. 2015. Verifying Read-Copy-Update in a Logic for Weak Memory. In
+Proceedings of the 36th ACM SIGPLAN Conference on Programming Language Design and Implementation (Portland, OR,
+USA) (PLDI ’15). Association for Computing Machinery, New York, NY, USA, 110–120. https://doi.org/10.1145/2737924.
+2737992
+
+Bogdan Tofan, Gerhard Schellhorn, and Wolfgang Reif. 2011. Formal Veriﬁcation of a Lock-Free Stack with Hazard
+Pointers. In Theoretical Aspects of Computing – ICTAC 2011, Antonio Cerone and Pekka Pihlajasaari (Eds.). Springer
+Berlin Heidelberg, Berlin, Heidelberg, 239–255. https://doi.org/10.1007/978-3-642-23283-1_16
+
+R. K. Treiber. 1986. Systems programming: coping with parallelism.
+Aaron Turon, Viktor Vafeiadis, and Derek Dreyer. 2014. GPS: Navigating Weak Memory with Ghosts, Protocols, and
+Separation. In Proceedings of the 2014 ACM International Conference on Object Oriented Programming Systems Languages &
+Applications (Portland, Oregon, USA) (OOPSLA ’14). Association for Computing Machinery, New York, NY, USA, 691–707.
+https://doi.org/10.1145/2660193.2660243
+
+Viktor Vafeiadis. 2010a. Automatically Proving Linearizability. In Computer Aided Veriﬁcation, Tayssir Touili, Byron Cook,
+and Paul Jackson (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 450–464. https://doi.org/10.1007/978-3-642-
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:29
+
+14295-6_40
+
+Viktor Vafeiadis. 2010b. RGSep Action Inference. In Veriﬁcation, Model Checking, and Abstract Interpretation, Gilles Barthe
+and Manuel Hermenegildo (Eds.). Springer Berlin Heidelberg, Berlin, Heidelberg, 345–361. https://doi.org/10.1007/978-
+3-642-11319-2_25
+
+Viktor Vafeiadis. 2011. Concurrent Separation Logic and Operational Semantics. Electronic Notes in Theoretical Computer
+Science 276 (2011), 335–351. https://doi.org/10.1016/j.entcs.2011.09.029 Twenty-seventh Conference on the Mathematical
+Foundations of Programming Semantics (MFPS XXVII).
+
+Viktor Vafeiadis. 2017. Program Veriﬁcation Under Weak Memory Consistency Using Separation Logic. In Computer Aided
+
+Veriﬁcation, Rupak Majumdar and Viktor Kunčak (Eds.). Springer International Publishing, Cham, 30–46.
+
+Haosen Wen, Joseph Izraelevitz, Wentao Cai, H. Alan Beadle, and Michael L. Scott. 2018. Interval-Based Memory Reclamation.
+
+SIGPLAN Not. 53, 1 (feb 2018), 1–13. https://doi.org/10.1145/3200691.3178488
+
+Sebastian Wolﬀ. 2021. Verifying Non-blocking Data Structures with Manual Memory Management. Ph. D. Dissertation.
+
+https://doi.org/10.24355/dbbs.084-202108191157-0
+
+Received 2023-04-14; accepted 2023-08-27
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+

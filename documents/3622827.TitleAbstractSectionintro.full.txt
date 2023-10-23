@@ -1,0 +1,181 @@
+Title-Abstract. Section intro
+Modular Verification of Safe Memory Reclamation in
+Concurrent Separation Logic
+
+JAEHWANG JUNG, KAIST, Republic of Korea
+JANGGUN LEE, KAIST, Republic of Korea
+JAEMIN CHOI, KAIST, Republic of Korea
+JAEWOO KIM, KAIST, Republic of Korea
+HO PARK, KAIST, Republic of Korea
+JEEHOON KANG, KAIST, Republic of Korea
+
+251
+
+Formal veriﬁcation is an eﬀective method to address the challenge of designing correct and eﬃcient con-
+current data structures. But veriﬁcation eﬀorts often ignore memory reclamation, which involves nontrivial
+synchronization between concurrent accesses and reclamation. When incorrectly implemented, it may lead to
+critical safety errors such as use-after-free and the ABA problem. Semi-automatic safe memory reclamation
+schemes such as hazard pointers and RCU encapsulate the complexity of manual memory management in
+modular interfaces. However, this modularity has not been carried over to formal veriﬁcation.
+
+We propose modular speciﬁcations of hazard pointers and RCU, and formally verify realistic implementations
+of them in concurrent separation logic. Speciﬁcally, we design abstract predicates for hazard pointers that
+capt meaning of valid protection of nodes, and those for RCU that support optimistic traversal
+to possibly retired nodes. We demonstrate that the speciﬁcations indeed facilitate modular veriﬁcation in
+three criteria: compositional veriﬁcation, general applicability, and easy integration. In doing so, we present
+the ﬁrst formal veriﬁcation of Harris’s list, the Harris-Michael list, the Chase-Lev deque, and RDCSS with
+reclamation. We report the Coq mechanization of all our results in the Iris separation logic framework.
+
+CCS Concepts: • Theory of computation → Separation logic; Program veriﬁcation; Concurrent
+algorithms.
+
+Additional Key Words and Phrases: safe memory reclamation, separation logic, Iris
+
+ACM Reference Format:
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang. 2023. Modular
+Veriﬁcation of Safe Memory Reclamation in Concurrent Separation Logic. Proc. ACM Program. Lang. 7,
+OOPSLA2, Article 251 (October 2023), 29 pages. https://doi.org/10.1145/3622827
+
+1 INTRODUCTION
+
+It is challenging to design correct and eﬃcient concurrent data structures. An eﬀective method
+to address the challenge is formal veriﬁcation, which not only increases our conﬁdence in the
+correctness of the algorithm but also help us improve it. As such, various concurrent data structures
+have been formally veriﬁed.
+
+Authors’ addresses: Jaehwang Jung, jaehwang.jung@kaist.ac.kr, KAIST, Daejeon, Republic of Korea; Janggun Lee, janggun.
+lee@kaist.ac.kr, KAIST, Daejeon, Republic of Korea; Jaemin Choi, jaemin.choi98@kaist.ac.kr, KAIST, Daejeon, Republic
+of Korea; Jaewoo Kim, jaewoo.kim@kaist.ac.kr, KAIST, Daejeon, Republic of Korea; Sunho Park, sunho.park@kaist.ac.kr,
+KAIST, Daejeon, Republic of Korea; Jeehoon Kang, jeehoon.kang@kaist.ac.kr, KAIST, Daejeon, Republic of Korea.
+
+This work is licensed under a Creative Commons Attribution 4.0 International License.
+
+© 2023 Copyright held by the owner/author(s).
+2475-1421/2023/ART251
+https://doi.org/10.1145/3622827
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:2
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+C1 fun pop(st):
+
+C2 R
+
+C3
+
+C4 N
+
+C4 H
+
+C4 R
+
+C5
+
+C6 H
+
+C6 R
+
+C7
+
+C8
+
+C9
+
+C10 N
+
+C10 H
+
+C10 R
+
+C11
+
+rcu_lock(tid)
+
+loop:
+
+h := (*st).head
+
+h := protect(tid, &(*st).head)
+
+h := (*st).head
+
+if h == NULL:
+
+unprotect(tid)
+
+rcu_unlock(tid)
+
+return None
+
+x := (*h).data; n := (*h).next
+
+if CAS(&(*st).head, h, n):
+
+// free(h) incurs errors
+
+retire(h); unprotect(tid)
+
+retire(h); rcu_unlock(tid)
+
+return Some(x)
+
+(a) pop() code without reclamation (red lines with N),
+with hazard pointers (green lines with H), and with
+RCU (blue lines with R).
+
+(4) free(ℓ1)
+ℓ1
+
+ℓhead
+
+(1)
+
+10
+
+2: use-after-free
+
+(2)
+
+ℓ2
+
+20
+
+(3) CAS(ℓhead, ℓ1, ℓ2)
+
+(b) 2 accesses ℓ1 already reclaimed by 1.
+
+ℓhead
+
+ℓ1 (recycled)
+
+11
+
+ℓ2
+
+20
+
+3: ABA CAS(ℓhead, ℓ1, ℓ2)
+
+(c) 3 uses stale values for CAS.
+
+Fig. 1. Problems of immediately reclaiming detached block illustrated in Treiber’s stack [Treiber 1986].
+
+However, the existing veriﬁcations of concurrent data structures often ignore memory reclamation,
+which involves nontrivial synchronization between concurrent accesses and reclamation of the
+same memory block. For instance, consider Treiber’s concurrent stack [Treiber 1986] presented in
+Fig. 1a. (For now, ignore those lines marked with H or R.) A Treiber’s stack is essentially a linked list
+of elements with its head being the stack top. Fig. 1b illustrates the procedure of the pop() method.
+When a thread invokes pop() of a stack at address st, it (1) reads the pointer to the ﬁrst block ℓ1
+from st’s head ﬁeld (line C4); (2) if ℓ1 is NULL, returns None (C5-7); (3) otherwise, reads ℓ1’s data
+and the pointer to its next block �2 (line C8); and (4) detaches ℓ1 by performing compare-and-swap
+(CAS) on head that atomically replaces ℓ1 with ℓ2 (line C9). If successful, pop() returns ℓ1’s data
+(line C11), and otherwise, it retries from the beginning (line C3). (5) To avoid memory leaks, it
+should eventually reclaim the detached block �. What if pop() immediately reclaims ℓ1 at line
+C10? Then the following critical errors would occur:
+
+• Use-A(cid:30)er-Free (Fig. 1b): Suppose threads 1 and 2 concurrently invoke pop() to take ℓ1. Then
+a use-after-free error would occur in the following

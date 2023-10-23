@@ -1,0 +1,114 @@
+Title-Abstract. Section intro
+ formed using value elements with such structures. There is
+another important structure, referred to as ring, for the cases that the addition operator admits an
+inverse. The transformation rules enabled by the ring structure are shown in Figure 14. As it can
+be observed in Table 1, real and integer sum-products form ring structures. Similarly to semi-ring
+dictionaries, one can obtain ring dictionaries by using values that form a ring. In this case, the
+additive inverse of a particular ring dictionary is a ring dictionary with the same keys but with
+inverse value elements.
+SDQL[closure]: SDQL + Closed Semi-rings. Orthogonally, one can extend the semi-ring struc-
+ture with a closure operator [Dolan 2013]. In this way, transitive closure algorithms can also be
+expressed by generalizing semi-rings to closed semi-rings [Lehmann 1977]. In many cases, the
+semi-ring structures involve an additional idempotence axiom (a + a = a) resulting in dioids. The
+closure operator for dioids is called a Kleene star and the extended structure is referred to as Kleena
+algebra, which is useful for expressing path problems in graphs among other use-cases [Gondran
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:21
+
+and Minoux 2008]. This structure can be reflected in our kind-system; the product of dioids/Kleene
+algebras forms a dioid/Kleene algebra. In future work, we would like to investigate how to express
+the standard algorithm that computes closure(𝐴) for a matrix 𝐴 over a Kleene algebra in terms of
+a program involving semi-ring dictionaries over a Kleene algebra.
+SDQL[prod]: SDQL + Product. We have only considered the summation over semi-ring dictionar-
+ies. One can use prod instead of sum. This would allow to elegantly express universal quantification
+over the possible assignments of that variable (like in FAQ [Abo Khamis et al. 2016] to express
+quantified Boolean queries). As an example, checking if the predicate p is satisfied by all elements of
+relation R is phrased as: prod(r <- R) p(r). The commutative monoid structure of multiplication
+allows for optimizations with a similar impact as horizontal loop fusion (cf. Figure 14).
+SDQL[rec]: SDQL + Recursion. Apart from supporting the closure and product constructs, it is
+possible to support more general forms of recursion. As shown for matrix query languages [Geerts
+et al. 2021], an additional for-loop-style construct can express summation, product, transitive closure,
+as well as matrix inversion. This general form of recursion also allows for iterations, similarly to
+the while construct in IFAQ [Shaikhha et al. 2020] that enables iterative computations required for
+optimization producures such as batch gradient decent (BGD). The additional expressive power of
+this construct comes with limited optimization opportunies; loop fusion and factorization are no
+longer applicable to them, however, code motion can still be leveraged (cf. Figure 14).
+
+9 EXPERIMENTAL RESULTS
+
+9.1 Experimental Setup
+We run our experiments on a iMac equipped with an Intel Core i5 CPU running at 2.7GHz, 32GB of
+DDR3 RAM with OS X 10.13.6. We use CLang 1000.10.44.4 for compiling the generated C++ code
+using the O3 flag. Our competitor systems use Scala 2.12.2, Spark 3.0.1, Python 3.7.4 (Python 2.7.12
+for MorpheusPy), NumPy 1.16.2, and SciPy 1.2.1. All experiments are run on one CPU core.4 We
+measure the average run time execution of five runs excluding the loading time.
+
+9.2 Database Workloads
+In this section, we investigate the perfor-
+mance of SDQL for online analytical processing
+(OLAP) workloads used in the databases. For
+this purpose, we compare the performance of
+generated optimized code for the dictionary lay-
+out, row layout, and columnar layout of SDQL
+with the open source implementation5 [Ker-
+sten et al. 2018] of two state-of-the-art ana-
+lytical query processing engines: 1) Typer for
+HyPer [Neumann 2011], and 2) Tectorwise for
+Vectorwise [Zukowski et al. 2005].
+
+Fig. 15. Run time results for TPCH queries comparing
+different data layouts in SDQL, Typer, and Tectorwise.
+
+For these experiments, we use TPCH, the main benchmark for such workloads in databases.
+Instead of running TPCH queries, we only use a representative subset of them for the following
+reasons. First, previous research [Boncz et al. 2014; Kersten et al. 2018] identified that this subset
+has the łchoke pointsž of all TPCH queries. Second, the open source implementations of Typer and
+
+4Prior work on parallelism for database query engines [Graefe 1994], nested data processingattening and shredding
+et al. 2020]), and sparse linear algebra [Kjolstad et al. 2017] can be transferred to SDQL, which we leave as future work.
+5https://github.com/TimoKersten/db-engine-paradigms
+
+. ACM Program. Lang., Vol. 6, OOPSLA1, Article 89. Publication date: April 2022.
+
+Q1Q3Q5Q9Q180200400600800Run Time (ms)1419.6SDdictionary)SDQL (row-store)SDQL (column-store)TyperTectorwise
+89:22
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+Fig. 16. Run time results for computing the covariance matrix comparing different optimizations and repre-
+sentations in SDQL, SciPy, and NumPy. The dimension for the input matrix of the left figure is 100000 × 100,
+and the dimension of the input matrix of the right figure is 𝑁 × 100 with the density of 2−7.
+
+Tectorwise only support this subset. We further restricted this subset to the construct
+intermediate dictionaries; we excluded Q6 as it does not have any joins or group-by aggregates.
+
+Figure 15 shows that the row layout for input relations a 4.2× speedup over the standard
+dictionary layout. The columnar improves the performance by 1.5×. This is due to
+improved cache locality, as unused columns read into cache in case of the columnar layout.
+The columnar layout leads to performance on par with Tectorwise, but SDQL remains about 20%
+slower than Typer. The performance can be further improved by better memory management and
+string processing techniques, as used in Typer and Tectorwise.
+
+9.3 Linear Algebra Workloads
+In this we investigate the performance of SDQL for linear algebra workloads. We consider
+both matrix and higher-order tensor workloads. For the matrix, we use NumPy
+and SciPy as competitors, which use dense and sparse representations for matrices. This workload
+involves matrix transpose, which is not supported by systems such as taco [Kjolstad et al. 2017].
+For the tensor processing workloads, we use taco [Kjolstad et al. 2017] as the only competitor.
+SciPy does not support higher-order tensors, and shown before [Chou et al. Kjolstad
+et 2017] that on these, taco is faster than systems such as SPLSmith et al. 2015],
+Tensor [Bader and Kolda 2008],ensorFlowadi et al. 2016]. For a, have included the time for assembling the output tens tacoS Processing, the task of computing the covari 𝑋� 𝑋 (cf.
+Section 4), where 𝑋 is a synthetically generated input data matrix dimensions and densityWe consider the following different versions generated code from SD 1) unoptimized,
+which is the uncurried representation of matrices, 2) curried, which usesried representation, 3) fused, which additionally fuses the transpose and multiplication operators.
+
+As Figure 16 shows, using curried representation can provide asymptotic improvements over the
+naïve representation, thanks to the improved matrix multiplication operator (cf. Section 6.1).
+thermore, performing fusion can provide 2× speedup on average. The usage of dense representation
+(by NumPy) can provide better implementations as the matrix becomes more dense; however, for
+smaller densities, sparse representations (by SciPy and SDQL) can be up to two orders of magnitude
+faster. Finally,

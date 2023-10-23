@@ -1,0 +1,3 @@
+
+
+This section provides an overview of the SDQL language, which is a purely functional, domain-specific language inspired by efforts from languages developed in both the programming languages and the databases communities. It is appropriate for collections with sparse structure such as database relations, functional collections, and sparse tensors. The grammar of SDQL is presented for both expressions (e) and types (T). A background on semi-ring structures is given, followed by an introduction to the kind and type systems of SDQL. Semi-ring and iteration constructs are then introduced, and finally, arrays and sets are encoded in SDQL. The section also provides a motivating example of how SDQL can be used for biomedical data analysis.

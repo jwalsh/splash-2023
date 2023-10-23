@@ -1,0 +1,178 @@
+Title-Abstract. Section intro
+ Jaclyn Smith, and Dan Olteanu
+
+sum(<r,r_v> in R)
+
+sum(<s,s_v> in S)
+
+if(jkR(r)==jkS(s)) then
+
+{ concat(r,s)->r_v*s_v }
+
+sum(<r,r_v> in R)
+
+let Sp = sum(<s,s_v> in S)
+
+let Sp = sum(<s,s_v> in S)
+
+{ jkS(s) -> {s->s_v} } in
+
+;
+
+{ jkS(s) -> {s->s_v} } in
+
+;
+
+sum(<r,r_v> in R)
+
+sum(<s,s_v> in Sp(jkR(r)))
+
+sum(<s,s_v> in Sp(jkR(r)))
+
+{ concat(r,s)->r_v*s_v }
+
+{ concat(r,s)->r_v*s_v }
+
+(a) Synthesizing hash join operator from nested loop join.
+
+sum(<r,r_v> in R)
+
+sum(<r,r_v> in R) { jkR(r)->
+
+let Sp = sum(<s,s_v> in S)
+
+sum(<s,s_v> in S)
+
+f(r)*(sum(<s,s_v> in S)
+
+;
+
+{ jkS(s) -> g(s) } in
+
+;
+
+if(jkR(r)==jkS(s)) then
+
+if(jkR(r)==jkS(s)) then
+
+sum(<r,r_v> in R)
+
+{ jkR(r)->f(r)*g(s) }
+
+g(s) ) }
+
+{ jkR(r)->f(r)*Sp(jkR(r)) }
+
+(b) Synthesizing groupjoin operator from nested loop join and group-by aggregation.
+
+Fig. 10. Synthesizing hash join and groupjoin operators by loop memoization.
+
+expression is inefficient, due to iterating over every combination of the elements of the two input
+relations. The body of the conditional is however dependent on the outer loop and thus cannot be
+hoisted outside. Applying the first loop memoization rule results in the middle expression; in order
+to join the two relations, it is sufficient to iterate over relation R and find the corresponding partition
+from relation S by using Sp(jkR(r)). In this expression, the dictionary Sp is no longer dependent
+on r. Thus, we can perform loop-invariant code motion, which results in the last expression.
+
+In the specific case of implementing a dictionary using a hash-table, this join algorithm corre-
+sponds to a hash join operator; The first loop corresponds to the build phase and the second loop
+corresponds to the probe phase [Ramakrishnan and Gehrke 2000]. This expression is basically the
+same expression as the one for the hash join operator. This means that the first rewrite rule of loop
+memoization when combined with loop hoisting synthesizes hash join operator.
+Example 5 (Cont.). Let us consider again the join between Gene and Variants. The previous
+expression used nested loops in order to handle join, which is inefficient. The following expression
+uses hash join instead:
+
+let Vp = sum(<v,v_v> in Variants)
+
+{ v.contig -> {<start=v.start,genotypes=v.genotypes> -> v_v} } in
+
+sum(<g,g_v> in Genes) sum(<v,v_v> in Vp(g.contig)) sum(<m,m_v> in v.genotypes)
+
+if(g.start<=v.start&&g.end>=v.start) then
+
+{ <sample=m.sample,gene=m.gene,burden=m.call> -> g_v*v_v*m_v }
+
+Synthesizing Groupjoin. There are special cases, where the loop memoization can perform
+5.3.2
+even better. This achieved by performing a portion of computation while partitioning the data. This
+situation arises when computing an aggregation over the result of join between two relations. As
+an example, consider the summation of f(r) * g(s) on the elements r and s that successfully join,
+grouped by the join key, represented as the last expression of Figure 10b. In this case, the inner sum
+contains the terms f(r) and jkR(r) which are dependent on r and thus makes it impossible to be
+hoisted. The terms jkR) and f(r) inside the conditional body can be factored outside using the
+loop factorization rule, resulting in the middle expression. Afterwards, by applying the second rule
+of loop memoization, the dictionary bound to variable Sp is constructed. As this dictionary is no
+longer dependent on r, we can apply loop-invariant code motion, resulting in the last expression.
+In fact, the result expression corresponds to the implementation of a groupjoin operator [Mo-
+erkotte and Neumann 2011]. In essence, the loop memoization and loop hoisting optimizations
+have the effect of pushing aggregations past joins [Yan and Larson 1994].
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:15
+
+Table 2. The features of SDQL leveraged by each transformation.
+
+Feature
+
+Purely
+
+Optimization
+Vertical loop fusion
+Horizontal loop fusion
+Memoization
+Loop factorization
+Code motion
+Data layouts
+
+functional
+
+✓
+
+✓
+
+✓
+
+✓
+
+✓
+
+Dictionary Dictionary
+summation
+
+lookup
+
+Semi-ring Compositional
+
+✓
+
+✓
+
+✓
+
+✓
+
+✓
+
+✓
+
+✓
+
+✓
+
+✓
+
+5.3.3 Memoization Beyond Databases. In the case of using max-product semi-ring (cf. Figure 1)
+these optimization can synthesize variable elimination for maximum a priority (MAP) inference in
+Bayesian networks [Abo Khamis et al. 2016; Aji and McEliece 2000]. Furthermore, loop normaliza-
+tion [Shaikhha et al. 2019] can also be thought of as a special case of this rule.
+
+5.4 Putting all Together
+In this section, we investigate the design decisions behind SDQL that enables the optimizations
+presented before. The features of SDQL can be categorized as follows:
+
+• Purely functional: SD

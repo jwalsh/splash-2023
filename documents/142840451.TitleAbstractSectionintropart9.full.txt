@@ -1,0 +1,123 @@
+Title-Abstract. Section intro
+ proceed by contradiction. Suppose that
+after reaching a fixed point (F,B) there is a missing event for a query;
+hence there must be an earlier missing event. This means there must either
+be another possible transition ↣ or an earlier missing event, yielding a
+contradiction in either case.
+4. Combining 2 and 3, we obtain that a fixed point of ⇝ overapproximates the
+
+relevant subset of the whole-program call graph of a given program.
+
+Note that termination follows from the assumption that a fixed program has
+a finite number of functions and call sites, combined with the monotonicity of ⇝:
+Lemma 1 (Monotonicity). If (G, C, F ) ⇝ (G′, C ′, F ′), then (G, C, F ) ⊏
+(G′, C ′, F ′), where ⊏ denotes lexicographic tuple ordering.
+
+3.6 Discussion
+Reflection. The above algorithm relies on correctly identifying all references to
+for which call sites need to be determined. In languages without
+a function f
+reflection, this can be done easily by identifying where f
+is referenced syntac-
+tically, taking into account scoping rules. However, many languages including
+Java and JavaScript allow obtaining a reference to a function through the use of
+reflection. The above definitions assume that an F correctly overapproximates
+where a function might be referenced, which entails a reflection analysis in order
+to soundly analyze programs in the presence of reflection.
+
+Implementation considerations. We model F and B as returning sets of traces
+that on-demand call graph constructions inspects for certain events. In a real-
+world implementation, data flow analyses would provide an interface signaling
+
+
+16
+
+Schoepe et al.
+
+discovered data flows between reference points and call sites as well to a function
+boundary. Our prototype, described in Section 4, interfaces with the automata-
+based abstraction of SPDS to detect when to issue additional queries or add call
+graph edges through the listener functionality provided by SPDS.
+
+Non-termination. In the formal model, non-terminating programs are repre-
+sented as infinite sets of finite traces. In order for an underlying data flow anal-
+ysis to be considered sound, such infinite sets need to be over-approximated to
+satisfy the conditions of forward or backward soundness. In practice, this re-
+quires a suitable finite representation of an infinite set of traces. For example,
+consider the program |while(true) f(); |, producing an infinite sequence of call
+events call(f (), f, r ) for some reference point r along with associated enter,
+exit, and return events. Assume further that the call target of f() produces no
+additional events. Its denotation is the infinite set {S, S · S, S · S · S,...} where
+S = call(f, f, r ) · enter(f (), f ) · exit(f (), f ) · return(f (), f ).
+
+To satisfy the conditions of backward soundness, a backward data flow anal-
+ysis B has to include any trace Sn in the set B(G, f ()). As discussed, a practical
+implementation will therefore have to finitely represent an infinite set. For exam-
+ple, a backward analysis may map program locations to potential call targets—in
+this case mapping f() to the function f. In SPDS, this example can be repre-
+sented using a loop in the call push-down system, adding an edge from f() to
+itself. Similar considerations apply to sound forward data flow analyses.
+
+4 Evaluation
+
+The main research question we explore with our experimental evaluation con-
+cerns scalability: A key promise of on-demand call graph construction is the
+application of analyses to only relevant parts of a code base,
+rather than the entire program. This unlocks the possibility to apply analyses
+that are too expensive to use with a whole-program approach.
+
+In addition to a set of initial queries, issued for the call sites of interest
+in a given program, our on-demand call graph construction issues queries on
+which the initial queries depend. As a result, how much of a program is explored
+during analysis depends on the structure of the program and cannot be bounded
+upfront—in the worst case, the algorithm may still produce the whole-program
+call graph. Our experiments evaluate how many queries are resolved in total,
+for initial sets of various sizes, and report on the potential time savings from
+on-demand analysis on a set of synthetic benchmarks. The prototype can be
+found online [27].
+
+Implementation. We implemented the on-demand call graph construction algo-
+rithm in a prototype, called Merlin, for a limited subset of JavaScript. The
+implementation uses the TAJS [17] intermediate representation and Synchro-
+nized Push-Down Systems (SPDS) [30] as the underlying data flow analysis
+for both forward and backward queries. To support (a subset of) JavaScript in
+
+
+Lifting On-Demand Analysis to Higher-Order Languages
+
+17
+
+SPDS, the implementation adds backward and forward flow functions on top
+of an existing language-agnostic SPDS implementation [6]. The implementation
+supports basic JavaScript features, such as assignments, object allocation and
+function calls, including closures and accounting for mutability of captured vari-
+ables. Instantiating SPDS to a sufficiently large subset of JavaScript to analyze
+real-world code is out of scope for this paper.
+
+To compute a fixed point, Merlin maintains a set of queries, in addition to
+the current call graph. A query in this context is represented as a synchronized
+pushdown system starting from a reference to a function or an call site, depend-
+ing on the query. Individual queries subscribe to updates about (i) callees of a
+particular call site, or (ii) call sites of a particular function discovered by other
+queries. An update may result in adding further transitions in a query’s SPDS
+in the current call graph. Objects are also tracked using SPDS.
+
+When a function entry point is reached by a backward query, or a return
+statement of a function is reached by a forward query, a new forward query is
+issued to find call sites of that function. Similarly, when a function call is reached
+by either a forward or a backward query, a new backward query is issued to
+resolve possible callees. Based on the results of these new queries, the analysis
+continues at the function’s call sites or a call site’s callees.
+
+The asynchronous saturation process described in Section 2 is implemented
+using a reactive programming [12] approach implemented using the Java Vir-
+tual Machine’s ForkJoinPool to resolve queries concurrently. This also enables
+parallel execution of multiple queries on multi-core machines.
+
+Synthetic Benchmarks. We evaluate Merlin against a set of synthetic bench-
+marks generated using the property-based testing library QuickCheck [5]. To
+capture non-trivial dependencies between the call graph queries, the generated
+programs heavily use higher-order functions, and treat functions as first class
+values, reflecting the dynamic nature of JavaScript programs. That is, functions
+are passed along a chain of functions, both as arguments and return values,
+before they are

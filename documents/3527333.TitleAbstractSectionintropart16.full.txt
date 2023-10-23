@@ -1,0 +1,18 @@
+Title-Abstract. Section intro
+-scalar Semi-rings. The support for semi-ring extensions in SDQL is beyond scalar types.
+As an example, SDQL supports the (semi-)ring of the covariance matrix [Nikolic and Olteanu
+2018]. For each 𝑛 ∈ Z, the domain D of this semi-ring is a triple < R, R𝑛, R𝑛×𝑛 >. The additive
+and multiplicative identities are defined as 0D ≜< 0, 0𝑛, 0𝑛×𝑛 > and 1D ≜< 1, 0𝑛, 0𝑛×𝑛 >. For each
+� ≜< 𝑠𝑎, 𝑣𝑎, 𝑚𝑎 > and 𝑏 ≜< 𝑠𝑏, 𝑣𝑏, 𝑚𝑏 >, the addition and multiplication are defined as:
+
+𝑎 +D � ≜ < 𝑠𝑎 + 𝑠𝑏, 𝑣𝑎 + 𝑣𝑏, 𝑚𝑎 + 𝑚𝑏 >
+𝑎 ×D 𝑏 ≜ < 𝑠𝑎 ∗ 𝑠𝑏, 𝑠𝑎 ∗ 𝑣𝑏 + 𝑣𝑎 ∗ 𝑠𝑏, 𝑠𝑏 ∗ 𝑚𝑎 + 𝑠𝑎 ∗ 𝑚𝑏 + 𝑣𝑎 ∗ 𝑣𝑏 + 𝑣𝑏 ∗ 𝑣𝑎 >
+
+We use this semi-ring to compute covariance matrix as aggregates over relations (cf. Section 9.4).
+
+8.4 Language Extensions
+In this section, we define possible language extensions over SDQL. Apart from an additional
+expressive power, each extension enables further optimizations, which are demonstrated in Figure 14.
+We use SDQL[X] to denote SDQL extended with X.
+SDQL[ring]: SDQL + Ring Dictionaries. We have consistently talked about semi-ring structures,
+and how semi-ring dictionaries

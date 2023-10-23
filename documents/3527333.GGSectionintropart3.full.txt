@@ -1,0 +1,14 @@
+# # # #   #     # # G# G# #   #. Section intro
+. Efficient MATLAB computations with sparse and factored tensors. SIAM Journal
+
+on Scientific Computing 30, 1 (2008), 205ś231.
+
+Peter Boncz, Thomas Neumann, and Orri Erling. 2014. TPC-H Analyzed: Hidden Messages and Lessons Learned from an
+
+Influential Benchmark. Springer International Publishing, Cham, 61ś76.
+
+Valu-Tannen, Peter Buneman, and Limsoon Wong. 1992. Naturally embedded query languages. Springer.
+Val Breazu-Tannen and Ramesh Subrahmanyam. 1991. Logical and computational aspects of programming with sets/bags/lists.
+
+Springer
+Robert Brijder

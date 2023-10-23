@@ -1,0 +1,3 @@
+
+
+This section analyzes the expressive power of SDQL for database workloads. It starts by showing the translation of relational algebra to SDQL, which includes selection, projection, union, intersection, difference, cartesian product, and join. It then shows the translation of nested relational calculus to SDQL, followed by the translation of aggregations.

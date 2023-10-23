@@ -1,0 +1,153 @@
+Title-Abstract. Section intro
+. ℓ ↦→  }
+
+(PointsTo-Free)
+{ℓ ↦→ _} free(ℓ) {True}.
+
+However, in the stack example, threads do not exclusively own the resources, but share them. Iris
+to describe a shared resource  that can be accessed
+
+provides the invariant assertion of the form 
+
+4Though note that Tassarotti et al. [2015] assume a more realistic relaxed memory model while we focus on the SC model.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:8
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+by multiple threads. In particular, invariants provide the access rule:
+
+(Inv-Acc)
+{ ∗  }  { ∗  }
+
+ is physically atomic
+
+ ⊢ { }  { }
+
+The rule says that, if  holds, then during the duration of an atomic instruction  that evaluates in
+a single step, the program can temporarily open the invariant to use the content , and it should
+close the invariant by reestablishing  after the execution.5 Invariant assertions are duplicable, i.e.,
+(entailment in both directions), so they can be freely shared.6 In the stack example,
+ ⊣⊢  ∗ 
+threads share the invariant containing the stack nodes.
+
+Speciﬁcation. In this paper, we focus on proving the following simple safety speciﬁcation of
+pop(), where IsStack( ) is an invariant that describes the shared resources in a Treiber’s stack
+located at  (deﬁned below).
+
+IsStack( ) ⊢ {True} pop( ) {. True}.
+
+In our Coq development, we prove a much stronger speciﬁcation based on logically atomic Hoare
+triples [da Rocha Pinto et al. 2014; Jacobs and Piessens 2011; Jung 2019; Jung et al. 2015; Svendsen
+and Birkedal 2014]:
+
+ = None ∧  =  ′ = []
+
+∃.  = Some() ∧  =  ::  ′
+
+⟩.
+
+⟨. Stack(, )⟩ pop( )⟨. ∃ ′. Stack(,  ′) ∗
+
+A logically atomic triple of the form ⟨.  ()⟩  ⟨.  (, )⟩ is a special Hoare triple (indicated by
+⟨angle brackets⟩) that says  behaves as if it were an atomic instruction. Speciﬁcally, it reads: at
+’s commit point (an atomic instruction inside ),  takes  () as precondition, evaluates to , and
+returns postcondition  (, ). Logically atomic triples encode linearizability [Herlihy and Wing
+1990] in program logic. For example, the above speciﬁcation implies that pop() is a linearizable
+implementation of stack’s pop method: at the commit point, i.e., the linearization point, pop()
+atomically transforms the stack’s state from  to  ′, and the result is either None if  was empty
+(the ﬁrst disjunct) or Some() where  is the head of  (the second disjunct).
+
+Logically atomic triples can be used with the following rules.
+
+(LAT-Hoare)
+⟨ ⟩  ⟨⟩
+
+{ }  { }
+
+(LAT-Inv-Acc)
+⟨ ∗  ⟩  ⟨ ∗ ⟩
+
+ ⊢ ⟨ ⟩  ⟨⟩
+
+Clearly, a logically atomic triple implies the ordinary counterpart (LAT-Hoare). More importantly,
+logical atomicity of  means that  can access invariants as if it were an atomic instruction (LAT-Inv-
+Acc). Therefore, speciﬁcations with logically atomic triples allow clients to atomically access the
+current state of the object under question, enabling them sophisticated protocols around
+them. We take advantage of this for specifying SMR schemes in §3 and 6. However, proving logically
+atomic triples involves many technicalities orthogonal to this work. So, for a concise presentation,
+we discuss the details in the appendix [Jung et al. 2023].
+
+5For a concise presentation, we omit Iris’s mechanisms for preventing opening the same invariant twice.
+6More precisely, invariants are persistent. Persistent propositions represent some knowledge that holds forever, rather than
+asserting ownership of resources.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+LinkedList(ℎ, ) :=
+
+ℎ = NULL ∧  = []
+∃,  ′, .  =  ::  ′
+
+∗ ℎ ↦→? {.data = ,.next = } ∗ LinkedList(,  ′)
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:9
+
+Fractional and Leaking Points-To Predicates. We now formally deﬁne IsStack using a predicate
+describing the valid states of Treiber’s stack.
+
+IsStack( : Loc) := ∃ℎ : Loc,  : List(Val).  ↦→ {.head = ℎ} ∗ LinkedList(ℎ, )
+
+As expected, the content of IsStack is a generalization of the stack resource discussed above. In
+particular, LinkedList(ℎ, ) consists of the points-to assertions of every memory block in the linked
+list of elements  starting from the head node ℎ.
+
+However, notice that LinkedList uses a variant of points-to assertion ℓ ↦→?  which we call
+leaking points-to. ℓ ↦→?  represents a read-only permission to an immutable location ℓ that never
+
+gets reclaimed. The notation ℓ ↦→?  is a shorthand for ∃. ℓ
+↦−→ , the fractional points-to [Bornat
+et al. 2005; Boyland 2003] with some unknown fraction . Fractional points-to allows splitting
+ownership into fractional parts that allow read accesses only and can be combined back to the full
+ownership ℓ
+
+1
+↦−→  to recover the right to write and reclaim:
+
+(FPointsTo-Fractional)
+1
+↦−→  ∗ ℓ
+ℓ
+
+1+2
+↦−−−−→  ⊣⊢ ℓ
+
+2
+↦−→ 
+
+(FPointsTo-Agree)
+ℓ
+
+1
+↦−→  1 ∗ ℓ
+
+2
+↦−→  2 ⊢  1 =  2
+
+(FPointsTo-Read)
+
+↦−→  }
+{ℓ
+
+
+↦−→  } *ℓ {. ℓ
+
+However, if the fraction is unknown, the full ownership cannot be recovered, leading to permanent
+loss of write and reclamation permission (hence “leaking” the memory). Despite such a big disad-
+vantage, leaking points-to has been widely used [Iris Team

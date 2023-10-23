@@ -1,0 +1,3 @@
+
+
+This section discusses the use of semi-rings for expressing graph problems as linear algebra, and how SDQL requires extensions in order to express such problems. It then looks at the different query languages that have been developed to support hybrid DB/LA tasks, such as MATLANG, LARA, and Associative Algebra. It then looks at the different DB/LA frameworks that have been developed to support in-DB ML tasks, such as Morpheus, F, AC/DC, LMFAO, Raven, MatRel, and Lara. Finally, it introduces SDQL, a language based on semi-ring dictionaries that is expressive enough for different data science use-cases with a better or competitive performance relative to specialized systems.

@@ -1,0 +1,3 @@
+
+
+This section discusses the design decisions behind SDQL, a functional collection programming language, that enable the optimizations presented in the previous section. These features can be categorized as purely functional, dictionary summation, lookup, semi-ring compositional, and data layouts. These features enable optimizations such as vertical and horizontal loop fusion, memoization, loop factorization, and code motion. Additionally, these optimizations can be used to synthesize variable elimination for maximum a priority (MAP) inference in Bayesian networks.

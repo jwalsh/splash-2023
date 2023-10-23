@@ -1,0 +1,3 @@
+
+
+This section discusses the problem of non-modular verification of memory reclamation in concurrent data structures. It explains how various semi-automatic safe memory reclamation schemes (SMR schemes) modularize memory management by separating concerns between data structure operation and reclamation. It then provides examples of how hazard pointers and RCU can be used to ensure safe memory reclamation in Treiber's stack and pop() respectively. The section then explains the problem of non-modular verification of memory reclamation and briefly discusses existing verification efforts such as Gotsman et al. [2013], Tassarotti [2015], and Wolff [2018]. It concludes by noting that these existing verification efforts lack compositional ability, power, and easy integration.

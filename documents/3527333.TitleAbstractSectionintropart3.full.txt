@@ -1,0 +1,279 @@
+Title-Abstract. Section intro
+.
+
+1In this paper, by (nested) relational and linear algebra, we mean the corresponding sets of operators presented in Figures 4-7.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:3
+
+Core Grammar
+
+Description
+
+e ::= sum(x in e) e
+
+|
+
+{ e -> e,... }
+
+< a = e,... >
+
+let x = e in e
+
+|
+|
+
+e.a
+
+x
+
+|
+
+|
+
+not e
+
+if e then e else e Variable Binding & Access, Conditional
+
+|
+
+e(e)
+
+| { }T,T
+|
+|
+|
+|
+
+e + e
+|
+
+n
+
+|
+
+r
+
+T ::= { T -> T }
+S ::= int
+|
+U ::= string
+K ::= Type
+
+|
+
+SM(S)
+
+e * e
+
+|
+
+promoteS,S(e)
+c
+
+true
+
+|
+
+|
+
+false
+|
+real
+|
+
+dense_int
+
+< a:T,... >
+|
+
+bool
+
+|
+
+|
+|
+
+S
+
+|
+
+U
+
+[cf. Table 1]
+
+Dictionary Aggregation & Construction
+Empty Dictionary, Dictionary Lookup
+Record Construction, Field Access, Negation
+
+Addition, Multiplication, Scalar Promotion
+Numeric, Boolean, and Other Constants
+Dictionary, Record, Scalar, and Enum Types
+Scalar Semi-Ring Types
+String and Dense Integer Types
+Ordinary & Semi-Module Kinds
+
+Fig. 1. Grammar of the core part of SDQL. Scalar numeric operations (e.g., sin) are omitted for brevity.
+
+Motivating Example. The following setting is used throughout the paper to exemplify SDQL.
+Biomedical data analysis presents an interesting domain for language development. Biological
+data comes in a variety of formats that use complex data models [Committee 2005]. Consider a
+biomedical analysis focused on the role of mutational burden in cancer. High tumor mutational
+burden (TMB) has been shown to be a confidence biomarker for cancer therapy response [Chalmers
+et al. 2017; Fancello et al. 2019]. A subcalculation of TMB is gene mutational burden (GMB). Given
+a set of genes and variants for each sample, GMB associates variants to genes and counts the total
+number of mutations present in a given gene per tumor sample. This analysis provides a basic
+measurement of how impacted a given gene is by somatic mutations, which can be used directly as
+a likelihood measurement for immunotherapy response [Fancello et al. 2019], or can be used as
+features to predict patient response to therapy or the severity of the patient’s cancer.
+
+The biological community has developed countless DSLs to perform such analyses [Masseroli
+et al. 2015; Team 2020; Voss et al. 2017]. Modern biomedical analyses also leverage SQL-flavoured
+query languages and machine learning frameworks for classification. An analyst may need to use
+multiple languages to perform integrative tasks, and additional packages downstream to perform
+inference. The development solutions that consolidate and generalize complex biomedical
+workloads is crucial for advancing biomedical infrastructure and analyses.
+
+This paper shows the above tasks can be framed in SDQL and benefit from optimized execution.
+
+2 LANGUAGE
+SDQL is a purely functional, domain-specific language inspired by efforts from languages devel-
+oped in both the programming languages (e.g., Haskell, ML, and Scala) and the databases (e.g.,
+AGCA [Koch et al. 2014] and FAQ [Abo Khamis et al. 2016]) communities. This language is appro-
+priate for collections with sparse structure such as database relations, functional collections, and
+sparse tensors. Nevertheless, SDQL also provides facilities to support dense arrays.
+
+Figure 1 shows the grammar of SDQL for both expressions (e) and types (T). We first give a
+background on semi-ring structures. Then, we kind and type systems of SDQL (cf.
+Figure 2). Afterwards, we continue by introducing semi-ring and iteration constructs. Finally, we
+show how arrays and sets are encoded in SDQL.
+
+2.1 Semi-ring Structures
+Semi-ring. A semi-ring structure is defined over a data type S with two binary operators + and *.
+Each binary operator has an identity element; 0S is the identity element for + and 1S is for *. When
+clear from the context, we use 0 and 1 as identity elements. Furthermore, the following algebraic
+laws hold for all elements a, b, and c:
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:4
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+Kind System:
+
+T :: K
+
+T1::SM(S) T2::SM(S)
+
+T1⊗::SM(S)
+
+Type System:
+
+c: T
+
+Γ ⊢ e : T
+
+Γ ⊢ c: T
+Γ ⊢ e1: bool
+
+∀ i. Ti::SM(S)
+
+T1::K T2::SM(S)
+
+S::SM(S)
+
+<a1:T,an:Tn>::SM(S)
+
+{T1->T2}::SM(S)
+
+∃ i. Ti::Type
+
+T1::K T2::Type
+
+U::Type
+x: T ∈ Γ
+Γ ⊢ x: T
+
+<a1:T1,...,an:Tn>::Type
+
+{T1->T2}::Type
+
+Γ �1: T1
+
+Γ, x: T1 ⊢ e2: T2
+
+Γ ⊢ e: bool
+
+Γ ⊢ let x = e1 in e2: T2
+
+Γ ⊢ not e: bool
+
+Γ ⊢ e2: T
+
+Γ ⊢ e3: T
+
+Γ �: S1
+
+ ⊢ if(e1) then e2 else e3: T
+
+Γ ⊢ promoteS1, S2(e): S2
+
+Γ ⊢ e1:{T1->T2}
+
+Γ, x: <T1,val:T2> ⊢ e2:T3
+Γ ⊢ sum(x in e1) e2: T3
+
+Γ ⊢ k1: T1 Γ ⊢ v1: T2... Γ ⊢ kn: T1 Γ ⊢ vn: T2
+Γ ⊢{ k1 -> v1,..., kn -> vn } :{ T1 -> T2 }
+
+Γ ⊢ e1: T1
+
+...
+
+Γ ⊢ en: Tn
+
+Γ ⊢ <a1=e1,...,an=en>:1:T1,...,an:Tn>
+
+T3::SM(S)
+
+Γ ⊢{}T1,T2 : {T1 -> T2}
+
+Γ ⊢ e1:{ T1 -> T2 }
+
+Γ ⊢ e2: T1
+
+Γ ⊢ e1(e2): T2
+
+Γ ⊢ e: <:T1,...,ak:Tk>
+
+Γ ⊢ e.ai: Ti
+T1::SM(S)
+
+T2::SM(S)
+
+Γ ⊢ e1: T
+
+e2: T
+
+T::SM(S)
+
+Γ ⊢ e1: T1
+
+��� e2: T2
+
+Γ �1 + e2: T
+
+Γ ⊢ e1 * e2: T1⊗ST2
+
+Definition of ⊗S:
+∀ i. Ti :: SM(S)
+
+S ⊗S T1 ≜ T1
+
+{T1 -> T2} ⊗S T0 ≜ {T1 -> T2 ⊗S T

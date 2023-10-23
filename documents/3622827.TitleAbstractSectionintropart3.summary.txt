@@ -1,0 +1,3 @@
+
+
+This section discusses the contributions of Meyer and Wolff [2019a,b]; Wolff21] in developing an automaticability checker for concurrent data structures with SMR schemes. The checker is easy to integrate and can check whether a given linearizable concurrent data structure without reclamation can be adapted to one with reclamation. However, the checker is not generally applicable as it does not scale to sophisticated non-blocking data structures such as Harris’s list [Harris 2001]. The section then introduces the proposed modular specifications of hazard pointers and RCU, which are formally verified and demonstrated to facilitate modular verification.

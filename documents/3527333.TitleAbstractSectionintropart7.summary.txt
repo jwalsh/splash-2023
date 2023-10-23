@@ -1,0 +1,3 @@
+
+
+This section provides an overview of the translation from NRC+ (positive NRC with bag semantics) and SDQL. It explains how the nested relation is represented in SDQL and provides an example of the gene burden analysis. It also explains the two aggregation operators, sumBy and groupBy, and provides the translation from NRC+ to SDQL for each operator.

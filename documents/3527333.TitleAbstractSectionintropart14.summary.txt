@@ -1,0 +1,3 @@
+
+
+This section discusses the denotational semantics of the SDQL language. It explains how types are interpreted as sets, semi-modules, and free semi-modules. It also explains how terms are interpreted as functions from a context to a type, and provides the denotational semantics for types and terms of SDQL. It also provides a substitution lemma and a soundness theorem, which are both proven by induction on the structure of terms and case analysis.

@@ -1,0 +1,82 @@
+Title-Abstract. Section intro
+�� ) if not ⟦S⟧(x.key) then { x.key }
+⟦R × S⟧ = sum(x in ⟦R⟧ ) sum(y in ⟦S⟧ ) { concat(x.key, y.key) }
+
+⟦R ⋈𝜃 S⟧ =�𝜎𝜃 (R × S)⟧
+
+Fig. 4. Translation from relational algebra (with set semantics) to SDQL.
+
+3.1 Relational Algebra
+Relational algebra [Codd 1970] is the foundation of many query languages used in database systems, including SQL general, a relation 𝑅(𝑎..., 𝑎𝑛) ( semantics) is
+represented as a dictionary of type { <𝑎1: �1, 𝑎𝑛: 𝐴� -> bool } in SDQL. Figure 4 shows
+the translation rules relational algebra operators. SDQL can also express different variants
+of joins/semi-joins explanation relational variousoperators can be found supplementary materials.
+Example 3. Consider the following data for the Genes input, which is a flat relation providing
+positional information of genes on the genome:
+
+Genes
+
+name
+
+desc
+
+contig
+
+start
+
+end
+
+gidNOT
+BRCATP53
+
+notch receptor 2
+
+DNA repair associate
+
+t protein p53
+
+1
+17119
+295
+7565097
+
+120100779 ENSG00000134250
+43170245
+ENSG00000012048
+ENSG00000141510
+7590856
+
+This relation is represented as follows in SDQL:
+
+nameCH2",desc=" receptor 2", contig,119911553, end=120100779, gid="ENSG34250">,<B1",desc="DNA repair associate", contig=17, start44295, end=43170245,="ENSG00000012048">,
+<name="TP53="tumor53ig=17=97=56, gid="ENSG00000141510"> }Only a subset of the attributes in the Genes relation are commonly used in a biomedical analysis.
+This can be achieved using the following expression:
+
+sum(<g,v> in Genes) { <gene=g.name,contig=g.contig,start=g.start,end=g.end> }
+
+Inefficiency of Joins. The presented translation for the join operator is inefficient. This is because
+one has to consider all combinations of elements of the input relations. In the case of equality joins,
+this be improved by leveraging data locality as will be shown in Section 5.3.1.
+
+3.2 Nested Relational Calculus
+Relational algebra does not allow nested relations; a relation in the first normal form (1NF) when
+none of the attributes is a set of elements [Codd 1970]. Nested relational calculus allows attributes
+to be relations as well. In order to make the case more interesting, we consider NRC+ [Koch et al.
+2016], a variant of nested relational calculus with bag semantics and without difference operator.
+Nested relations are represented as dictionaries mapping each row to their multiplicities. As the
+rows can contain other relations, the keys of the outer dictionary can also contain dictionaries.
+Figure 5 shows the translation from positive nested relational calculus (without difference) to SDQL.
+The explanation on the translation of its constructs can be found in the supplementary material.
+Example 4. Consider the Variants input, which contains top-level genomic variants
+and nested genotype information for every sample. Genotype calls denoting the number of alternate
+alleles in a sample. An example of the nested Variants input is as follows:
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:8
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+Translation
+

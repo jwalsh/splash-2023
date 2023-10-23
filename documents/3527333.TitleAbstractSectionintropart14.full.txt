@@ -1,0 +1,119 @@
+Title-Abstract. Section intro
+ on e1 first.
+□
+
+7.2 Denotational Semantics
+The kind system acts as a type refinement machinery. Roughly, a type is to be considered by default
+of kind Type. Otherwise, the kind indicates that the type carries more structure, more precisely that
+of a semi-module. More formally, the interpretation of types is given by induction on the kinding
+rules, and is shown in Figure 13. A type of kind Type is interpreted as a set, while a type of kind
+SM(S) is interpreted as a S-semi-module. A scalar type S represents a semi-ring and is therefore
+canonically a S-semi-module. A product of S-semi-modules is a semi-module, and so is the tensor
+product ⊗𝑆 of two S-semi-modules. One way to describe ⊗𝑆 is as the bifunctor on the category of
+S-semi-modules and S-module homomorphisms that classifies S-bilinear maps. It is an analogue for
+semi-modules to the tensor product of vector spaces. For more details on tensor products see e.g.
+[Conrad 2018]. The interpretation for a dictionary type is analogous to a free vector space on |𝑇 1|,
+in which every element is a finite formal sum of elements of ⟦T2⟧. One can show by induction that
+all our types of kind SM(S) are free S-semi-modules. Hence ⟦T2⟧ is a free S-semi-module and this
+implies that the interpretation for a dictionary type can itself be seen as a free S-semi-module.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:18
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+⟦S⟧
+⟦T1 ⊗𝑆 T2⟧ ≜ ⟦T1⟧ ⊗𝑆 ⟦T2⟧
+
+≜ (𝑆, +, 0)
+
+⟦<a1:T1,..., an:Tn>⟧ ≜ ⟦T1⟧ ×... × ⟦Tn⟧
+⟦{T1 -> T2}⟧
+
+⟦T2⟧
+
+≜ ⊕
+𝑎 ∈ |𝑇 1|
+
+⟦<a1=e1,...,an=en>⟧𝛾
+⟦let x = e1 in e2⟧𝛾
+⟦promoteS1,S2(e)⟧𝛾
+
+⟦if e1 then e2 else e3⟧𝛾 ≜
+
+⟦e1(e2)⟧𝛾
+⟦{} T1,T2⟧𝛾
+⟦{k1->v1,...,kn->vn} ⟧𝛾
+
+≜ <⟦e1⟧𝛾,..., ⟦en⟧𝛾 >
+≜ ⟦e2⟧𝛾[⟦e1⟧𝛾 /x]
+≜ 𝑃𝑟𝑜𝑚S1→S2(⟦e⟧𝛾 )
+⟦e1 ⟧𝛾 ∗ ⟦e2 ⟧𝛾 +
+(1 - ⟦e1 ⟧𝛾 ) ∗ ⟦e3 ⟧𝛾
+
+≜ 𝜋⟦e2⟧𝛾 (⟦e1⟧𝛾 )
+≜ 0{T1->T2}
+
+⟦vi⟧𝛾 •⟦ki⟧𝛾
+
+≜ 𝑖 ∈ [1..𝑛]
+(⟦e1⟧𝛾 ≜ 𝑘 ∈𝑋
+
+𝑎𝑘 • 𝑘)
+
+≜ 𝛾(x)
+≜ c
+≜ 1
+≜ 0
+
+⟦x⟧𝛾
+⟦c⟧𝛾
+⟦true⟧𝛾
+⟦false⟧𝛾
+⟦not(e)⟧𝛾 ≜ 1 - ⟦e⟧𝛾
+≜ 𝜋𝑖(⟦e⟧𝛾 )
+⟦e.ai⟧𝛾
+≜ op(⟦e⟧𝛾 )
+⟦op(e)�𝛾
+⟦e1 + e2⟧𝛾 ≜ ⟦e1⟧𝛾 + ⟦e2⟧𝛾
+⟦e1 * e2⟧𝛾 ≜ ⟦e1⟧𝛾 ∗ ⟦e2⟧𝛾
+
+⟦sum(x in e1) e2⟧𝛾 ≜ 𝑘 ∈𝑋
+
+⟦e2⟧𝛾[<k,𝑎𝑘 >/x]
+
+Fig. 13. Denotational Semantics for types and terms of SDQL.
+
+For the semantics of environments Γ =x1:T1,..., xn:Tn, we use:
+
+⟦Γ⟧ = ⟦T1⟧ ×... × ⟦Tn⟧
+
+A term ⟦Γ ⊢ e: T⟧ is interpreted as a function from ⟦Γ⟧ to ⟦T⟧. When it is clear from the context,
+we use ⟦e⟧ instead of ⟦Γ ⊢ e: T⟧. We use the notation v•k to mean the vector whose only non-zero
+component v is at position k in ⊕
+⟦T2⟧. We denote by 𝛾 any assignment of the variables of
+𝑎 ∈ |𝑇 1|
+a context Γ. The denotational semantics for terms is shown in Figure 13. 𝑃𝑟𝑜𝑚S1→S2 maps the
+elements of the scalar semi-ring S1 to S2. Every scalar type S is a semi-ring and as such admits
+distinguished elements 0 and 1. The action of S on a type T::SM(S) thus restricts to an action * of
+the booleans on T. This gives the presented description to the semantics of conditionals which
+we the next section. For the semantics for dictionaries, we use a formal infinite sum, but
+similarly to standard polynomials this sum actually has a finite support and thus behaves like a
+finite sum in all contexts. For the semantics of sum, we apply the semantics of e2 component-wise
+to the formal sum that is the semantics of e1. The resulting real sum is thus over a finite support,
+and is therefore well-defined.
+
+Proposition 7.3 (Substitution lemma). For all Γ ⊢ e1: T1 and Γ, x: T1 ⊢ e2: T2, the
+
+following holds: ⟦e2⟧[⟦e1⟧/ x] = ⟦e2[e1/x]⟧.
+
+Theorem 7.4 (Soundness). For all closed terms ⊢ e: T and ⊢ v: T where v is a value, if e reduces
+
+to v in the operational semantics, then ⟦e⟧ = ⟦v⟧.
+
+Proof sketch. For both Proposition 7.3 and Theorem 7.4, the proof is by induction on the
+structure of terms and case analysis on the structure of terms in the first case, and on the last
+rule used of the operational semantics in the other case. The only non-standard cases are the ones
+involving a dictionary or sum. More details can be found

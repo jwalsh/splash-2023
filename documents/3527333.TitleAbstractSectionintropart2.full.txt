@@ -1,0 +1,112 @@
+Title-Abstract. Section intro
+ state of
+the art in their own domain: in-memory DB systems Typer and Tectorwise for (flat, not nested) relational data;
+SciPy for LA workloads; sparse tensor compiler taco; the Trance nested relational engine; and the in-database
+machine learning engines LMFAO and Morpheus for hybrid DB/LA workloads over relational data.
+
+CCS Concepts: · Software and its engineering → Domain specific languages; · Computing methodologies
+→ Linear algebra algorithms; · Information systems → Query languages.
+
+Additional Key Words and Phrases: Semi-Ring Dictionary, Sparse Linear Algebra, Nested Relational Algebra.
+
+ACM Reference Format:
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu. 2022. Functional Collection Programming
+with Semi-ring Dictionaries. Proc. ACM Program. Lang. 6, OOPSLA1, Article 89 (April 2022), 33 pages. https:
+//doi.org/10.1145/3527333
+
+1 INTRODUCTION
+The development of domain-specific languages (DSLs) for data analytics has been an important
+research topic across many communities for more than 40 years. The DB community has produced
+SQL, one of the most successful DSLs based on the relational model of data [Codd 1970]. For querying
+complex nested objects, the nested relational algebra [Buneman et al. 1995] was introduced, which
+relaxes the flatness requirement of the relational data model. The PL community has built language-
+integrated query languages [Meijer et al. 2006] and functional collection DSLs based on monad
+calculus [Roth et al. 1988]. Finally, the HPC community has developed various linear algebra
+frameworks for tensors [Kjolstad et al. 2017; Vasilache et al. 2018].
+
+The main contribution of this paper is SDQL, a purely functional language that is simple, canoni-
+cal, efficient, and expressive enough for hybrid database (DB) and linear algebra (LA) workloads.
+
+Authors’ addresses: Amir Shaikhha, University of Edinburgh, United Kingdom; Mathieu Huot, University of Oxford, United
+Kingdom; Jaclyn Smith, University of Oxford, United Kingdom; Dan Olteanu, University of Zurich, Switzerland.
+
+This work is licensed under a Creative Commons Attribution 4.0 International License.
+
+© 2022 Copyright held by the owner/author(s).
+2475-1421/2022/4-ART89
+https://doi.org/10.1145/3527333
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:2
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+In this language, the data is presented as dictionaries over semi-rings, which subsume collection
+types such as sets, multisets, arrays, and tensors.
+
+Furthermore, SDQL unifies optimizations with inherent similarities that are otherwise developed
+
+in isolation. Consider the following relational and linear algebra expressions:
+
+𝑄 (𝑎, 𝑑) = Γ#
+
+𝑎,𝑑𝑅1 (𝑎, 𝑏) ⋈ 𝑅2 (𝑏, 𝑐) ⋈ 𝑅3 (𝑐, 𝑑)
+𝑁 (𝑖, 𝑙) = Σ 𝑗,𝑘 𝑀1 (𝑖, 𝑗) · 𝑀2( 𝑗, 𝑘) · 𝑀3 (𝑘, 𝑙)
+
+The expression 𝑄 computes the number of paths between each two nodes (𝑎, 𝑑) via the binary
+relations 𝑅1, 𝑅2, and 𝑅3. The expression 𝑁 computes the matrix representing the multiplication
+chain of matrices 𝑀1, 𝑀2, and 𝑀3. These expressions are optimized as:
+
+𝑄 ′(𝑎, 𝑐) = Γ#
+
+𝑎,𝑐𝑅1(𝑎, 𝑏) ⋈ 𝑅2 (𝑏, 𝑐)
+𝑁 ′(𝑖, 𝑘) = Σ 𝑗 𝑀1(𝑖, 𝑗) · 𝑀2 ( 𝑗, 𝑘)
+
+𝑄 (𝑎, 𝑑) = Γ#
+
+𝑎,𝑑𝑄 ′(𝑎, 𝑐) ⋈ 𝑅3(𝑐, 𝑑)
+
+𝑁 (𝑖, 𝑘) = Σ𝑘 𝑁 ′(𝑖, 𝑘) · 𝑀3 (𝑘, 𝑙)
+
+The similarity between these two is not a coincidence; in both cases, two intermediate results
+are factored out (𝑄 ′ and 𝑁 ′), thanks to the opportunity provided by the distributivity law. This is
+because of the semi-ring structure behind both relational and linear algebra: natural number and
+real number semi-rings. These optimizations are known as pushing aggregates past joins [Yan and
+Larson 1994] and matrix chain ordering [Cormen et al. 2009], respectively.
+Contributions. This paper makes the following
+• We introduce dictionaries with semi-ring structure (Section 2.3). Semi-ring dictionaries realize
+
+the well-known connection between relations and tensors [Abo Khamis et al. 2016].
+
+• We introduce SDQL, a statically typed and functional language over such dictionaries. The
+kind/type system of SDQL keeps track of the semi-ring structure (Section 2). SDQL can be used
+as an intermediate language for data analytics; programs expressed in (nested) relational algebra
+(Section 3) or linear algebra-based languages (Section 4) can be translated to SDQL.1
+
+• The unified formal model provided by SDQL allows tighter integration of data science pipelines
+that are otherwise developed in loosely coupled frameworks for different domains. This makes
+SDQL particularly advantageous workloads such as in-database machine learning
+and linear algebra over nested biomedical data; SDQL can uniformly apply loop optimizations
+(including vertical and horizontal loop fusion, loop-invariant code motion, loop factorization,
+and loop memoization) inside and across the boundary of different domains. We also show how
+we can synthesize efficient query processing algorithms (e.g., hash join and group join) based on
+these optimizations (Section 5).
+
+• Thanks to the compositional structure of semi dictionaries, SDQL unifies alternative rep-
+resentations for relations: row/columnar vs. curried layouts, and tensors: coordinate (COO) vs.
+compressed formats (Section 6).
+
+• We give denotational semantics using 0-preserving functions between K-semi-modules, and
+
+prove the correctness of SDQL optimizations (Section 7).
+
+• We implemented a prototype compiler and runtime for SDQL (Section 8). We show experimentally
+(Section 9) that SDQL can be competitive with or outperforms a host of systems that are state-of-
+the-art in their own domain and that are not designed for the breadth of workloads and data types
+supported by SDQL. SDQL achieves similar performance to the in-memory DB systems Typer
+and Tectorwise. It is on average 2× faster than SciPy for sparse LA and has similar performance
+to taco for sparse tensors. For nested data, it outperforms the Trance nested relational engine by
+up to an order of magnitude. For hybrid DB/LA workloads over flat relational data, SDQL has on
+average slightly better performance than the in-DB ML engines LMFAO and

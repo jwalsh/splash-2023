@@ -1,0 +1,16 @@
+Title-Abstract. Section intro
+ of their method is generally applicable, it is not applied to other SMR
+schemes and data structures.
+
+Meyer and Wolﬀ [2019a,b]; Wolﬀ21] developed an automaticability checker for
+concurrent data structures with SMR schemes veri�cationitional as parametric
+over the speciﬁcations for each SMR scheme. Their method is easy to integrate as theirﬁer
+automatically checks whether a given linearizable concurrent data structure without reclamation
+can be adapted to that with reclamation. However, their not generally applicable because
+it relies on a linearizability checker that does not scale to sophisticated non-blocking data structures
+such as Harris’s list [Harris 2001].
+
+1.3 Contributions: Modular Verification of Memory Reclamation
+
+We propose modular speciﬁcations of hazard pointers and RCU, formally verify realistic implemen-
+tations of them, and demonstrate that the speciﬁcations indeed facilitate modular veriﬁcation

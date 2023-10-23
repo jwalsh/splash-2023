@@ -1,0 +1,3 @@
+
+
+This section discusses various techniques for optimizing loop operations in functional collection programming. It covers vertical and horizontal loop fusion, loop hoisting, and loop memoization. Vertical loop fusion involves combining two or more operations into one loop, while horizontal loop fusion involves combining multiple aggregate computations into one loop. Loop hoisting involves factoring out a common factor in addition of two expressions, and loop memoization involves memoizing the inner loop to make it independent of the loop variable. Examples are provided for each technique.

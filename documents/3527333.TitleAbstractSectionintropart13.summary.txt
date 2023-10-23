@@ -1,0 +1,3 @@
+
+
+This section discusses the typing and semantics of SDQL, a functional programming language. It explains that SDQL satisfies essential typing properties, such as a well-defined partial operation TxT -> T. It also states that every type/term defined using the rules of Figure 2 has a unique kind/type. The proof of this proposition is provided in the form of a sketch. The section then explains the different data layouts for relations, such as row and columnar layout. Finally, it introduces a denotational semantics for SDQL which helps prove the correctness of the transformation rules presented in Section 5.

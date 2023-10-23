@@ -1,0 +1,173 @@
+Title-Abstract. Section intro
+b) Vertical fusion of filters in functional collections.
+
+let Vt = sum(<row,x> in V1) { row -> x * V2(row) }
+
+sum(<row,x> in V1) { row ->
+
+;
+
+in sum(<row,x1> in Vt) { row -> x1 * V3(row) }
+
+x * V2(row) * V3(row) }
+
+(c) Vertical fusion of Hadamard product of three vectors.
+
+let Rsum = sum(<r,r_v> in R) r.A * r_v in
+
+let RsumRcount = sum(<r,r_v> in R)
+
+let Rcount = sum(<r,r_v> in R) r_v in
+
+;
+
+< Rsum = r.A * r_v, Rcount = r_v >
+
+Rsum / Rcount
+
+in RsumRcount.Rsum / RsumRcount.Rcount
+
+(d) Horizontal fusion for the average computation.
+
+sum(<x,x_v> in NR)
+
+sum(<x,x_v> in NR)
+
+;
+
+sum(<y,y_v> in x.C) x.A*x_v*y.D*y_v
+
+x.A * x_v * (sum(y in x.C) y.D * y_v)
+
+(e) Loop factorization for scalar aggregates in nested relations.
+
+sum(<x,x_v> in NR) sum(<y,y_v> in x.C)
+
+;
+
+sum(<x,x_v> in NR) sum(<y,y_v> in x.C)
+
+{ x.B -> x.A * x_v * y.D * y_v }
+
+{ x.B -> 1 } * x.A * x_v * y.D * y_v
+
+;
+
+sum(<x,x_v> in NR) {x.B->1}*x.A*x_v*
+
+sum(<x,x_v> in NR) {x.B.A*x_v*
+
+;
+
+(sum(<y,y_v> in x.C) y.D * y_v)
+
+(sum(<y,y_v> in x.C) y.D * y_v) }
+
+(f) Loop factorization for group-by aggregates in nested relations.
+
+sum(<x,x_v> in NR)
+
+sum(<x,x_v> in NR)
+
+sum(<x,x_v> in NR)
+
+sum(<y,y_v> in x.C)
+
+;
+
+let E = S(x.B) in
+
+;
+
+let E = S(x.B) in
+
+let E = S(x.B) in
+
+x.A*x*E*y.D*y_v
+
+sum(<y,y_v> in x.C)
+
+x.A*x_v*E*(
+
+x.A*x_v*E*y.D*y_v
+
+sum(<y,y_v> in x.C) y.D*y_v)
+
+(g) Loopariant code motion for dictionary lookup in nested relations.
+
+Fig. 9. Examples for loop fusion (vertical and horizontal) and loop hoisting in SDQL.
+
+Fusion in Functional Collections. As a classic example in functional programming, a sequence
+of two map operators can be naïvely the left expression ina. There is no need
+to materialize the results of the first map into R1. Instead, by applying the first vertical loop fusion
+rule from Figure 8 one can fuse these two operators and remove the intermediate collection as
+depicted in the right expression of Figure 9a interesting example is the fusion of two
+filter operators. The pipeline of these operators is expressed as the first SDQL expression in
+Figure 9b. The conditional construct in both summations can be pushed to the value of dictionary
+resulting in the second expressions. Finally applying rule fusion last is derived, which uses a single iteration over the elements of R, and the result collection
+has a zero multiplicity for elements where p1 or p2 is false.
+Fusion in Linear Algebra. Similarly, in linear algebra programs there are cases where the materi-
+alization of intermediate vectors can be avoided. As an example, consider the Hadamard product
+of three vectors, which is naïvely translated as the first SDQL expression in Figure 9c. Again, the
+
+Proc. ACM Program. Lang., Vol. 6, NoOPSLA Article 89.: April 2022.Functional Collection Programming-ring Diction
+89:13intermediate vector V not necessary. By second fusion
+Figure 8, one can avoid the materialization of Vt shown in the right expression in Figure 9c.
+This expression performs a single iteration over the elements of the vector V1.
+
+5.1.izontal Loop Fusion. Another loop fusion involves simultaneous iterations over
+the same collection, referred to as horizontal loop fusion. More in
+workloads, there could be several aggregate computations over the. In such cases, can scan same compute aggreg. For
+example, in order to compute the average, one can use the following two aggregates over the same
+relation R, as shown left Figure. a oneate
+ only and aggregates as a tuple. In this optimized expression (cf.
+right expression in Figure 9d), the average is computed by dividing the element of the tuple storing
+summation over the count. This optimization corresponds to merging a batch of aggregates over
+the same relation in databases.
+
+5.2 Loop Hoisting
+
+Loop Factorization. One of the most important algebraic properties of the semi-ring structure
+5.2.1
+is the distributive law, which enables factoring out a common factor in addition of two expressions.
+This algebraic law can be generalized to the case of summation over a collection (cf. Figure 8).
+
+Consider a nested relation NR with type {<A:real,B:int,C:{<D:real> -> int}> -> int} where
+we are interested in computing the multiplication of the attributes A and D. This can be represented
+as the left expression in Figure 9e. The subexpression x.A*x_v is independent of the inner loop, and
+can be factored out, resulting in the right expression in the same figure.
+
+This optimization can also benefit expressions involving dictionary construction, such as group
+by expressions. As an example, consider the same aggregation as before grouped by attribute B,
+represented in the first expression of Figure 9f. According to the semantics of SDQL (cf. Section 7),
+we can rewrite the dictionary construction resulting in the second expression. Again, we can factor
+out the terms independent of the inner loop (cf. the third expression). By using the semantics of
+dictionaries, this expression can be translated to the last expression in Figure 9f. In this expression
+the intermediate dictionaries corresponding to each group are only constructed for each element
+of the outer relation, instead of each element of the inner relation.
+
+5.2.2 Loop-Invariant Code Motion. In addition to multiplication operands, one can hoist let-
+bindings invariant to the loop. Consider the following example, where one computes the aggregate
+A * E * D where E comes from looking up (using hash join) for another relation S, represented as
+the first expression in Figure 9g. In this case, the computation of E of is independent of the inner
+loop and thus can be hoisted outside following the last rule of Figure 8, resulting in the middle
+expression. Additionally, this optimization enables further loop factorization, which results in the
+last expression in Figure 9g.
+
+5.3 Loop Memoization
+In many cases, the body of loops cannot be easily hoisted. Such cases require further memoization-
+based transformations on the loop body to make them independent of the loop variable, referred to
+as loop memoization.
+
+Synthesizing Hash Join. In general, we can produce a nested dictionary by memoizing the
+5.3.1
+inner loop. Then, instead of iterating the entire range of inner loop, only iterate over its relevant
+partition. Consider again the case of equality join between two relations R and S (cf. Section 3.1)
+based on the join keys jkR(r) and jkS(s), represented as the first expression in Figure 10a. This
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:14
+
+Amir Shaikhha, Mathieu Hu

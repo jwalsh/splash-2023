@@ -1,0 +1,100 @@
+# # # #   #     # # G# G# #   #. Section intro
+BLAS. In 2016 IEEE High
+Performance Extreme Computing ConferenceEC). IEEE, 1ś9.
+
+Jeremy Kepner and John Gilbert. 2011. Graph algorithms in the language of linear algebra. Vol. 22. SIAM.
+Timo Kersten, Viktor Leis, Alfons Kemper, Thomas Neumann, Andrew Pavlo, and Peter Boncz. 2018. Everything you always
+wanted to know about compiled and vectorized queries but were afraid to ask. Proceedings of the VLDB Endowment 11,
+13 (2018), 2209ś2222.
+
+Mahmoud Abo Khamis, Hung Q. Ngo, XuanLong Nguyen, Dan Olteanu, and Maximilian Schleich. 2018. AC/DC: In-Database
+Learning Thunderstruck. In Proceedings of the Second Workshop on Data Management for End-To-End Machine Learning
+(Houston, TX, USA) (DEEM’18). ACM, New York, NY, USA, Article 8, 10 pages.
+
+Oleg Kiselyov. 2018. Reconciling Abstraction with High Performance: A MetaOCaml approach. Foundations and Trends in
+
+Programming Languages 5, 1 (2018), 1ś101.
+
+Oleg Kiselyov, Aggelos Biboudis, Nick Palladinos, and Yannis Smaragdakis. 2017. Stream Fusion, to Completeness. In
+Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages (Paris, France) (POPL 2017).
+ACM, New York, NY, USA, 285ś299.
+
+Fredrik Kjolstad, Shoaib Kamil, Stephen Chou, David Lugato, and Saman Amarasinghe. 2017. The Tensor Algebra Compiler.
+
+Proc. ACM Program. Lang. 1, OOPSLA, Article 77 (Oct. 2017), 29 pages.
+
+Christoph Koch, Yanif Ahmad, Oliver Kennedy, Milos Nikolic, Andres Nötzli, Daniel Lupei, and Amir Shaikhha. 2014.
+
+DBToaster: higher-order delta processing for dynamic, frequently fresh views. VLDBJ 23, 2 (2014), 253ś278.
+
+Christoph Koch, Daniel Lupei, and Val Tannen. 2016. Incremental View Maintenance For Collection Programming. In
+Proceedings of the 35th ACM SIGMOD-SIGACT-SIGAI Symposium on Principles of Database Systems (San Francisco,
+California, USA) (PODS ’16). Association for Computing Machinery, New York, NY, USA, 75ś90.
+
+Konstantinos Krikellas, Stratis Viglas, and Marcelo Cintra. 2010. Generating code for holistic query evaluation. In ICDE.
+
+613ś624.
+
+Andreas Kunft, Asterios Katsifodimos, Sebastian Schelter, Sebastian Breß, Tilmann Rabl, and Volker Markl. 2019. An
+intermediate representation for optimizing machine learning pipelines. Proceedings of the VLDB Endowment 12, 11 (2019),
+1553ś1567.
+
+Daniel J Lehmann. 1977. Algebraic structures for transitive closure. Theoretical Computer Science 4, 1 (1977), 59ś76.
+Side Li, Lingjiao Chen, and Arun Kumar. 2019. Enabling and Optimizing Non-linear Feature Interactions in Factorized
+
+Linear Algebra. In Proceedings of the 2019 International Conference on Management of Data. ACM, 1571ś1588.
+
+Leonid Libkin and Limsoon Wong. 1997. Query languages for bags functions. Journal of Computer and
+
+System sciences 55, 2 (1997), 241ś272.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:31
+
+Geoffrey Mainland, Roman Leshchinskiy, and Simon Peyton Jones. 2013. Exploiting Vector Instructions with Generalized
+Stream Fusion. In Proceedings of the 18th ACM SIGPLAN International Conference on Functional Programming (Boston,
+Massachusetts, USA) (ICFP’13). ACM, New York, NY, USA, 37ś48.
+
+Marco Masseroli, Pietro Pinoli, Francesco Venco, Abdulrahman Kaitoua, Vahid Jalili, Fernando Palluzzi, Heiko Muller,
+and Stefano Ceri. 2015. GenoMetric Query Language: A Novel Approach to Large-scale Genomic Data Management.
+Bioinformatics 31, 12 (2015), 1881ś1888.
+
+Erik Meijer, Brian Beckman, and Gavin Bierman. 2006. LINQ: Reconciling Object, Relations and XML in the.NET Framework.
+In Proceedings of the 2006 ACM SIGMOD International Conference on Management of Data (Chicago, IL, USA) (SIGMOD
+’06). ACM, 706ś706.
+
+Xiangrui Meng, Joseph Bradley, Burak Yavuz, Evan Sparks, Shivaram Venkataraman, Davies Liu,, DB Tsai,
+Manish Amde, Sean Owen, Doris Xin, Reynold Xin, Michael J. Franklin, Reza Zadeh, Matei Zaharia, and Ameet Talwalkar.
+2016. MLlib: Machine Learning in Apache Spark. The Journal of Machine Learning Research 17, 1 (2016), 1235ś1241.
+
+Guido Moerkotte and Thomas Neumann. Accelerating queries with group- join by groupjoin. Proceedings of
+
+the VLDB Endowment 4, 11 (2011).
+
+Mehryar Mohri. 2002. Semiring frameworks and algorithms for shortest-distance problems. Journal of Automata, Languages
+
+and Combinatorics 7,2002), 321ś350.
+
+Fabian Nagel, Gavin Bierman, and Stratis D. Viglas. 2014. Code Generation for Efficient Query Processing in Managed
+
+Runtimes. PVLDB 7, 12 (Aug. 2014), 1095ś1106.
+
+Thomas Neumann. 2011. Efficiently Compiling Efficient Query Plans for Modern Hardware. PVLDB 4, 9 (2011), 539ś550.
+Milos Nikolic and Dan Olteanu. 2018. Incremental View Maintenance with Triple Lock Factorization Benefits. In Proceedings
+of the 2018 International Conference on Management of Data (Houston, TX, USA) (SIGMOD ’18). ACM, New York, NY,
+USA, 365ś380.
+
+Dan Olteanu and Maximilian Schleich. 2016. Factorized Databases. SIGMOD Rec. 45, 2 (Sept. 2016), 5ś16.
+Shoumik Palkar, James J Thomas, Anil Shanbhag, Deepak Narayanan, Holger Pirk, Malte Schwarzkopf, Saman Amarasinghe,
+Matei Zaharia, and Stanford InfoLab. 2017. Weld: A Common Runtime for High Performance Data Analytics. In Conference
+on Innovative Data Systems Research (CIDR).
+
+Adam Paszke, Sam Gross, Soumith Chintala, Gregory Chanan, Edward Yang, Zachary DeVito, Zeming Lin, Alban Desmaison,
+Luca Antiga, and Adam Lerer. 2017. Automatic Differentiation in PyTorch. In NIPS 2017 Autodiff Workshop: The Future of
+Gradient-based Machine Learning Software and Techniques.
+
+Fabian Pedregosa, Gaël Varoqu

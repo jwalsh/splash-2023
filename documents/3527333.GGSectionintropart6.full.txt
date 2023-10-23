@@ -1,0 +1,114 @@
+# # # #   #     # # G# G# #   #. Section intro
+ Alexandre Gramfort, Vincent Michel, Bertrand Thirion, Olivier Grisel, Mathieu Blondel,
+Peter Prettenhofer, Ron Weiss, Vincent Dubourg, et al. 2011. Scikit-learn: Machine learning in Python. Journal of machine
+learning research 12, Oct (2011), 2825ś2830.
+
+Markus Puschel, José MF Moura, Jeremy R Johnson, David Padua, Manuela M Veloso, Bryan W Singer, Jianxin Xiong, Franz
+Franchetti, Aca Gacic, Yevgen Voronenko, et al. 2005. SPIRAL: Code generation for DSP transforms. Proc. IEEE 93, 2
+(2005), 232ś275.
+
+Chengjie Qin and Florin Rusu. 2015. Speculative approximations for terascale distributed gradient descent optimization. In
+
+Proceedings of the Fourth Workshop on Data analytics in the Cloud. ACM, 1.
+
+Jonathan Ragan-Kelley, Connelly Barnes, Andrew Adams, Sylvain Paris, Frédo Durand, and Saman Amarasinghe. 2013.
+Halide: A Language and Compiler for Optimizing Parallelism, Locality, and Recomputation in Image Processing Pipelines.
+In Proceedings of the 34th ACM SIGPLAN Conference on Programming Language Design and Implementation (Seattle,
+Washington, USA) (PLDI’13). ACM, New York, NY, USA, 519ś530.
+
+Raghurishnan and Johannes Gehrke. 2000. Database Management Systems (2nd ed.). Osborne/McGraw-Hill.
+Mark A Roth, Herry F Korth, and Abraham Silberschatz. 1988. Extended algebra and calculus for nested relational databases.
+
+ACM Transactions on Database Systems (TODS) 13, 4 (1988), 389ś417.
+
+Maximilian Schleich, Dan Olteanu, Mahmoud Abo Khamis, Hung Q. Ngo, and XuanLong Nguyen. 2019. A Layered Aggregate
+Engine for Analytics Workloads. In Proceedings of the 2019 International Conference on Management of Data (Amsterdam,
+Netherlands) (SIGMOD ’19). ACM, New York, NY, USA, 1642ś1659.
+
+Maximilian Schleich, Dan Olteanu, and Radu Ciucanu. 2016. Learning Linear Regression Models over Factorized Joins. In
+Proceedings of the 2016 International Conference on Management of Data (San Francisco, California, USA) (SIGMOD ’16).
+ACM, New York, NY, USA, 3ś18.
+
+Amir Shaikhha, Mohammad Dashti, and Christoph Koch. 2018a. Push versus Pull-Based Loop Fusion in Query Engines.
+
+Journal of Functional Programming 28 (201810.
+
+Amir Shaikhha, Andrew Fitzgibbon, Simon Peyton Jones, and Dimitrios Vytiniotis. 2017. Destination-passing Style for
+Efficient Memory Management. In Proceedings of the 6th ACM SIGPLAN International Workshop on Functional High-
+Performance Computing (Oxford, UK) (FHPC 2017). ACM, New York, NY, USA, 12ś23.
+
+Amir Shaikhha, Andrew Fitzgibbon, Dimitrios Vytiniotis, and Simon Peyton Jones. 2019. Efficient different
+
+in a functional array-processing language. Proceedings of the ACM on 3, ICFP (2019), 97.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:32
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+Amir Shaikhha, Yannis Klonatos, and Christoph Koch. 2018b. Building Efficient Query Engines in a High-Level Language.
+
+ACM Transactions on Database Systems 43, 1, Article 4 (April 2018 pages.
+
+Amir Shaikhha, Yannis Klonatos, Lionel Parreaux, Lewis Brown, Mohammad Dashti, and Christoph Koch. 2016. How to
+Architect a Query Compiler. In Proceedings of the 2016 International Conference on Management of Data (San Francisco,
+California, USA) (SIGMOD’16). ACM, New York, USA, 1907ś1922.
+
+Amir Shaikhha and Lionel Parreaux. 2019. Finally, a Polymorphic Linear Algebra Language. In Proceedings of the 33rd
+
+European Conference on Object-Oriented Programming (London, United Kingdom) (ECOOP’19).
+
+Amir Shaikhha, Maximilian Schleich, Alexandru Ghita, and Dan Olteanu. 2020. Multi-Layer Optimizations for End-to-End
+
+Data Analytics. In CGO.�157.
+
+Amir Shaikhha, Maximilian Schleich, and Dan Olteanu. 2021. An Intermediate Representation for Hybrid Database and
+
+Machine Learning Workloads. VLDB Endow. 14, 12 (2021), 2831ś2834.
+
+Arun Kumar Side Li. 2019a. MorpheusPy. https://github.com/ADALabUCSD/MorpheusPy.
+Arun Kumar Side Li. 2019b. MorpheusPy ś Issue #3. https://github.com/ADALabUCSD/MorpheusPy/issues/3.
+Jaclyn Smith, Michael Benedikt, Milos Nikolic, and Amir Shaikhha. 2020. Scalable querying of nested data. Proceedings of
+
+the VLDB Endowment 14, 3 (2020), 445ś457.
+
+Shaden Smith, Niranjay Ravindran, Nicholas D Sidiropoulos, and George Karypis. 2015. SPLATT: Efficient and parallel
+sparse tensor-matrix multiplication. In 2015 IEEE International Parallel and Distributed Processing Symposium. IEEE,
+61ś70.
+
+Daniele G. Spampinato, Diego Fabregat-Traver, Paolo Bientinesi, and Markus Püschel. 2018. Program Generation for
+Small-scale Linear Algebra Applications. In Proceedings of the 2018 International Symposium on Code Generation and
+Optimization (Vienna, Austria) (CGO 2018). ACM, New York, NY, USA, 327ś339.
+
+Daniele G. Spampinato and Markus Püschel. 2016. A basic linear algebra compiler for structured matrices. In Proceedings of
+
+the 2016 International Symposium on Code Generation and Optimization. ACM, 117ś127.
+
+Michel Steuwer, Christian Fensch, Sam Lindley, and Christophe Dubach. 2015. Generating Performance
+Using Rewrite Rules: From High-level Functional Expressions to High-performance OpenCL Code. In Proceedings of the
+20th ACM SIGPLAN International Conference on Functional Programming (Vancouver, BC, Canada) (ICFP 2015). ACM,
+New York, NY, USA, 205ś217.
+
+Peter H. Sudmant, Tobias Rausch, Eugene J. Gardner, Robert E. Handsaker, Alexej Abyzov, John Huddleston, Yan Zhang,
+Kai Ye, Goo Jun, Markus Hsi-Yang Fritz, et al. 2015. An integrated map of structural variation in 2,504 human genomes.
+Nature 526, 7571 (2015), 75ś81. https://doi.org/10.1038/nature15394
+
+Arvind Sujeeth, HyoukJoong Lee, Kevin Brown, Tiark Rompf, Hassan Chafi, Michael Wu, Anand Atreya, Martin Odersky, and
+Kunle Olukotun. 2011. OptiML: An Implicitly Parallel Domain-Specific Language for Machine Learning. In Proceedings
+of the 28th International Conference on Machine Learning (ICML-11) (ICML ’11). 609ś616.
+
+Josef Svenningsson. 2002. Shortcut Fusion for Accumulating Parameters & Zip-like Functions. In Proceedings of the Seventh
+
+ACM SIGPLAN International Conference on Functional Programming (Pittsburgh, PA, USA) (ICFP ’02). ACM, 124ś132.
+
+Bo Joel Svensson and Josef Svenningsson. 2014. Defunctionalizing Push Arrays. In Proceedings of the 3rd ACM SIGPLAN
+
+Workshop on Functional High-performance Computing (Gothenburg, Sweden) (FHPC ’14). ACM, NY, USAś52.
+
+Ruby Y Tahboub, Grégory M Essertel, and Tiark Rompf. 2018. How to architect a query compiler, revisited. In Proceedings of
+
+the 2018 International Conference on Management of Data. 307ś322.
+
+Akihiko Takano and Erik Meijer. 1995. Shortcut Deforestation in Calculational Form. In Proceedings of the

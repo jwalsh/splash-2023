@@ -1,0 +1,3 @@
+
+
+This section discusses the kind and type system of SDQL, a functional collection programming language. It explains the rules for addition and multiplication of expressions, and the types of kind SM(S) that are semi-ring dictionaries with S-semi-module value types. It also explains the tensor product of two types T1 and T2, and the semi-ring constructs of scalars, promotion, and dictionaries.

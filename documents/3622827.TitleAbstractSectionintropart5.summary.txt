@@ -1,0 +1,3 @@
+
+
+This section discusses the challenges of verifying the safety of memory reclamation in concurrent separation logic. It compares hazard pointers and RCU, two techniques for safe memory reclamation. Hazard pointers require validation of pointers before use, which is incompatible with optimistic traversal of possibly retired nodes. RCU is more straightforward to use, but formal verification of the safety of optimistic traversal using RCU is challenging. The section also reviews a separation logic-based verification of Treiber's stack without reclamation, and explains the concepts of Iris's separation logic.

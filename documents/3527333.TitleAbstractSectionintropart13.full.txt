@@ -1,0 +1,110 @@
+Title-Abstract. Section intro
+ -> {𝑎1: 𝐴1,
+..., 𝑎𝑛: 𝐴𝑛} }. The key (of type idx_type) can be an arbitrary candidate key, as it can uniquely
+specify a row. By using dense_int type as the key of this dictionary, the keys are consecutive integer
+values starting from zero; thus, we encode relations using an array representation. This means that
+the previously mentioned relation becomes an array of type [|<𝑎1: 𝐴1,..., 𝑎𝑛: 𝐴𝑛>|].
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:17
+
+Dictionary
+<A=𝑎1, B=𝑏1>
+<A=𝑎1, B=𝑏2>
+<A=𝑎2, B=𝑏3>
+
+1
+
+1
+
+1
+
+Factorized
+1
+
+𝑏1
+𝑏2
+
+1
+
+1
+
+𝑎1
+
+𝑎2
+
+𝑏3
+
+Row
+
+0
+
+1
+
+2
+
+<A=𝑎1, B=𝑏1>
+<A=𝑎1, B=𝑏2>
+<A=𝑎2, B=𝑏3>
+
+Columnar
+𝑎1
+𝑎1
+𝑎2
+
+, B=
+
+0
+
+1
+
+2
+
+0
+
+1
+
+2
+
+𝑏1
+𝑏2
+𝑏3
+
+>
+
+<A=
+
+Fig. 12. Different data layouts for relations.
+
+6.3.2 Columnar Layout. Column store [Idreos et al. 2012] databases represent relations using
+vertical fragmentation. Instead of storing all fields of a record together as in row layout, columnar
+layout representation stores the values of each field in separate collections.
+
+In SDQL, columnar layout is encoded as a record where each field stores the array of its values.
+This representation corresponds to the array of struct representation that is used in many high
+performance computing applications. Generally, the columnar layout representation of the relation
+𝑅(𝑎1,..., 𝑎𝑛) is encoded as a record of type <𝑎1: [|𝐴1|],..., 𝑎𝑛: [|𝐴𝑛|]> in SDQL.
+
+7 SEMANTICS
+SDQL is mainly a standard functional programming language, but we study its specificity in this
+section. First, we show its typing/kinding properties. We then introduce a denotational semantics
+for SDQL that sheds another light on the language and helps us prove the correctness of the
+transformation rules presented in Section 5. The operational semantics and type safety proofs can
+be found in the supplementary materials.
+
+7.1 Typing
+SDQL satisfies the following essential typing properties.
+
+Lemma 7.1. Let T denote the set of all types of SDQL. ⊗ is a well-defined partial operation T× T → T.
+
+Proposition 7.2. Every type/term defined using the rules of Figure 2 has a unique kind/type.
+
+Proof Sketch. By induction on the structure of types/terms and case analysis on each kind-
+ing/typing rule. It is straightforward for most rules using the induction hypothesis. For the typing
+rules of dictionaries there are two cases on whether the dictionary is empty or not, and the type
+annotation ensures the property for the empty dictionary. As for sum and let which have a bound
+variable, we use the

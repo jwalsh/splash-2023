@@ -1,0 +1,133 @@
+# # # #   #     # # G# G# #   #. Section intro
+ not support database workloads.
+Semi-Ring Languages. The use of semi-rings for expressing graph problems as linear algebra
+is well-known [Kepner and Gilbert 2011]. This connection has been used for expressing path
+problems by solving matrix equations [Backhouse and Carré 1975; Tarjan 1981; Valiant 1975].
+SDQL requires extensions in order to express such problems (cf. Section 8.4). GraphBLAS [Kepner
+et al. 2016] is a framework for expressing graph problems in terms of sparse linear algebra. The
+functional languages has shown before an appropriate implementation choice for linear algebra
+languages with various semi-ring instances [Dolan 2013; Shaikhha and Parreaux 2019]. In the
+DB world, K-relations [Green et al. 2007] use semi-rings [Karvounarakis and Green 2012] and
+semi-modules [Amsterdamer et al. 2011] for encoding provenance information for relational algebra
+with aggregations. The pvc-tables [Fink et al. 2012] are a representation system that use this idea to
+encode aggregations in databases with uncertainties. The closest work to ours is FAQ [Abo Khamis
+et al. 2016], which provides a unified declarative interface for LA and DB. However, none of the
+existing work support nested data models.
+DB/LA Query Languages. There has been a recent interest in the study on the expressive power
+of query languages for hybrid DB/LA tasks. Matrix query languages [Geerts et al. 2021] such
+as MATLANG [Brijder et al. 2019a] and its extensions have shown to be connected to different
+fragments of relational algebra with aggregates. LARA [Hutchison et al. 2017] is a query language
+over associative tables (flat dictionaries), with more expressive power than MATLANG [Brijder
+et al. 2019b]. Associative algebra [Jananthan et al. 2017] defines a query language over associative
+arrays (flat dictionaries, and without the ability to map between dictionaries of different value
+types) expressive enough for both database and linear algebra workloads. All these query languages
+are declarative and can only serve as frontend query languages; they need to rely on the techniques
+offered by other formalisms (e.g., FAQ [Abo Khamis et al. 2016]) for optimizations. Furthermore,
+none of these languages support nested data like SDQL.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:27
+
+DB/LA Frameworks. Hybrid database and linear algebra workloads, such as training machine
+learning models over databases are increasingly gaining attention. Traditionally, these workloads
+are processed in two isolated environments: 1) the training data set is constructed using a database
+system or libraries such as Python Pandas, and then 2) the model is trained over the materialized
+dataset using frameworks such as scikit-learn [Pedregosa et al. 2011], TensorFlow [Abadi et al.
+2016], PyTorch [Paszke et al. 2017], etc. There has been some efforts on avoiding the separation of
+the environments by defining ML tasks as user-defined functions inside the database system such
+as MADlib [Hellerstein et al. 2012], Bismarck [Feng et al. 2012], and GLADE PF-OLA [Qin and
+Rusu 2015]; however, the training process is still executed after the training dataset is materialized.
+Alternative approaches avoid the materialization of the training dataset. The current solutions
+are currently divided into four categories. First, systems such as Morpheus [Chen et al. 2017; Li
+et al. 2019] cast the in-DB ML task as a linear algebra problem on top of R [Chen et al. 2017] and
+NumPy [Li et al. 2019]. An advantage of this system is that it benefits from efficient linear algebra
+frameworks (cf. Section 9.4). However, one requires to encode database knowledge in terms of
+linear algebra rewrite rules and implement query evaluation techniques for them (e.g., trie-based
+evaluation as observed in Section 9.4). The second category are systems such as F [Olteanu and
+Schleich 2016; Schleich et al. 2016], AC/DC [Khamis et al. 2018], and LMFAO [Schleich et al. 2019]
+that cast the in-DB ML task as a batch of aggregate queries. The third approach involves defining
+an intermediate representation (IR) that combines linear and relational algebra constructs together.
+Raven [Karanasos et al. 2020] and MatRel [Yu et al. 2021] are frameworks that provide such an IR. For
+implementing cross-domain optimizations, this approach requires developing new transformation
+rules for different combinations of linear and relational algebra constructs, which can be tedious
+and error prone. The fourth category resolves this issue by defining a unified intermediate language
+that can express both workloads. Lara [Kunft et al. 2019] provides a two-level IR. The first level
+combines linear and relational algebra constructs. The second level is based on monad-calculus
+and can perform cross-domain optimizations such as vertical loop fusion and selection push down.
+IFAQ [Shaikhha et al. 2020, 2021] introduces a single dictionary-based DSL for expressing the
+entire data science pipelines. SDQL also falls into the fourth category, and additionally supports
+nested data, dense representations, and more loop optimizations (cf. Table 4). Furthermore, to the
+best of our knowledge, SDQL is the only hybrid DB/LA framework for which type safety and the
+correctness of the optimizations are proved using denotational and operational semantics.
+
+11 CONCLUSION
+In this paper, we introduce a statically typed and functional language based on semi-ring dictionar-
+ies. SDQL is expressive enough for different data science use-cases with a better or competitive
+performance relative to specialized systems. For example, the performance of SDQL is competitive
+with the state-of-the-art in-memory DB systems that are especially built for DB workloads, and
+thus cannot efficiently handle other use-cases including sparse LA, and in-DB ML over different
+formats of data: nested, relational, and normalized matrix. This makes SDQL a suitable intermediate
+language for data science pipelines typically expressed in several languages and executed using
+different systems. For future, we plan to add the support for vectorization and parallelization.
+
+ACKNOWLEDGEMENTS
+This project has received funding from the European Union’s Horizon 2020 research and innovation
+programme under grant agreement No 682588. The authors also acknowledge the EPSRC grant
+EP/T022124/1 (QUINTON) and Huawei for their support of the distributed data management and
+processing laboratory at the University of Edinburgh.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:28
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+REFERENCES
+Martín Abadi, Paul Barham, Jianmin Chen, Zhifeng Chen, Andy Davis, Jeffrey Dean, Matthieu Devin, Sanjay Ghemawat,
+Geoffrey Irving, Michael Isard, et al. 2016. TensorFlow: A System for Large-Scale Machine Learning.. In Proceedings of
+the 12th USENIX Conference on Operating Systems Design and Implementation (Savannah, GA, USA) (OSDI’16). USENIX
+Association, USA, 265ś283.
+
+Mahmoud Abo Khamis, Hung Q. Ngo, XuanLong Nguyen, Dan Olteanu, and Maximilian Schleich. 2018. In-Database
+Learning with Sparse Tensors. In Proceedings of the 37th ACM SIGMOD-SIGACT-SIGAI Symposium on Principles of
+Database Systems (Houston, TX, USA) (SIGMOD/PODS ’18). Association for Computing Machinery, New York, NY, USA,
+325ś340.
+
+Mahmoud Abo Khamis, Hung Q. Ngo, and Atri Rudra. 2016. FAQ: Questions Asked Frequently. In Proceedings of the 35th
+ACM SIGMOD-SIGACT-SIGAI Symposium on Principles of Database Systems (San Francisco, California, USA) (PODS ’16).
+Association for Computing Machinery, New York, NY, USA, 13ś28.
+
+Srinivas M Aji and Robert J McEliece. 2000. The generalized distributive law. IEEE transactions on Information Theory 46, 2
+
+(2000), 325ś343.
+
+Yael Amsterdamer, Daniel Deutch, and Val Tannen. 2011. Provenance for aggregate queries. In Proceedings of the thirtieth
+
+ACM SIGMOD-SIGACT-SIGART symposium on Principles of database systems. 153ś164.
+
+Johan Anker and Josef Svenningsson. 2013. An EDSL approach to high performance Haskell programming. In ACM Haskell
+
+Symposium. ACM, New York, NY, USA, 1ś12.
+
+Michael Armbrust, Reynold S. Xin, Cheng Lian, Yin Huai, Davies Liu, Joseph K. Bradley, Xiangrui Meng, Tomer Kaftan,
+Michael J. Franklin, Ali Ghodsi, and Matei Zaharia. 2015. Spark SQL: Relational Data Processing in Spark. In Proceedings
+of the 2015 ACM SIGMOD International Conference on Management of Data (Melbourne, Victoria, Australia) (SIGMOD ’15).
+ACM, New York, NY, USA, 1383ś1394.
+
+Emil Axelsson, Koen Claessen, Mary Sheeran, Josef Svenningsson, David Engdal, and Anders Persson. 2011. The Design and
+Implementation of Feldspar an Embedded Language for Digital Signal Processing. In Proceedings of the 22Nd International
+Conference on Implementation and Application of Functional Languages (Alphen aan den Rijn, The Netherlands) (IFL’10).
+Springer-Verlag, Berlin, Heidelberg, 121ś136.
+
+R. C. Backhouse and B. A. Carré. 1975. Regular Algebra Applied to Path-finding Problems.
+
+IMA Journal of Applied
+
+Mathematics 15, 2 (04 1975), 161ś186.
+
+Brett W Bader and Tamara G Kolda

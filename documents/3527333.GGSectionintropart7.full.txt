@@ -1,0 +1,62 @@
+# # # #   #     # # G# G# #   #. Section intro
+International Conference on Functional Programming Languages and Computer Architecture (La Jolla, California, USA)
+(FPC�95). Association for Computing Machinery, New York, NY, USA, 306ś313.
+
+Robert Endre Tarjan. 1981. A Unified Approach to Path Problems. ACM 28, 3 (jul 1981), 577ś593.
+Hail Team. 2020. Hail 0.2. https://github.com/hail-is/hail.
+Phil Trinder. 1992. Comprehensions, a Query Notation for DBPLs. In Proc. of the 3rd DBPL workshop (Nafplion, Greece)
+
+(DBPL3). Morgan Kaufmann Publishers Inc., San Francisco, CA, USA, 55ś68.
+
+Leslie G Valiant. 1975.-free recognition in less than cubic time. Journal of computer and system sciences 10,
+
+2 (1975), 308ś315.
+
+Nicolas Vasilache, Oleksandr Zinenko, Theodoros The, Priya Goyal, Zachary DeVito, William S Moses, Sven
+Verdoolaege, Andrew Adams, and Albert Cohen. 2018. Tensor comprehensions: Framework-agnostic high-performance
+machine learning abstractions. arXiv preprint arXiv:1802.04730 (2018).
+
+Todd L. Veldhuizen. 2014. Leapfrog Triejoin: A Simple, Worst-Case Optimal Join Algorithm. In Proc. 17th International
+
+Conference on Database Theory (), Athens, Greece, March 24-28, 2014. 96ś106.
+
+Stratis Viglas, Gavin M. Bierman, and Fabian Nagel. 2014. Processing Declarative Queries Through Generating Imperative
+
+Code in Managed Runtimes. IEEE Data Eng. Bull. 37,2014), 12ś21.
+
+Kate Voss, Jeff Gentry, and Geraldine Van Der Auwera. 2017. Full-stack genomics pipelining with GATK4+ WDL+ Cromwell
+
+[version 1; not peer reviewed]. F1000Research (2017), 4. https://doi.org/10.7490/f1000research.1114631.1
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:33
+
+Philip Wadler. 1988. Deforestation: Transforming programs to eliminate trees. In ESOP’88. Springer, 344ś358.
+Philip Wadler. 1990. Comprehending Monads. In Proceedings of the 1990 ACM Conference on LISP and Functional Programming
+
+(Nice, France) (LFP ’90). ACM, New York, NY, USA, 61�.
+
+Limsoon Wong. 2000.i, a functional query system. Journal of Functional Programming 10, 1 (2000), 19ś56.
+Jianxin Xiong, Jeremy Johnson, Robert Johnson, and David Padua. 2001. SPL: A Language and Compiler for DSP Algorithms.
+In Proceedings of the ACM SIGPLAN 2001 Conference on Programming Language Design and Implementation (Snowbird,
+Utah, USA) (PLDI’01). ACM, New York, NY, USA, 298ś308.
+
+We P. Yan and Per-Åke Larson. 1994. Performing Group-By before Join. In Proceedings of the Tenth International
+
+Conference on Data Engineering. IEEE Computer Society, USA, 89ś100.
+
+Yongyang Yu, Mingjie Tang, and Walid G Aref. 2021. Scalable relational query processing on big matrix data. arXiv preprint
+
+arXiv:211067 (2021).
+
+Marcin Zukowski, Peter A Boncz, Niels Nes, and Sándor Héman. 2005. MonetDB/X100 - A DBMS In The CPU Cache. IEEE
+
+Data Eng. Bull. 28, 2 (2005), 17ś22.
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+

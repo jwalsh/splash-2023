@@ -1,0 +1,3 @@
+
+
+This section explains how to represent vectors and matrices in SDQL. It provides examples of how to evaluate vector operations such as addition, scalar-vector multiplication, Hadamard product, dot product, and summation. It also provides examples of how to evaluate matrix operations such as transpose, scalar-matrix multiplication, Hadamard product, matrix-matrix multiplication, matrix-vector multiplication, and trace. The section also provides the translation of these operations to SDQL expressions in the form of Einstein summation notation.

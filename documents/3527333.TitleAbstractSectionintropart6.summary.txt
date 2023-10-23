@@ -1,0 +1,3 @@
+
+
+This section discusses the translation of relational algebra and nested relational calculus to SDQL. It explains how a relation is represented as a dictionary of type { <𝑎1: �1, 𝑎𝑛: 𝐴� -> bool } in SDQL. It also provides an example of the nested Variants input and explains how the join operator can be improved by leveraging data locality.

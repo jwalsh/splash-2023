@@ -1,0 +1,139 @@
+Title-Abstract. Section intro
+memory reclamation. Speciﬁcally, we make the following contributions.
+
+• In §2, we describe the challenges in designing and verifying modular speciﬁcations of hazard
+pointers and RCU, which include the subtleties in validating protection of nodes in hazard
+pointers, and RCU’s support for optimistic traversal to possibly retired nodes. In doing so, we
+review the necessary technical background on hazard pointers, RCU, and separation logic-based
+veriﬁcation of concurrent data structures.
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+Modular Verification of Safe Memory Reclamation in Concurrent Separation Logic
+
+251:5
+
+C11 fun protect(tid, src):
+
+C31 fun retire(p):
+
+p := *src
+
+loop:
+
+protected[tid] := p
+
+C32
+
+C33
+
+C34
+
+retired.push(p)
+
+if /* some condition */:
+
+do_reclamation()
+
+C12
+
+C13
+
+C14
+
+C15
+
+C16
+
+C17
+
+C18
+
+p’ := *src
+
+if p’ == p:
+
+return p’
+
+p := p’
+
+C21 fun unprotect(tid):
+
+C22
+
+protected[tid] := NULL
+
+C41 fun do_reclamation():
+
+C42
+
+C43
+
+C44
+
+C45
+
+C46
+
+for r in retired.pop_all():
+
+if r in protected:
+
+retired.push(r)
+
+else:
+
+free(r)
+
+Fig. 2. A simplified implementation of hazard pointers.
+
+• In §3, we propose a speciﬁcation of hazard pointers. The key idea lies in designing abstract
+predicates to precisely capture the meaning of validating protection. For presentation purposes,
+we make a simplifying assumption that a memory block’s contents are immutable in this
+section and lift the assumption in §5.
+
+• In §4, we discuss the key ideas for verifying the above speciﬁcation.
+• In §5, we generalize the above speciﬁcation to mutable memory blocks.
+• In §6, we propose a speciﬁcation of RCU. The key idea lies in designing abstract predicates to
+precisely capture the guarantees provided by a critical section and to encapsulate the reasoning
+about the link structure for optimistic traversal.
+
+• In §7, we evaluate the modularity of our speciﬁcations of hazard pointers and RCU with the three
+criteria discussed in §1.2. Speciﬁcally, we have compositionally veriﬁed realistic implementations
+of hazard pointers and RCU (based on Meta’s Folly library [Meta 2023] and the non-blocking
+epoch-based algorithm by Parkinson et al. [2017], respectively) and the functional correctness
+of 9 non-blocking data structures with reclamation (general applicability). We observe that,
+compared to their counterparts without reclamation, the veriﬁcation overhead is roughly
+proportional to the implementation overhead (easy integration).
+
+In §8 and 9, we conclude with related and future work. In the supplementary material [Jung et al.
+2023], we report the Coq mechanization of all our results in the Iris separation logic framework [Iris
+Team 2023b; Jung et al. 2018, 2015; Krebbers et al. 2017].
+
+2 BACKGROUND AND CHALLENGES
+
+2.1 Hazard Pointers
+
+Fig. 2 shows a simpliﬁed implementation of hazard pointers. To ensure safe use of protected pointers,
+it defers the reclamation of retired pointers until they are no longer protected by any threads.
+
+On the one hand, retire(p) adds p to the retired pointer list (retired, line C32). When some
+implementation-speciﬁc conditions are met—e.g., the number of retired pointers exceeds a certain
+threshold (line C33), retire() calls do_reclamation() to reclaim those retired pointers that are
+not currently protected (line C34). The do_reclamation() function ﬁrst atomically removes all
+pointers from the retired pointer list (line C42). Then it checks if each pointer is in the protected
+pointer list (protected, line C43). If so, the pointer is added back to the retired pointer list (line
+C44). Otherwise, the pointer is reclaimed (line C46).
+
+Proc. ACM Program. Lang., Vol. 7, No. OOPSLA2, Article 251. Publication date: October 2023.
+
+
+251:6
+
+Jaehwang Jung, Janggun Lee, Jaemin Choi, Jaewoo Kim, Sunho Park, and Jeehoon Kang
+
+1: Is traversing ℓ1 → ℓ2 safe?
+
+ℓhead
+

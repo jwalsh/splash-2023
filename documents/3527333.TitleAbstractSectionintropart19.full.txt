@@ -1,0 +1,67 @@
+Title-Abstract. Section intro
+ailer (Large)Dataset100100010000Run Time (ms)Time OutTime OutSDQL (unoptimized)SDQL (agg. pushed)SDQL (curried)SDQL (code motion)SDQL (factorised)LMFAO
+89:24
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+Fig. 18. Run time of SDQL, MorpheusPy, and NumPy for computing the covariance matrix over normalized
+matrix. For both plots, 𝑆 has two features (𝑑𝑆 = 2) and 𝑅 contains one million tuples (𝑛𝑅 = 1𝑀). In the left
+figure, 𝑛𝑆 = 20𝑀 and 𝑑𝑅 ∈ {2, 4, 6, 8, 10}. In the right figure, 𝑑𝑅 = 10 and 𝑛𝑆 ∈ {1𝑀, 5𝑀, 10𝑀, 15𝑀, 20𝑀 }.
+
+relational datasets: 1) Favorita [Favorita 2017], a publicly available Kaggle dataset, and 2) Retailer, a
+US retailer dataset [Schleich et al. 2016]. Both datasets are used in retail forecasting scenarios and
+consist of 6 and 5 relations, respectively. We only use five continuous attributes of these datasets.
+We consider the following five versions of the generated code, where optimizations are applied
+accumulatively: 1) unoptimized code that involves materializing the result of join before computing
+the aggregates, 2) a version where all the aggregates are push down before the join computation, 3)
+a curried version that uses a trie representation for input relations and intermediate results, 4) a
+version that applies loop-invariant code motion, and 5) the most optimized version that performs
+loop factorization after all the previous optimizations. As our competitor, we use LMFAO [Schleich
+et al. 2019], an in-DB ML framework that was shown to be up to two orders of magnitude faster
+than Tensorflow [Abadi et al. 2016] and MADLib [Hellerstein et al. 2012] for these two datasets.
+
+Figure 17b shows that first, pushing aggregates before join results in around one order of
+magnitude performance improvement, thanks to the removal of the intermediate large join. Second,
+using a curried representation degrades the performance, due to the fact that iterations over hash
+tables is more costly. Third, code motion can leverage the trie-based iteration, and hoist invariant
+computations outside the loop to bring 30% speed up in comparison withried version.
+Finally, loop factorization leverages the distributivity rule for the semi-ring of covariance matrix,
+and factorizes the costly multiplications outside the inner loops. On average, this optimization
+brings 60% speed up in comparison with the previous version, and 40% speed up over LMFAO.
+Normalized Matrix Data. Finally, we compute the covariance matrix over the join of relations
+represented matrices. We use the same semi-ring as the one for relational data. As the
+competitor, we consider NumPy and MorpheusPy [Side Li 2019a], a Python-based implementation
+of Morpheus [Chen et al. 2017]. The publicly available version of Morpheus one
+primary--key join of [Side Li 2019b], i.e., � ⋈ 𝑆. Figure 18 shows the
+performance of Morpheus and SDQL for computing the covariance matrix over such a join. As
+in the original Morpheus paper [Chen et al. 2017], the join computation time for NumPy is not
+included. Also, the values for the primary key is the dense integer values between one and one
+million; thus all competitors use a dense representation for them. The number of for 𝑅 is one
+million (𝑛𝑅 = 1𝑀), and for 𝑆 varies between millions (𝑛𝑆 ∈ {1𝑀, 5𝑀, 10𝑀, 15𝑀, 20𝑀 }). The number
+of the features for 𝑆 is two (𝑑𝑆 = 2), and for 𝑅 varies between two and ten (𝑑𝑅 ∈ {2, 4, 6, 8, 10}).
+
+Figure 18 shows that the NumPy-based implementation over the materialized join can have a
+better performance for relations with the same number of features. The factorized computationarts showing its benefits for larger feature ratios. MorpheusPy is than the flat
+representation of SDQL, thanks to the vectorization offered by NumPy. Finally, we observe a
+superior performance for SDQL once the curried representation is used. As the tuple ratio increases,
+the speed up of SDQL over MorpheusPy climbs up to 1.7×, thanks to the loop factorization enabled
+by the curried representation for relation 𝑆, which is not available for MorpheusPy/NumPy.
+
+Proc. ACM Program. Lang., Vol, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+12345Feature Ratio (Tuple Ratio = 20)100100010000Run Time (ms)SDQL (flat)SDQL (curried)SDQL (factorised)MorpheusPyNumPy15101520T (Feature Ratio = 5)100100010000Run Time (ms)
+Functional Collection Programming with Semi-ring Dictionaries
+
+89:25
+
+10 RELATED WORK
+In this section, we review the literature. summarizes the differences between different data
+analytics approaches and SDQL.
+Relational Query Engines. Just-in-time compilation of queries has been heavily investigated
+in the DB community [Armbrust et al. 2015; Crotty et al. 2015; Karpathiotakis et al. 2015; Koch
+et al. 2014; Krikellas et al. 2010; Nagel et al. 2014; Neumann 2011; Palkar et al. 2017; Shaikhha et al2018b, 2016; Tahboub et al. 2018; Viglas et al. 2014]. As an alternative, vectorized query engines
+process blocks of data to remove interpretation overhead [Zukowski et al. 2005]. None
+efforts have focused on handling hybrid DB/LA workloads as opposed to SDQL.
+Nested Data Models. Nested relational model [Roth et al. 1988] and monad calculus [Breazu-
+Tannen et al. 1992; Breazu-Tannen and Subrahmanyam 1991; Buneman et al. 1995; Grust and
+Scholl 1999; Trinder 1992; Wadler 1990]

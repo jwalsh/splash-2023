@@ -1,0 +1,8 @@
+# # # #   #     # # G# G# #   #. Section intro
+  #     G#     G# #   G# G# #   #
+
+  #       #       G#   G#   #
+
+  #           G # G# G# G#    
+
+operations on dense and sparse matrices. All these languages are limited to linear algebra workloads

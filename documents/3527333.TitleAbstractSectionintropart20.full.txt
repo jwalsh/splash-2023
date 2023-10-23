@@ -1,0 +1,301 @@
+Title-Abstract. Section intro
+ data models but do not support aggre-
+gations and efficient equi-joins [Gibbons et al. 2018]. Monoid comprehensions solve the former
+issue [Fegaras and Maier 2000], however, require an intermediate algebra to support equi-joins
+efficiently. Kleisli [Wong 2000], BQL [Libkin and Wong 1997], and Trance [Smith et al. 2020] extend
+monad calculus with aggregations and bag semantics. Representing flat relations as bags has been
+investigated in AGCA [Koch et al. 2014], FAQ [Abo Khamis et al. 2016], and HoTTSQL [Chu et al.
+2017]. SDQL extends all these approaches by allowing nested dictionaries and representing relations
+and intermediate group-by aggregates as dictionaries. Although monadic and monoid collection
+structures were observed, SDQL is the first work that introduces semi-ring dictionaries.
+Language-Integrated Queries. LINQ [Meijer et al. 2006] and Links [Cooper et al. 2007] mainly
+aim to generate SQL or host language’s code from nested functional queries. One of the main
+challenges for them is to resolve avalanche of queries during this translation, for which techniques
+such as query shredding has proved useful [Cheney et al. 2014; Grust et al. 2010]. Comprehensive
+Comprehensions (CompComp) [Jones and Wadler 2007] extend Haskell’s list comprehensions with
+group-by and order-by. Rather than only serving as a frontend language and relying on the target
+language to perform optimizations, SDQL takes an approach similar to Kleisli [Wong 2000]; it
+directly translates nested collections to low-level code, and enables more aggressive optimizations.
+Loop Fusion. Functional languages use deforestation [Coutts et al. 2007; Emoto et al. 2012; Gill et al.
+1993; Svenningsson 2002; Takano and Meijer 1995; Wadler 1988] to remove unnecessary intermedi-
+ate collections. This optimization is implemented by rewrite rule facilities of GHC [Jones et al. 2001]
+in Haskell [Gill et al. 1993], and also by using multi-stage programming in Scala [Jonnalagedda
+and Stucki 2015; Kiselyov et al. 2017; Shaikhha et al. 2018a]. Generalized stream fusion [Mainland
+et al. 2013] combines deforestation with vectorization for Haskell. Functional array processing
+languages such as APL [Iverson 1962], SAC [Grelck and Scholz 2006], Futhark [Henriksen et al.
+
+2017], andeF [Shaikhha et al. 2019] also need to support loop fusion. Such languages mainly use pull
+
+and push arrays [Anker and Svenningsson 2013; Axelsson et al. 2011; Claessen et al. 2012; Kiselyov
+2018; Shaikhha et al. 2017; Svensson and Svenningsson 2014] to remove unnecessary intermediate
+arrays. Even though these work support fusion for lists of key-value pairs, they do not support
+dictionaries. Thus, they do not have efficient support for operators such as grouping and hash join.
+Linear Algebra Languages. DSLs such as Lift [Steuwer et al. 2015], Halide [Ragan-Kelley et al.
+2013], Diderot [Chiw et al. 2012], and OptiML [Sujeeth et al. 2011] can generate parallel code from
+their high-level programs, while DSLs such as Spiral [Puschel et al. 2005], LGen [Spampinato et al.
+2018; Spampinato and Püschel 2016] exploit the memory hierarchy and make careful tiling and
+scheduling decisions. The generated output is a C function that includes intrinsics to enable SIMD
+vector extensions. SPL [Xiong et al. 2001] is a language that expresses recursion and mathematical
+formulas. TACO [Kjolstad et al. 2017] generates efficient low-level code for compound linear algebra
+
+Proc. ACM Program. Lang., Vol. 6, No. OOPSLA1, Article 89. Publication date: April 2022.
+
+
+89:26
+
+Amir Shaikhha, Mathieu Huot, Jaclyn Smith, and Dan Olteanu
+
+Table 4. Comparison of different data analytics approaches.   means that the property is supported, # means
+that it is absent in the work, and G# means that the property is partially supported. For the corresponding
+sets of operators supported by (nested) relational and linear algebra refer to Figures 4-7.
+
+Expressiveness
+
+Data Representation
+
+Specialization
+
+a
+r
+b
+e
+g
+l
+A
+
+l
+a
+n
+o
+i
+t
+a
+l
+e
+R
+
+.
+c
+l
+a
+C
+
+.
+l
+e
+R
+d
+e
+t
+s
+e
+N
+
+s
+e
+t
+a
+g
+e
+r
+g
+g
+A
+y
+b
+-
+p
+u
+o
+r
+G
+
+s
+n
+i
+o
+J
+-
+i
+u
+q
+E
+t
+n
+e
+i
+c
+ffi
+E
+
+a
+r
+b
+e
+g
+l
+A
+r
+a
+e
+n
+i
+L
+
+y
+a
+r
+r
+A
+e
+s
+n
+e
+D
+
+r
+o
+s
+n
+e
+T
+e
+s
+r
+a
+p
+S
+
+g
+a
+B
+&
+
+t
+e
+S
+
+y
+r
+a
+n
+o
+i
+t
+c
+i
+D
+
+s
+g
+n
+i
+r
+-
+i
+
+m
+e
+S
+
+g
+n
+i
+t
+s
+i
+o
+H
+p
+o
+o
+L
+
+n
+o
+i
+s
+u
+F
+p
+o
+o
+L
+
+n
+o
+i
+t
+a
+z
+i
+o
+m
+e
+M
+p
+o
+o
+L
+
+n
+o
+i
+t
+a
+r
+e
+n
+e
+G
+e
+d
+o
+C
+
+n
+o
+i
+t
+a
+z
+i
+r
+o
+t
+c
+e
+V
+
+  #     #     #   # G# G# # #  
+
+    # # #   # # # # G# G# # # #
+
+      # #   # # # # G# G# # # #
+
+  #     #     #   # G# G# #   #
+
+                            #
+
+SDQL (This Paper)
+Query Compilers (HyPer)
+Vectorized Query Engines (Vectorwise)
+Monad Calculus, NRC+
+Monoid Comprehension
+Monad Calc. + Agg. (Kleisli, Trance)
+      # G#   # # ## G# #   #
+Lang. Integrated Queries (LINQ, CompComp)       #     # # # # G# G# # # #
+Functional Listsized Stream Fusion)
+      #     G# # # #   G# #    
+Functional APL (Futhark, SAC)
+Dense LA LibraryPy)
+Dense LA DSL (Lift,Halide,LGen)
+Sparse LA Library (SPLATT, SciPy)
+Sparse LA DSL (TACO)
+Sparse LA + Semi-rings (GraphBLAS)
+DB/LA by casting to LA (Mus)
+DB/LA by casting to DB (LMFAO)
+DB/LA by unified IR (IFAQ)
+DB/LA by combined IR (Raven)
+
+G# G# G# #   G#   # # #   G# G#    
