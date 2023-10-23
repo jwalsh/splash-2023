@@ -1,0 +1,28 @@
+#+TITLE: Abstract Interpretation in Industry – Experience and Lessons Learned
+#+AUTHOR: Daniel Kästner, Reinhard Wilhelm, and Christian Ferdinand
+
+Abstract Interpretation is a formal method for static program analysis that computes overapproximations of program behavior. It supports proofs of termination and soundness.
+
+The paper discusses experience applying Abstract Interpretation to two commercial static analyzers:
+
+- *aiT WCET Analyzer*: Computes safe upper bounds of Worst-Case Execution Times for real-time systems. Developed key techniques like must/may cache analysis and pipeline analysis.
+- *Astrée*: Detects runtime errors in embedded C software. First to prove absence of runtime errors in flight control software for Airbus.
+
+** Key lessons learned:
+
+- Importance of soundness for safety-critical software.
+- Need to adapt to hardware diversity - support many architectures.
+- Precision very important - refine analysis to avoid false alarms.
+- Tool qualification needed for certification processes. Provide qualification kits.
+- Usability critical - integrate with dev process, give intuitive diagnostics.
+- Update safety standards to reflect new verification methods like Abstract Interpretation.
+
+** Other applications:
+
+- Stack usage analysis - prove absence of stack overflows.
+- Timing analysis for non-predictable multi-core chips.
+- Security vulnerability detection.
+
+** Conclusion:
+
+Abstract Interpretation successfully transferred powerful formal methods to industry usage for static analysis.

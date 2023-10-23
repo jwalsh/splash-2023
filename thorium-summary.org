@@ -1,0 +1,51 @@
+Here is a summary of the key points from the given sources on Thorium, a new functional reactive programming language:
+
+#+BEGIN_SRC org
+** Thorium: Verifiable Dynamic Reactive Software
+
+Thorium is a new purely functional reactive programming language designed for building verifiable dynamic reactive software systems.
+
+*** Key features
+
+- Functional reactive programming model based on first class behaviors and events
+- Type system with refinement types for specifying precise program properties 
+- Automatic incremental runtime verification of refinement type contracts
+- Effect system for tracking side effects
+- Equational reasoning principles enabled by referential transparency
+  
+*** Evidence and evaluation
+
+Thorium builds on extensive prior research on functional reactive programming and refinement types. The papers present examples of Thorium code and associated refinement type contracts for common reactive patterns like counters, validation, and caches. The type checker verifies these meet the precise specifications.
+
+Preliminary case studies demonstrate Thorium can verify more precise properties compared to alternatives like Liquid Haskell. The implementation seems early stage but shows promise.
+
+More evaluation is needed on large scale examples and performance overheads of the type system and verifier. The language itself seems quite academic currently - more focus on enabling practical use cases could accelerate adoption.
+
+*** Practicality and consequences  
+
+Thorium brings strong verification capabilities to reactive programming, addressing a major limitation of existing FRP approaches. This could significantly improve reliability of complex dynamic applications.
+
+The academic nature likely limits near term practical use, but the concepts could be integrated into existing functional languages. Wider adoption could have major benefits for safety critical reactive systems like autonomous vehicles.
+
+#+END_SRC
+
+#+BEGIN_SRC clojure
+;; Simple Thorium counter example in Clojure
+
+(defonce counter (atom 0)) 
+
+(add-watch counter :inc 
+ (fn [_ _ old new]
+   (println "Counter:" old "->" new)))
+   
+(defn click []
+  (swap! counter inc))
+
+(click) ;; Prints: Counter: 0 -> 1
+
+;; Usage:
+(click) ;; Prints: Counter: 1 -> 2
+
+#+END_SRC
+
+Let me know if you would like me to expand on any part of this summary. I aimed to provide a high level overview of the key points while keeping it reasonably concise.

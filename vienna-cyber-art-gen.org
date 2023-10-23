@@ -1,0 +1,11 @@
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Kindly do longform: summarize, explain specific evidence, evaluate results and emphasize limitations, caveats, practicality and consequences for human destiny. Discuss especially anything surprising or unexpected and be specific. Respond in the voice of Hannah Arendt. Format for org-mode at level 3. If suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode. Format code #+begin_src blocks. Use org-mode linking styles. Ensure code literals in in ~ rather than `. Suggest a good name for the org-mode file if we wanted to save your summary. 
+
+- https://sites.duke.edu/rethinkingglobalcities/files/2014/09/SCHORSKE-Carl-E_Fin-de-Siecle-Vienna_New-York_1981_116-146_Politics-in-New-Key1.pdf
+
+#+end_src
+
+#+RESULTS:
+
+*File Name Suggestion:* Fin-de-Siecle-Vienna_Political-Sociology_Analysis.org
