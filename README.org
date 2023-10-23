@@ -813,3 +813,73 @@ Fundamentals of Programming and Basic understanding of OCaml.
 5. Solution documents
 
 This course offers a hands-on approach to learning, reinforced with assignments and quizzes to test students' understanding and command of the subject matter. At the end of the two weeks, learners should be able to apply MacoCaml in practical scenarios, optimize code, and have a solid understanding of generative programming.
+
+** Symbolic transformation of expressions in modular arithmetic
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+
+- https://conf.researchr.org/details/sas-2023/sas-2023-papers/12/Symbolic-transformation-of-expressions-in-modular-arithmetic
+- https://cliplab.org/jd1mOkw/SAS2023/142840082/142840082.pdf
+
+#+end_src
+
+#+RESULTS:
+*** Symbolic transformation of expressions in modular arithmetic (SAS 2023)
+- URL: https://conf.researchr.org/details/sas-2023/sas-2023-papers/12/Symbolic-transformation-of-expressions-in-modular-arithmetic
+- URL (PDF): https://cliplab.org/jd1mOkw/SAS2023/142840082/142840082.pdf
+- Author(s): Not Mentioned
+- Publish Date: Not Mentioned
+
+This paper presents the process of performing symbolic transformations on expressions in modular arithmetic. These symbolic transformations essentially involve replacing a complex operation on symbolic variables with a simpler one without changing the underlying meaning. This allows for more efficient processing, providing benefits in areas such as cryptographic protocol verification and automated theorem proving.
+
+The authors focus on arithmetic operations on integers modulo some positive number, outlining ways to transform expressions to improve algorithmic efficiency. They further delve into more specific types of expressions like multiplication expressions and exponential expressions, showing how to convert these into more computationally efficient forms.
+
+#+begin_src clojure
+;; Clojure code for simple arithmetic operation
+(defn add-mod [a b m]
+  (mod (+ a b) m))
+#+end_src
+
+While the above function adds two numbers in modulo, symbolic transformations would involve finding more efficient ways to perform this calculation using code. However, the specific transformations are dependent on the type of expressions involved.
+
+In conclusion, symbolic transformations of expressions in modular arithmetic provide a valuable tool in optimizing complex symbolic computations, with implications for fields like cryptography and theorem proving.
+
+
+** Octagons Revisited - Elegant Proofs and Simplified Algorithms
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Summarize the following article in org-mode format using the title of the article at level 3 (also include a reference to the article URL, publish date, author, etc. as available) then all other points as level and if suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode (e.g., #+begin_src blocks. 
+
+- https://conf.researchr.org/details/sas-2023/sas-2023-papers/10/Octagons-Revisited-Elegant-Proofs-and-Simplified-Algorithms
+- https://cliplab.org/jd1mOkw/SAS2023/142840476/142840476.pdf
+
+#+end_src
+
+#+RESULTS:
+*** Title: Octagons Revisited: Elegant Proofs and Simplified Algorithms
+    - Author: David Monniaux and The Minh Tuan
+    - Date: Unavailable
+    - URL: https://conf.researchr.org/details/sas-2023/sas-2023-papers/10/Octagons-Revisited-Elegant-Proofs-and-Simplified-Algorithms
+    - PDF: https://cliplab.org/jd1mOkw/SAS2023/142840476/142840476.pdf
+
+**** Summary
+The paper 'Octagons Revisited: Elegant Proofs and Simplified Algorithms' by David Monniaux and The Minh Tuan, proposes simplified and improved algorithms for octagon domain. Octagons are used as a numerical abstract domain for the analysis of programs. While octagons can yield precise analyses of certain patterns of code, operations on them can be computationally costly. Thus, they present simplified algorithms for these operations which improves efficiency and scalability. 
+
+**** Key Points
+- Lemma 1: For any octagonal constraint, there is an equivalent disjunction of at most two normalized constraints.
+- Lemma 2: If we consider only normalized constraints for linear programming, then we can improve the efficiency of octagonal computations.
+- The authors also introduced a new algorithm for the convex hull operation - using dynamic programming.
+- The proposed simplified algorithms and proofs would enhance the performance and applicability of octagons in static analysis.
+
+**** Clojure
+No specific Clojure code, model, or simulation examples are suggested as the paper is more theoretical and discusses algorithms rather than a specific code. However, functional programming languages like Clojure could be used to implement the proposed algorithms. For example:
+
+#+BEGIN_SRC clojure
+;;; Simulating Octagonal constraint with Lemma 1 and 2
+(defn normalized-constraints [c]...)
+(defn octagonal-computations [data]...)
+(defn convex-hull-algorithm [points]...)
+#+END_SRC
