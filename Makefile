@@ -1,3 +1,5 @@
+.SILENT:
+
 PROJECT := splash-2023
 
 # Retrieve operating system type from host shell
@@ -62,6 +64,17 @@ static_analysis:
 offline:
 	lein offline
 
+# Lint the code
+lint: 
+	echo "Linting the code"
+	find . -name "*.clj" -exec clj-kondo --lint {} \;
+
+# Run the project's tests
+test: 
+	echo "Running tests"
+	clojure -M:test:runner
+
+
 # Start the project 
 run: 
 	lein run -m $(PROJECT).core
@@ -105,7 +118,7 @@ room-xv:
 .PHONY: run-scripts
 run-scripts:
 	@echo "Running scripts..."
-	clojure -M -m scripts.download_html
-	clojure -M -m scripts.read_ics
-	clojure -M -m scripts.gh_repo_create
-	clojure -M -m scripts.clone_repos
+	clojure -M -m scripts.download-html
+	clojure -M -m scripts.read-ics
+	clojure -M -m scripts.gh-repo-create
+	clojure -M -m scripts.clone-repos
