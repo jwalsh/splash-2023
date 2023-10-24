@@ -1,0 +1,20 @@
+Title-Abstract. Section intro
+ a specific analysis state
+is reached. We divided these meta-predicates into three cate-
+gories: store-related, worklist-related, and lattice-based pred-
+icates.
+
+We implemented our debugger in a framework called MAF,
+and showed the applicability of our debugger on one syn-
+thetic and four real-world bugs lifted from the repository of
+the framework. In this case study, the debugger is highly ef-
+fective for most bugs that relate to changes of store addresses
+and their contents, but less so for bugs that prevent analysis
+progress, or dependency-triggering related bugs. However,
+we argued that our approach is sufficienlty flexible to sup-
+port these classes of bugs in future work through additional
+meta-predicates.
+
+8 Acknowledgements
+This work has been partially funded by FWO (Research Foun-
+dations Flanders) under grant number 1187122N.

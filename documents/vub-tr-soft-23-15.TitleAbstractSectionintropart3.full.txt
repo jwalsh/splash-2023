@@ -1,0 +1,152 @@
+Title-Abstract. Section intro
+ the abstract semantics of function calls is to blame, it
+would be natural to place a breakpoint at the beginning of
+the add function. For the hypothesis that no addresses have
+been allocated in the store for the function’s parameters, the
+following domain-specific conditional breakpoint can help
+reduce the number of steps required to test it:
+
+
+Cross-Level Debugging for Static Analysers
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+(define (add x y)
+
+(break (not (store:contains "y")))
+(+ x y))
+
+Note that this breakpoint has not been formulated in terms
+of the program under analysis, but in terms of the state of the
+analysis when it reaches the corresponding program point
+in the program under analysis. This motivates the need for
+cross-level conditional breakpoints that can be placed in the
+analyzed code itself.
+
+2 Effect-Driven Modular Static Analysis
+In this paper, we focus on static analyses defined as abstract
+definitional interpreters, which use global store widening
+and are effect-driven in their worklist algorithm. In the next
+few sections we introduce each of these parts of our target
+static analysis, and illustrate how bugs can arise in their
+implementation.
+
+2.1 Abstract Definitional Interpreters
+Abstract interpretation [3] is an approach to static analysis
+where an analyser is derived by starting from the concrete
+semantics of the language under analysis, and then abstract-
+ing parts of this concrete semantics. As an example, consider
+a language that consists of numeric literals, addition (+) and
+subtraction (−) or any combination thereof. In its concrete se-
+mantics, numeric literals evaluate to themselves and addition
+and negation are defined as usual.
+
+An abstraction of this language could abstract each num-
+ber to its sign. In this semantics, the abstraction for 5 would
+be +. We also write that 𝛼(5) = +, where 𝛼 is called the
+abstraction function. The abstract versions of the addition (ˆ+)
+and subtraction ( �) operations have to be defined differently.
+For example, summing two positive numbers results in a
+positive number. However, summing a positive and negative
+number could result in either a positive or a negative numberTo remain sound, an analysis has to account for both possibil-
+ities. Hence, a third value is introduced called top (denoted by
+the symbol ⊤) expressing that the sign of the number could
+be either negative or positive. A final value called bottom
+(denoted by ⊥) is included to express the absence of sign
+information. The set of these values forms a mathematical
+lattice, meaning that a partial order (⊑) and a join operation
+(⊔) can be defined. As illustrated above, abstract operations
+are often non-trivial to implement and could result in subtle
+issues with the result of the analysis.
+
+Van Horn et al. [8] propose a recipe for deriving static
+analyses by systematically abstracting the small-step opera-
+tional semantics of a programming language. More recently,
+this recipe has been transposed to the context of definitional
+interpreters [5, 10]. Definitional interpreters are a way of for-
+mally specifying programming language semantics through
+an interpreter implementation. These interpreters are usually
+formulated in a recursive way and proceed by case analysis
+
+on the type of expression that is being analyzed. For exam-
+ple, for evaluating a number literal, the following abstracted
+semantics can be used:
+eval expr :=
+
+match expr with N n → 𝛼(𝑛) ;... end
+
+To satisfy our soundness requirement, this semantics needs
+to be exhaustive, meaning that it has to explore any possible
+program path that might occur at run time. For example, the
+analysis might be compute the truth value of an if
+condition precisely (e.g., the value of (> x 0) is imprecise
+if 𝑥 is ⊤). In those cases, the analysis has to explore both the
+consequent and the alternative branch, as either might be
+executed in a concrete execution. Such a semantics can be
+formulated as follows:
+eval expr :=
+
+match expr with
+
+(if cnd csq alt) →
+
+let 𝑣𝑐𝑛𝑑 = eval(cnd)
+
+𝑣𝑐𝑠𝑞 = if isTrue (𝑣𝑐𝑛𝑑 ) then eval(csq) else ⊥
+𝑣𝑎𝑙𝑡 = if isFalse(𝑣𝑐𝑛𝑑 ) then eval(alt) else ⊥
+
+in 𝑣𝑐𝑠𝑞 ⊔ 𝑣𝑎𝑙𝑡
+
+...
+
+end
+
+Note that isTrue and isFalse may succeed simultaneously
+if the truth value of the condition is imprecise. The excerpt
+depicted above demonstrates that the implementation of an
+abstract definitional interpreter is non-trivial. Throughout
+the implementation, there is a need to account for all possi-
+ble concrete executions —which leads to subtle bugs when
+implemented incorrectly.
+
+2.2 Memory Abstraction
+To analyze programs that include variables, some kind of
+memory abstraction is required. In the recipe by Van Horn et
+al. [8] the interpreter’s memory is modelled as a combination
+of an environment, which represents the lexical scope in
+which a particular program state is executed, and a store
+which represents the program’s memory. An environment
+is modelled as a mapping from variables to addresses, and
+a store is modelled as a mapping from these addresses to
+actual (abstract) values.
+
+The original recipe includes the store in every abstract
+program state. In the worst case, this results in an exponential
+number of program states [9]. One solution to this problem
+is to widen these (per-state) local stores into a single global
+store. This global store is then used across all global states,
+reducing the state space from an exponential to a cubic one.
+The same approach is taken in the static analysis for which
+we propose a debugger in this paper. However, our ideas also
+translate to analyses that do not incorporate store widening.
+
+2.3 Effect-Driven Modular Analyses
+The analysis presented in this paper is modular [4]. In a
+modular analysis, the program under analysis is split into
+components that are analyzed separately from each other.
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Mats Van Molle, Bram Vandenbogaerde, and Coen De Roover
+
+Examples of such components are function calls [16], classes
+or spawned processes [18]. In practice, however, components
+might depend on each other through shared variables or
+return values. The result of analyzing some component 𝐵
+might therefore influence the analysis result for a component
+𝐴, if the analysis of 𝐴 depends on the analysis results of 𝐵.
+Nicolay et al. [16] describe an algorithm for the modular
+analysis of higher-order dynamic programming languages.
+In higher-order dynamic programming languages, such as
+Scheme, the exact components of a

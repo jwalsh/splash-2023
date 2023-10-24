@@ -1,0 +1,206 @@
+Title-Abstract. Section intro
+ about
+two separate code-bases: the analyzed code and the analysis
+implementation. The former is usually where the bug man-
+ifests itself, while the latter contains the faulty implemen-
+tation. A recent survey has found that analysis developers
+prefer to reason about the analyzed program, indicating that
+debugging would be easier if debugging features such as
+(conditional) breakpoints and stepping were also available
+in the analyzed program. In this paper, we therefore propose
+cross-level debugging for static analysis. This novel technique
+moves debugging features such as stepping and breakpoints
+to the base-layer (i.e., analyzed program), while still making
+interactions with the meta-layer (i.e., analysis implementa-
+tion) possible. To this end, we introduce novel conditional
+breakpoints that express conditions, which we call meta-
+predicates, about the current analysis’ state. We integrated
+this debugging technique in a framework for implement-
+ing modular abstract interpretation-based static analyses
+called MAF. Through a detailed case study on 4 real-world
+bugs taken from the repository of MAF, we demonstrate how
+cross-level debugging helps analysis developers in locating
+and solving bugs.
+CCS Concepts: • Software and its engineering → Auto-
+mated static analysis; Software testing and debugging.
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+© 2023 Copyright held by the owner/author(s). Publication rights licensed
+to ACM.
+This is the author’s version of the work. It is posted here for your personal
+use. Not for redistribution. The definitive Version of Record was published in
+Proceedings of the 16th ACM SIGPLAN International Conference on Software
+Language Engineering (SLE ’23), October 23–24, 2023, Cascais, Portugal, https:
+//doi.org/10.1145/3623476.3623512.
+
+Keywords: Static Program Analysis, Debugging
+
+ACM Reference Format:
+Mats Van Molle, Bram Vandenbogaerde, and Coen De Roover.
+2023. Cross-Level Debugging for Static Analysers. In Proceedings
+of the 16th ACM SIGPLAN International Conference on Software
+Language Engineering (SLE ’23), October 23–24, 2023, Cascais, Portu-
+gal. ACM, New York, NY, USA, 12 pages. https://doi.org/10.1145/
+3623476.3623512
+
+1 Introduction
+Static analyses derive run-time properties of programs with-
+out actually running them. They provide the foundation for
+tools such as Integrated Development Environments, opti-
+mizing compilers, and quality assurance tooling. Termination
+is an important property for any static analysis, stating that
+the analysis always terminates even when the program under
+analysis does not. In application contexts such as compilers,
+analyses also ought to be sound, meaning that their results
+account for any possible execution of the program under
+analysis. For example, an analysis that determines whether
+integers can be stored in a unsigned variable, should only
+state that an expression will evaluate to a positive integer if
+this is the case for every possible program execution.
+
+Unfortunately, analysis developers may make mistakes
+while trying to realise these properties. Such mistakes are of-
+ten hard to locate and therefore fix. Debuggers have proven
+themselves as tools for locating the source of problems in
+an application. However, as Nguyen et al. [7] found in a sur-
+vey conducted amongst 115 analysis developers, traditional
+debuggers are ill-suited for debugging a static analysis:
+
+• Debugging target mismatch: a traditional source-level
+debugger targets the code of the analysis implemen-
+tation. However, a bug usually manifests itself in an
+analyzed program. Therefore, for analysis developers,
+it can be easier to reason about the behavior of the
+analysis by looking at a specific analyzed program,
+rather than debugging the static analysis as a whole.
+Stepping features of the debugger should therefore
+also be able to target the analyzed program, rather
+than the analysis implementation itself.
+• Generic visualisation: debuggers show generic infor-
+mation (e.g., the value of variables in the current call
+frame) about the implementation of a static analy-
+sis. As static analyses typically follow the same struc-
+ture, domain-specific visualisations can be developed.
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Mats Van Molle, Bram Vandenbogaerde, and Coen De Roover
+
+Nguyen et al. find that these domain-specific visualisa-
+tion help to understand the behaviour of the analysis,
+and help to locate bugs.
+
+from traditional debuggers are inadequate:
+
+In this paper, we argue furthermore that the breakpoints
+• Shifting breakpoints to the base layer: traditional de-
+buggers that target the analysis implementation do not
+support placing breakpoints in the analyzed program.
+This makes debugging more difficult, since the analy-
+sis developer cannot easily suspend the analysis when
+a particular point in the analyzed code is reached.
+• Domain-specific conditional breakpoints: conditional
+breakpoints enable developers to limit the number of
+times a debugged program is suspended at a break-
+point. Similar to regular breakpoints, we argue that
+the conditional ones ought to be placed in the analyzed
+code. However, they must be cross-level, meaning that
+they do not only express properties of the analyzed
+program (base level), such as the contents of an in-
+scope variable, but also properties about the global
+analysis state (meta level) at the point of its evalua-
+tion. Predicates for conditional breakpoints therefore
+become domain-specific, which renders expressing
+properties about the analysis state easier compared to
+expressing them in terms of implementation-specific
+data structures.
+
+1.1 Contributions
+In this paper, we propose cross-level debugging for static anal-
+ysis. More specifically, we propose a debugger that moves
+stepping and breakpoints features to the analyzed program
+(base level), while still allowing for expressing properties
+about the analysis implementation (meta level) as conditional
+breakpoints. To this end, we propose domain-specific meta-
+predicates that can be used to formulate analysis-specific
+conditional breakpoints. Our debugger therefore crosses the
+boundary between the base level and meta level, and becomes
+cross-level. In summary our contributions are as follows:
+• A novel debugging technique for static analysis called
+cross-level debugging, which includes domain-specific
+visualisations and stepping features that can step through
+each individual step of the analysis.
+• Three categories of domain-specific meta-predicates
+that can be used as the conditions for our cross-level
+conditional breakpoints.
+• An implementation for this debugger using MAF, a
+framework for implementing modular analyses for
+Scheme.
+
+1.2 Motivating Example
+We motivate the need for cross-level debugging of static anal-
+ysis implementations through a hypothetical sign analysis
+that does not properly allocate the parameters of a function.
+
+The bug manifests itself during the analysis of the following
+Scheme program:
+
+1
+2
+3
+4
+5
+
+; define a function named "add"
+(define (add x y)
+
+(+ x y))
+
+; call the "add" function
+(add 5 2)
+
+When executed by a concrete interpreter, the program
+evaluates to 7. The corresponding analysis result for this
+program should be the + element of the sign lattice of ab-
+stract values (or its ⊤ element in case sound imprecisions
+are allowed). Imagine that the hypothetical sign analysis
+produces the ⊥ lattice element instead, denoting the absence
+of sign information.
+
+Without prior knowledge about this bug, it may be unclear
+what part of the analysis is to blame. Several analysis compo-
+nents may be at fault: the implementation of the abstraction
+of literals 5 and 2 to sign lattice elements, the implementa-
+tion of the abstract + operation on these lattice elements,
+or the implementation of the abstract semantics of function
+calls and returns.
+
+Inspecting the state of the analysis at the corresponding
+points in the analysed program would help to locate the
+bug in the analysis implementation. Unfortunately, regular
+debuggers are not well-equipped for this task. First, the anal-
+ysis implementation does not exactly mirror the structure of
+the analysed program. Steps through the analysis implemen-
+tation therefore do not necessarily correspond to steps in
+the analysed program. This motivates the need for moving
+stepping and breakpoint features to the analyzed program
+(base level) rather than the analysis implementation (meta
+level).
+
+Second, regular debuggers do not understand the structure
+of the analysis state. For example, at line 3, it is expected
+that the analysis knows about variable 𝑦 in the program
+under analysis. Although a regular debugger can visualize
+the state of the analysis implementation in terms of local
+and global variables, it does not provide an effective way
+to visualize the contents of, for example, the environments
+and stores that the analysis is manipulating. This motivates
+the need for domain-specific visualisations that show the
+analysis state on a more abstract level, rather than in terms
+of implementation-specific data structures.
+
+Third, regular debuggers do not support analysis develop-
+ers in formulating and testing hypotheses about the source
+of a bug in terms of program points from the program un-
+der analysis. For example, if the analysis developer suspects

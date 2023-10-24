@@ -1,0 +1,3 @@
+
+
+This section discusses the implementation of abstract definitional interpreters, which are used to derive static analyses. It explains how memory abstraction is used to analyze programs with variables, and how global store widening can reduce the state space from an exponential to a cubic one. It also introduces the concept of effect-driven modular static analysis, which splits the program under analysis into components that are analyzed separately from each other. Finally, it explains how the exact components of a program can depend on each other through shared variables or return values.

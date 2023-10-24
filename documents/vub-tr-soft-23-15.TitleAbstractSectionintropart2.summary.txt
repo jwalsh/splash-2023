@@ -1,0 +1,3 @@
+
+
+This section introduces the concept of cross-level debugging for static analysis, which moves debugging features such as stepping and breakpoints to the base-layer (i.e., analyzed program), while still making interactions with the meta-layer (i.e., analysis implementation) possible. To this end, the authors introduce novel conditional breakpoints that express conditions, which they call meta-predicates, about the current analysis’ state. They integrated this debugging technique in a framework for implementing modular abstract interpretation-based static analyses called MAF. Through a detailed case study on 4 real-world bugs taken from the repository of MAF, they demonstrate how cross-level debugging helps analysis developers in locating and solving bugs.

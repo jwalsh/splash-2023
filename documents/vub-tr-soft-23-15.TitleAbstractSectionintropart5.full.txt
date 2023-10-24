@@ -1,0 +1,105 @@
+Title-Abstract. Section intro
+icate must correspond to the string representation
+of the store address as displayed in the visualisation. If the
+address is absent, the meta-predicate returns false. This
+
+allows expressing conditional breakpoints that break on the
+absence of a particular store address. Note that the values
+returned by this predicate are abstract rather than concrete.
+Therefore, operations on these values can only be applied
+using the lattice meta-predicates.
+
+The second predicate, called store:changed?, returns
+true whenever a particular address in the store has changed
+since the last break. It returns false whenever the value on
+that address has not changed or whenever the address could
+not be found.
+
+The latter predicate is especially useful when components
+are (re-)analyzed frequently without actually changing any
+address of interest. Those re-analyses can simply be executed
+without breaking, therefore saving the analysis developer’s
+time.
+
+Lattice predicates. To interact with the values returned
+from store:lookup, we provide an interface to the abstract
+lattice operations as lattice meta-predicates. We divide
+these predicates into two sub-categories: type-checking pred-
+icates, and reified abstract operations.
+
+For the former category, we provide type-checking predi-
+cates for Scheme’s primitive values: integers, reals, charac-
+ters, strings, booleans, pairs and vectors. The latter category
+provides operations on these datatypes, such as lattice:car
+and lattice:cdr to retrieve the first and second element of
+a pair respectively.
+
+While the type-checking predicates return a boolean value
+that can be used for deciding whether to break, the abstract
+
+ABCDE
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Mats Van Molle, Bram Vandenbogaerde, and Coen De Roover
+
+domain operations always return an abstract value. There-
+fore, a type-checking predicate is always needed to use an
+abstract operation in the condition of a conditional break-
+point.
+
+Worklist predicates. Finally, we introduce predicates
+concerning the current state of the worklist: wl:length and
+wl:component. The former predicate returns the current
+length (as a concrete number) of the worklist. This length
+corresponds to the number of components that are scheduled
+for analysis. The latter returns the name of the component
+that is currently being analysed. This predicate is rather re-
+dundant for context-insensitive analyses, since the location
+of the breakpoint already implies which component is being
+analyzed. However, when the analysis is configured with a
+form of context sensitivity [17] (e.g., the last-k callers on the
+stack), multiple components might be created for the same
+function.
+
+In addition to the aforementioned predicates, we also pro-
+pose history-aware variants of them. These variants corre-
+spond to the wl:prev-length which returns the length of
+the worklist at the previous breakpoint, and wl:prev-component
+which returns the previously analyzed component. These
+predicates can be used to detect unusual behavior of the
+worklist algorithm. For example, a worklist that does not
+shrink in size could be indicative of a bug in the worklist
+algorithm itself. Furthermore, frequent re-analyses of the
+same component could hint that the analysis is not termi-
+nating. Using these meta-predicates, analysis developers can
+express invariants and expectations about the behavior of
+the worklist algorithm.
+3.3.2 Examples. In this section, we briefly show some
+examples of conditional breakpoints to illustrate the synergy
+between the different categories of meta-predicates.
+(1) (break #t)
+(2) (break (> (abs (- (wl-length) (wl:prev-length))) 100))
+(3) (break (and (sto:changed? "adr")
+
+(lattice:string? (sto:lookup "adr"))))
+
+(4) (break (lattice:char?
+
+(lattice:car (sto:lookup "adr"))))
+
+Some brief examples are depicted in the listing above. (1)
+depicts a conditional breakpoint that always breaks, thus
+behaving like a regular breakpoint. In (2), the difference
+in length of the worklist is computed and some threshold
+(i.e., 100) is used to break. This breakpoint can be used to
+detect rapidly growing or shrinking worklists. (3) combines
+multiple predicates together using a conjunction (i.e., and).
+In this case the breakpoint will be triggered when the address
+adr has changed and the abstract value at that address in the
+store can be a string. Finally, (4) depicts a combination of
+type-checking lattice predicates, and lattice operations. In
+this case, the operation car is used to obtain the first value
+of a pair, and lattice:char? is used to check whether the
+value is a character.
+
+Figure 2. Interactions between the debugger and the meta

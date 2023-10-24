@@ -1,0 +1,3 @@
+
+
+This section discusses a bug related to the implementation of a worklist algorithm. The bug prevents the worklist from reducing in size as the component under analysis is taken but not removed from the worklist, resulting in the analysis never terminating. To debug this problem, the authors place a breakpoint after line 5 and observe that the contents of the worklist remain the same and the analysis’ state does not change. To test whether the analysis makes progress, they replace the regular breakpoint with a conditional one that suspends the analysis whenever the current component is the same as the previous component, and when the length of the worklist does not change. This reveals that the current component is never removed from the worklist, causing the bug.

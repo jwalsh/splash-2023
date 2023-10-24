@@ -1,0 +1,210 @@
+Title-Abstract. Section intro
+ changed cell with the new value. Unfortunately,
+in this bug, only the old value was taken into account and
+the new value was simply ignored.
+
+We demonstrate this bug with the program depicted be-
+
+low:
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+
+(define (change-age user age)
+(vector-set! user 0 age))
+
+(define (paid user)
+
+(vector-set! user #f))
+
+(define (set-name user name)
+(vector-set! user 1 name))
+
+(define (get-name user)
+(vector-ref user 1))
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Mats Van Molle, Bram Vandenbogaerde, and Coen De Roover
+
+12
+13
+14
+15
+16
+17
+18
+19
+
+(define new-user (make-vector 3 #f))
+
+(change-age new-user 21)
+(paid new-user)
+(set-name new-user "Steve")
+(define name (get-name new-user))
+name
+
+We expect that the result of the analysis will be the value
+of the final expression (i.e., the value of the variable name).
+Since the name of the user is supposed to be a string, the
+abstract value associated with the address corresponding to
+name in the store should at least contain a string. However,
+the analysis results in false only. To debug this problem,
+we start by placing a breakpoint after name (line 19).
+
+(break (store:lookup "name"))
+
+This breakends the analysis whenever the variable
+name is added to the store. We observe that the analysis sus-
+pends at this breakpoint, meaning that the analysis reaches
+the final expression and the variable has been correctly allo-
+cated.
+
+We shift our attention to functions paid (line 16) and
+set-name (line 17), which both change the contents of the
+vector. We test whether calling these functions has an un-
+expected effect on the allocation of the vector. To this end
+we add the following breakpoint after the execution of these
+functions (line 17).
+
+(break (store:lookup "PtrAddr((make-vector 3 #f))"))
+
+Since the breakpoint suspends the analysis, the vector is
+still properly allocated after the calls to these functions have
+been analysed. We also note that ‘Steve’
+‘21’ have been
+added to the store.
+
+Our set-name and paid functions are both implemented
+using a vector-set!. The expected semantics for this prim-
+itive is that it reads the current contents of the vector and
+updates the value at the specified index. Therefore, the value
+at the store address of this vector is supposed to change after
+the primitive has been executed. To verify whether this is
+the case, we place a breakpoint on line 5 and on line 8 to
+suspend the analysis whenever the store has not changed.
+
+(break (not (store:changed? "PtrAddr((make-vector 3 #f)))"))
+
+This results in the analysis suspending at both line 5 and 8,
+meaning that the vector operations did not have the desired
+effect. We can conclude that the bug is therefore situated in
+the implementation of vector-set!.
+4.2.3 Variable arguments are ignored.. Functions in
+Scheme can be defined to accept a variable number of argu-
+ments. This is expressed using a ‘.’ in the function definition,
+followed by the variable which will collect any excess argu-
+ments.
+
+The program depicted below illustrates this feature. The
+program defines two functions: sum and compute, and calls
+the compute function as its last expression.
+
+1
+2
+3
+
+(define (sum. vs)
+(define (aux l)
+(if (null? l)
+
+(aux vs))
+
+(compute 0)
+
+(define (compute initial)
+
+(+ initial (sum 1 2 3 4)))
+
+0
+(+ (car l) (aux (cdr l)))))
+
+4
+5
+6
+7
+8
+9
+10
+11
+12
+The expected result of the analysis is + (in case of a sign
+analysis). However, bug, the analysis result is ⊥. An
+analysis result of ⊥ may indicate that the program under
+analysis does not terminate or that the analysis is incomplete.
+As the program depicted above clearly terminates with value
+10 when executed by a concrete interpreter, this analysis
+result is unsound.
+
+We add a normal breakpoint to each component (i.e., on
+lines 3, 7, and 12) of the program to determine which compo-
+nents can be analyzed. The analysis suspends for the main
+and compute components but does not for the sum compo-
+nent. We conclude that the call to the sum function must have
+failed, which could be related to its use of a variable number
+of arguments. However, our debugger cannot determine a
+more precise cause for the bug, and further debugging in the
+analysis implementation is required.
+4.2.4 Ever-growing worklist. Although the bug studied
+in this case is synthetic, it could easily manifest itself while
+implementing a worklist algorithm. The bug we introduce
+precludes the worklist from reducing in size as the com-
+ponent under analysis is taken but not removed from the
+worklist. As a consequence, the analysis never terminates.
+We illustrate this problem with the factorial depicted be-
+low:
+
+1
+2
+3
+4
+5
+
+(define (factorial n)
+
+(if (= n 0)
+
+1
+(* n (factorial (- n 1)))))
+
+(factorial 5)
+
+Since the analysis does not terminate, our debugger never
+displays a visualisation of its final state. To suspend the
+analysis we use regular breakpoints (i.e., (break #t)), and
+place them after line 5. We can now step through the analysis
+state. We notice that each time ‘Step Until Next Breakpoint’
+is pressed, the contents of the worklist remains the same
+and the analysis’ state does not change. To test whether the
+analysis makes progress, we replace our regular breakpoint
+by a conditional one. This breakpoint suspends the analysis
+whenever the current component is the same as the previous
+component, and when the length of the worklist does not
+change.
+
+(break (and (eq? (wl:component) (wl:prev-component))
+
+(= (wl:length) (wl:prev-length))))
+
+Again, the breakpoint suspends on every analysis step, mean-
+ing that the same component is re-analyzed in each iteration
+of the worklist algorithm. This makes it clear that the current
+component is never removed from the worklist.
+
+
+Cross-Level Debugging for Static Analysers
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+4.2.5 Unnecessary triggering of dependencies. As ex-
+plained in section 2.3, the

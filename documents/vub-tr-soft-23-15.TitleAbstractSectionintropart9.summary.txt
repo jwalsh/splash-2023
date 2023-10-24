@@ -1,0 +1,3 @@
+
+
+This section discusses the implementation of a debugger in a framework called MAF. The debugger was tested on one synthetic and four real-world bugs, and was found to be effective for most bugs related to changes of store addresses and their contents. It was argued that the approach is flexible enough to support other classes of bugs in future work. The work was partially funded by FWO (Research Foundations Flanders) under grant number 1187122N.

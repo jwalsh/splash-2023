@@ -1,0 +1,149 @@
+Title-Abstract. Section intro
+ their depen-
+dencies are not known before the program is executed. Each
+time a component is discovered, it is added to a worklist that
+keeps track of the components to analyze next. Whenever the
+results for a component change, its dependent components
+(e.g., through a shared variable) are added to this worklist
+and eventually reanalyzed to take the new results into ac-
+count. The algorithm repeats itself until the workist is empty.
+This process results in a dependency graph that consists of
+components and the store addresses (representing shared
+variables and return values) through which they depend on
+each other.
+
+3 Approach
+In this section, we introduce the design of our analysis-
+tailored debugger. First we discuss its visualisation, then
+its stepping and breakpoint functionality, and finally we in-
+troduce our novel meta-predicates for cross-level conditional
+breakpoints.
+
+3.1 Visualising the analysis state
+The first feature of our debugger is its visualisation of the
+analysis state. This visualisation for the factorial program
+is depicted in fig. 1. The visualisation consists of four parts:
+the code that is being analyzed, a graph of the components
+and their dependencies, an overview of the global store, and
+a visualisation of the worklist algorithm.
+
+The component graph (C) visualizes the components dis-
+covered so far and their dependencies. Colored in green are
+the components themselves, and colored in blue are the store
+locations (addresses) on which the components depend. The
+component currently under analysis is highlighted using a
+purple border. Each of the edges depicts dependencies on
+these store locations and their direction indicates the flow
+of values. For example, the call to the factorial function (de-
+picted by the node labeled Call...) both reads (from its
+recursive call) and writes to its return value.The global store visualisation (D) depicts the addresses
+and their corresponding values that are currently in the
+global store. Highlighted in yellow are addresses that are up-
+dated during the interval between the previous and current
+breakpoint, while highlighted in green are addresses that are
+added during that time frame.
+
+Finally, the worklist visualisation (E) depicts the current
+contents of the worklist. Its order corresponds to the order
+in which components will be removed from the worklist and
+therefore shows their analysis order.
+
+3.2 Stepping and regular breakpoints
+Recall that analysis developers prefer to reason about a spe-
+cific manifestation of a bug in an analyzed program, rather
+than debugging the analysis implementation as a whole. We
+achieve this in two ways. First the code is presented promi-
+nently in the interface of the debugger (area A). Second, the
+analysis developers step through and break in the analyzed
+program instead of through the analysis implementation
+itself. This is important since unsound results often occur
+in specific parts of the analyzed the program. Setting break-
+points and stepping through the analyzed program makes it
+easier to pin-point the problem, and reason about how the
+analysis proceeds for the analyzed program.
+
+Similar to some debuggers for JavaScript, we choose to
+represent breakpoints as expressions in the analyzed pro-
+gram. This allows for more expressive freedom, since these
+expressions can be placed in arbitrary locations inside the
+program (i.e., in a specific subexpression, rather than on a
+specific line) and can reuse the same parsing facilities as the
+one available for the analyzed program.
+
+Our debugger provides two types of stepping (as depicted
+in area B). The first type continues analysis until the next
+breakpoint is reached. The second type of stepping allows
+the developer to step over each expression in the analyzed
+program. Note that, because of our effect-driven worklist
+algorithm, this stepping feature never steps into function
+calls, since those are only analyzed once the component of
+the caller has been fully analyzed. However, once the analysis
+of a component is complete, this stepper continues stepping
+as before in the component that is analyzed next.
+
+Recall that the branches of an if-expression need to be
+evaluated non-deterministically, in case the truth-value of the
+condition cannot be determined precisely. In that case, the
+stepper steps over these branches sequentially (evaluating
+the consequent branch first and then the alternative branch),
+and displays the state of the analysis accordingly.
+
+Table 1. Overview of the meta-predicates in our debugger.
+
+Store predicates
+store:lookup
+store:changed?
+Worklist predicates
+wl:length
+wl:prev-length
+wl:component
+wl:prev-component
+
+Lattice predicates
+lattice:integer?
+lattice:pair?
+lattice:real?
+lattice:real?
+lattice:char?
+lattice:bool?
+lattice:string?
+
+lattice:vector?
+lattice:car
+lattice:cdr
+
+
+Cross-Level Debugging for Static Analysers
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Figure 1. Debugger visualisation, which features the following components: the code (A), debugger controls (B), component
+graph (C), store visualisation (D) and worklist visualisation (E).
+.
+
+3.3 Cross-Level Conditional Breakpoints
+Conditional breakpoints are used in traditional debuggerssuspend the program once a particular condition is reached.
+These conditions are usually expressed in terms of program
+variables and predicates that act upon them. This type of
+breakpoint is especially important for static analyses where
+each program be analyzed more frequently than in
+their concrete execution. Hence, analysis developers need
+conditional breakpoints that can express conditions on the
+current state of the analysis. We call these kind of predicates
+meta-predicates since they do not express constraints on
+the the breakpoints (i.e., the analyzed
+program) but rather on the meta layer above it (i.e., the
+analysis implementation).
+
+Based on the parts of the analysis’ state, we split our meta-
+predicates in three categories: store-based, worklist-based
+and lattice-based meta-predicates. A full list of predicates,
+split according to these categories is depicted in table 1.
+
+3.3.1 Categories of Meta-Predicates.
+
+Store predicates. Our store-based meta-predicates ex-
+press conditions on the state of the global store. Wetwo meta-predicates: store:lookup and store:changed?.
+The first predicate enables looking up a value on a specific
+address in the current global store. The argument of this
+meta

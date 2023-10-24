@@ -1,0 +1,34 @@
+Title-Abstract. Section intro
+Cross-Level Debugging for Static Analysers
+Mats Van Molle
+Coen De Roover
+coen.de.roover@vub.be
+Vrije Universiteit Brussel
+
+Bram Vandenbogaerde
+
+bram.vandenbogaerde@vub.Be
+
+Vrije Universiteit Brussel
+
+mats.van.molle@vub.be
+Vrije Universiteit Brussel
+
+Belgium
+
+Belgium
+
+Belgium
+
+Static analyses provide the foundation for several tools that
+help developers find problems before executing the program analysis. Common applications include warning about
+unused code, deprecated API calls, or about potential security
+vulnerabilities within an A static analysis distinguishes
+itself from a dynamic analysis in that it is supposed to termi-
+nate even if the analysis does not. In many
+cases it is also desired for the analysis to be sound, meaning
+that its answers account for all possible program behavior.
+Unfortunately, analysis developers may make mistakes that
+violate these properties resulting in hard-find bugs in the
+analysis. Finding these bugs can be a,
+especially since analysis developers have

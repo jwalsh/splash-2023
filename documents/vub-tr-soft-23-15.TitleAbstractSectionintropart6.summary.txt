@@ -1,0 +1,3 @@
+
+
+This section discusses the evaluation of a debugging approach for static analysers. It explains the evaluation method, which involves querying the MAF repository on Github for soundness related bugs and selecting 4 real-world soundness bugs. It also introduces a synthetic bug to study the effectiveness of the worklist meta-predicates. The section then goes on to discuss 4 cases of re-introduced bugs found in the MAF repository and the synthetic bug. For each case, it details the bug, how it was solved, and a scenario of successive interactions with the debugger that will lead to the bug being located. Finally, it explains how the implementation of vector-set! must join the previous values in order for an analysis to be sound.

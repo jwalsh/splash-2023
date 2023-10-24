@@ -1,0 +1,179 @@
+Title-Abstract. Section intro
+predicate evaluator.
+
+Table 2. Summary of bugs from the Github repository.
+
+Commit Description
+a2f43f6
+1a3c6be
+08bbe43 Variable arguments are ignored
+8b98b9b Unnecessary triggering of effects
+
+Implemented car as cdr
+vector-set! ignores its own index
+
+3.3.3 Predicate evaluator. Conditional breakpoints are
+evaluated in a separate evaluator which we call the meta-
+predicate evaluator. This evaluator has access to the current
+state of the analysis but cannot change it. Although the meta-
+predicate evaluator evaluates arbitrary Scheme expressions,
+these Scheme expressions cannot influence the results of the
+program under analysis. We argue that this is necessary for
+a clear separation between the debugging facilities and the
+analysis implementation to be maintained. The interactions
+between the debugger, static analyser, and meta-predicate
+evaluator are depicted in fig. 2.
+
+The evaluation of a meta-predicate proceeds as follows.
+First, the break expression is analyzed by the static analysis
+(1). Then, since the static analyzer does not include semantics
+for evaluating predicates of those break expressions, the
+predicate expression 𝑒 is passed to the predicate evaluator
+(2). Third, the predicate evaluator computes the truth value
+of the predicate 𝑒 by querying the state of the static analysis
+(3). Finally, the computation results in a boolean value (true
+or false) which is returned to the static analysis (4). Based on
+this value the debugger decides whether to pause the analysis
+and show intermediate analysis results in its interface (5).
+4 Evaluation
+In this section we evaluate our approach through a case
+study. We first discuss the details of this evaluation method,
+and then demonstrate how our debugger supports locating
+4 real-world bugs in the implementation of MAF.
+
+4.1 Evaluation Method
+We evaluated our approach by querying the MAF repository
+on Github1 to find soundness related bugs. To this end, we
+queried for keywords such as: “bug” and “fix”, From the
+1https://github.com/softwarelanguageslab/maf
+
+DebuggerStatic analysisPredicate Evaluator(break e)(1)etrue/false(2)(3)(4)(5)true/false
+Cross-Level Debugging for Static Analysers
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+results of this query we selected 4 real-world soundness bugs
+which are summarized in table 2. Additionally, to illustrate
+how termination issues can be debugged, we introduced a
+synthetic bug that affects the worklist algorithm.
+
+Then, based on the fixes introduced in the aforementioned
+commits, we reintroduced the bugs back into the analysis
+itself, adapting the bug to the current state of the framework
+if necessary. Each case corresponds to one re-introduced bug
+in isolation, in order to avoid the effects of multiple bugs in-
+fluencing each other and to replicate the precise environment
+in which the bug was originally found and fixed.
+
+4.2 Studied Cases
+The following cases correspond to re-introduced bugs found
+in the MAF repository, and to one synthetic bug introduced
+specifically to study the effectiveness of our worklist meta-
+predicates. For each case, we first detail the corresponding
+real-world or synthetic bug, then we show how it was re-
+solved, before describing a scenario of successive interactions
+with our debugger that will lead to the bug being located.
+In the remainder of this section, we use
+to indicate the
+location of a breakpoint.
+4.2.1 Implemented car as cdr. In Scheme, pairs are con-
+structed using the primitive cons. For example, the expres-
+sion (cons 1 2) denotes a pair that consist of 1 as its first
+element (also called the car) and 2 as its second element (also
+called the cdr). In the bug studied in this first case, the car
+value was used for both the car and cdr of the pair allocated
+in the store.
+
+We illustrate this bug in the program depicted below. This
+program provides an implementation for a bank account.
+The account is represented by a pair consisting of the ac-
+count name and the current balance of that account (line 1-2).
+The functions add-to-balance (line 3-4) and balance (line
+5-6) change and retrieve the balance of the bank account
+respectively.
+
+1
+2
+3
+4
+5
+6
+7
+8
+
+(define bankAccount
+
+(cons "Lisa" 1983))
+
+(define (add-to-balance account amount)
+
+(set-cdr! amount(cdr account))))
+
+(define (balance account)
+
+(cdr account))
+
+(add-to-balance bankAccount 10)
+(balance bankAccount)
+
+The analysis result for this program, produced by the
+buggy analysis implementation, is the pointer to Lisa in-
+stead of the expected value integer, rendering the analysis
+unsound.
+
+Instrumenting the abstract definitional interpreter to out-
+put the analysis state at each evaluation step results in a
+large amount of unstructured information. Instead, we are
+interested in the analysis state for specific locations in the
+analyzed program. Recall that the store shows that the value
+of balance is string. To find the origin of the bug we start
+by checking whether bankAccount is still a pair consisting
+
+of a string and an integer after changing its balance. To
+this end, we place the following breakpoint before ‘(balance
+bankAccount)’ (line 8 breaks whenever the contents
+of the store has the expected structure.
+(break (and
+
+(lattice:pair? (store:lookup "bankAccount@1:9"))
+(lattice:string? (lattice:car (store:lookup "bankAccount@1:9")))
+(lattice:integer? (ice:cdr (store:lookupAccount@1:9")))))
+The inserted breakpoint does not suspend the analysis, mean-
+ing that the address does not point to a cons cell of the ex-
+pected structure. Therefore, the bug has already occurred in
+ part of the program. A possible culprit
+the set-cdr! primitive, which mutates the cdr component
+of a pair. To test this hypothesis, we place the same break-
+point beforeto-balance (line 7). Again our analysis
+does not suspend, meaning that the structure of the pair is
+not affected by set-cdr!. Therefore the primitive cons itself
+could be the source of the bug. We test this by using the same
+breakpoint, but placing it right after the allocation (line 2).
+Again, this breakpoint does not result in a suspension of the
+analysis. We have now located that the implementation of
+cons itself is most likely to blame. To test this hypothesis,
+we reduce our conditional breakpoint to break whenever
+the cdr contains a value of an unexpected type (i.e., a value
+other than an integer).
+
+(break (not (lattice:integer?
+
+(lattice:cdr (store:lookup "bankAccount@1:9"))))
+
+Finally, the analysis suspends, which means that the bug
+resides in the implementation of the abstract allocation of
+the pair.
+4.2.2 vector-set! ignores its own index. In Scheme,
+vectors represent collections of a fixed size whose elements
+can be accessed in constant time. A vector can be allocated
+using the make-vector primitive which needs the length
+of the vector and an initial value for each position in the
+vector. Lookup and mutation are provided using primitives
+vector-ref and vector-set! respectively. In this example,
+we investigate a bug in the latter primitive.
+
+The bug is located in the implementation of vector-set!.
+Recall that in order for an analysis to be sound, it must ac-
+count for all possible program behavior. To this end, the
+implementation of vector-set! must join the previous val-
+ues

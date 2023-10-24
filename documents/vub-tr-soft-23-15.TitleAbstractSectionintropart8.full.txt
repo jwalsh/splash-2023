@@ -1,0 +1,194 @@
+Title-Abstract. Section intro
+ backed by an effect-
+driven worklist algorithm. Components are re-analyzed when
+one of their dependencies changes. We say that a depen-
+dency triggers the reanalysis of a component, meaning that
+the component is added to the worklist for reanalysis. For
+example, the analysis result of a function 𝐴 depends on its
+arguments, which are represented by store addresses in our
+global store. Whenever the abstract values for one of these
+store addresses changes, it triggers the reanalysis of function
+𝐴. In this bug, dependencies are triggered even though the
+(abstract) value of their referenced store address no longer
+changes. This results in a non-terminating analysis, since
+components continue to be added to the worklist even if no
+new information can be derived.
+
+We illustrate this bug by reusing the example program
+from section 4.2.3. The analysis of this program is infinite in
+the buggy analysis implementation. We add breakpoints to
+the body of each component of this program to make sure
+that no component in particular is analyzed continuously.
+Stepping through this program a number of times reveals
+that a single component is being reanalyzed continuously:
+the aux component.
+
+To reduce the number of times the analysis is suspended,
+we remove all other breakpoints except the breakpoint in the
+aux function. Since a component is only reanalyzed when
+one of its dependencies changes, we are interested in the
+argument of aux. Therefore, we adapt this breakpoint to
+suspend the analysis only when the l no longer changes:
+
+(break (not (store:changed? "l@2:17")))
+
+As a result, the analysis suspends less frequently and we
+can step directly to the problematic infinite behavior of the
+analysis. Additionally, this debugger interaction gives us an
+indication of which store address is to blame, and which
+type of value is associated with it. This makes it easier to
+find the root cause of the bug in the analysis implementation
+by focussing on that specific address or looking into the
+implementation of lists. However, additional logging in the
+analysis implementation is required to learn more about the
+dependency triggering mechanism.
+
+4.3 Discussion
+
+Table 3. Overview of all the meta-predicate categories used
+for solving the bug
+
+Regular Break Store Worklist Lattice
+
+Bug 1
+Bug 2
+Bug 3
+Bug 4
+Bug 5
+
+✓
+✓
+✓
+
+✓
+✓
+
+✓
+
+✓
+
+✓
+
+Table 3 depicts on overview of the features of our debug-
+ger (columns) and the re-introduced bugs considered
+case studies (rows). The table indicates which debugging
+features were used to understand and locate each bug in
+the analysis implementation. In the case studies, predicates
+concerning the worklist are primarily used bugs
+related to the termination of the analysis (bug 4). The store
+predicates are used in most of the case studies. The reason
+for their frequent usage is two-fold. First, the lattice predi-ates operate on abstract values from the store. Thus, each
+time a lattice used, at least one store predicate
+is required. Second, many bugs involve the store in some
+capacity. For example, bug 1 occurs because of a mistake in
+the allocation of pairs. Bug 2 is in that the resulting
+value in the store is incorrectly updated, or not updated at
+all. The usage of the store meta-predicates in bug 5 is more
+subtle, here it is used to detect the absence of changes to the
+store in order to break when dependencies are triggered for
+addresses that no longer change.
+
+Bug 3 is interesting since it precludes components from be-
+ing analyzed. Even worse, by preventing a component from
+being analyzed, its return value is always ⊥ which causes
+the analysis to halt early. In the program used for illustrating
+bug 3, this problem was rather obvious (i.e., the analysis
+results were empty). However, for larger programs, finding
+which component was prevented from being analyzed might
+be more difficult. Breakpoints related to the set of analyzed
+components (i.e., the seen set) might help to locate these
+components. However, such breakpoints are not included in
+our debugger and require further investigation. Therefore,
+only non-conditional breakpoints were used for debugging
+bug 3 in the case study.
+
+5 Limitations & Future Work
+As illustrated in the debugging scenario for bug 3, our current
+approach lacks meta-predicates to deal with components that
+fail to be analyzed. We argue that additional breakpoints that
+express properties on the dependency graph and the set of
+seen components can partially solve this problem, but leave
+this as future work.
+
+Furthermore, our conditional breakpoints are stateless,
+meaning that keep any state between evalua-
+tions of the conditional breakpoints. We solve this problem
+in our current approach by introducing history-aware break-
+points such as wl:prev-length. However, as future work,
+stateful predicates can be considered to allow developers to
+keep track of an arbitrary state between the evaluation of
+breakpoints. To this end, language extensions and extensions
+to the predicate evaluator are needed.
+
+Finally, whereas we establish a link between the analyzed
+code and the analysis implementation through fine-grained
+meta-predicates and visualisations of the analysis’ state,
+Nguyen et al. [7] establish a clear correspondence between
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Mats Van Molle, Bram Vandenbogaerde, and Coen De Roover
+
+the analyzed code and the code of the analysis implemen-
+tation by pairing them together visually in the debugger
+interface itself. Our debugger already keeps track of this
+information internally, but does not visualize it. However,
+we acknowledge that this pairing could be beneficial for
+understanding the analysis implementation as well as for
+finding the bug in the analysis implementation itself. We
+consider the integration of our debugger with an Integrated
+Development Environment as future work.
+
+6 Related Work
+Charguéraud et al. [2] propose a double-debugger for de-
+bugging Javascript interpreters using domain-specific break-
+points. These domain-specific breakpoints are about the in-
+ternal interpreter state, and can be anchored within the inter-
+preted program through predicates about line numbersthe contents of local variables. Similarly, Kruck et al. [11, 12]
+recognize that interpreter developers want to reason about
+the structure of the interpreted program and propose multi-
+level debugging. Their approach mainly focusses on the rep-
+resentation of call stack frames in a debugging environment,
+and represents them both from the perspective of the inter-
+preted program as well as from the perspective of the inter-
+preter itself. Similar approaches have been proposed for tai-
+loring debuggers to specific applications or frameworks [14].
+This allows developers to reason about the behavior of the
+interpreter more easily.
+
+Both approaches are, however, not cross-level. They either
+provide domain-specific breakpoints on the meta level (e.g.,
+breakpoints about the current line number of the interpreter),
+or do not provide them at all. Our breakpoints are placed
+in the analyzed code (base level) allowing the developer to
+specify the location where they are evaluated. Furthermore,
+the conditions in these breakpoints express properties of the
+analysis state (meta level) rather than the analyzed program
+(base level). These breakpoints therefore interact with each
+other and cross the boundaries between the base and the
+meta level.
+
+Nguyen et al. [7] propose a tool called VisuFlow which
+is tailored to the visualisation of data flow analyses imple-
+mented in the Soot framework [13]. However, they do not
+propose cross-level domain-specific breakpoints and their
+approach is only applicable to data flow analyses. Static anal-
+yses based on the abstract definitional interpreter approach,
+however, have been shown to be applicable in many use-
+cases, including control flow analysis [1, 16, 20], data flow
+analysis [6] and soft contract verification [15, 19].
+
+7 Conclusion
+We proposed cross-level debugging for static analysis imple-
+mentations, which moves stepping and breakpoints from the
+base level to the meta level. More specifically, we proposed
+
+domain-specific visualisations for visually depicting the cur-
+rent state of the analysis. We argue that this visualisation
+makes it easier to understand the behavior of the analysis
+and thus to locate the root cause of bugs.
+
+Furthermore, we proposed domain-specific conditional break-
+
+points which enable
