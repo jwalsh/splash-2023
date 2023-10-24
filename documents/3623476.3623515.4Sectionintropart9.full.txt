@@ -1,0 +1,126 @@
+4. Section intro
+cid:27)ne-tuning. Sanitization
+solutions regard run-time state migrations as a way to (cid:27)x
+what is broken [25]. We instead take the position that they
+are an integral part of the language semantics.
+
+Until now, no solution could explain why a particular
+migration happened. Cascade is a BX solution that addresses
+both how and why, for precise feedback about root causes
+and (cid:27)nger sensitive (cid:27)ne-tuning.
+
+Cascade is the (cid:27)rst language-parametric and generic ap-
+proach for creating DSLs that leverages a bi-directional trans-
+formations for live programming. Compared to existing ap-
+proaches, it adds a scheduling mechanism for de(cid:27)ning com-
+plex deterministic side-e(cid:29)ects. To the best of our knowledge,
+no other system exists that can generate run-time state mi-
+grations from meta-descriptions as cause-and-e(cid:29)ect chains.
+
+12 Conclusions and future work
+We have addressed the lack of enabling technology for cre-
+ating live programming environments. We have proposed
+Cascade, a meta-language for expressing DSLs with interface-
+and feedback-mechanisms that drive live programming. In
+three case studies, we have explored expressing the liveness
+features of LiveSML, LiveQL and Mach We have
+demonstrated how to express gradual change, run-time state
+migrations, ripple e(cid:29)ects and live desugarings. Our results
+show that an explicit representation of change is instrumen-
+tal for how these languages are built, and that cause-and-
+e(cid:29)ect relationships are vital for delivering feedback.
+
+In future work, we will investigate how to create a reusable
+omniscient debugger for change-based DSL environments.
+Schema or program modi(cid:27)cations require both instance
+migrations and view adaptations. We will further investigate
+how to express coupled transformations [10], e.g., for Vie.
+
+Live programming requires interactive visual interfaces,
+and generic language technology to create them [12]. We
+will investigate how to automate the development of UIs
+that leverage game engine technology [22].
+
+Acknowledgments
+I thank the anonymous reviewers and the Agile Language
+Engineering (ALE) team (Inria & CWI) for their feedback.
+
+160
+
+
+Cascade
+
+SLE ’23, October24, 2023, Cascais, Portugal
+
+Table 1. Edit operations supported by Delta
+
+root 1 State.Delete([|uuid://26|], "lockeduuid://13|]) {
+
+pre 2 Trans.Delete([|uuid://33|],id://26|], "unlock", [|uuid://16|]) {
+
+Operation
+
+Inverse operationo_new (ID id, StringVal class)
+o_set (Path p, Field f, Val nv,Val ov) o_set (Path p,, Val ov,Val nv)
+
+o_delete (ID id, StringVal class)
+
+l_insert (Path p, IntVal i, Val v)
+l_push (Path p, Val v)
+l_set (Path p, IntVal i, Val nv,Val ov) l_set( Path p, IntVal i, Val ov,Val nv)
+
+l_remove (Path p, IntVal i, Val v)
+l_pop (Path p, Val v)
+
+s_add (Path p, Val v)
+
+s_remove (Path p, Val v)
+
+m_add (Path p, Val k)
+m_set (Path p, Val k, Val nv, Val ov) m_set (Path p, Val k, Val ov, Val nv)
+
+m_remove (Path p, Val k)
+
+A Edit Operations
+This appendix describes on a complete set of edit operations
+for manipulating commonly used data structures: objectslists and maps. Cascade’s runtime Delta uses these op-
+erations to execute bi-directional.
+
+A.1 Objects, heap and quali(cid:27)ed names
+Edit operations work on A global store, or heap,
+stores the current program state as a collection of objects
+with (cid:27)elds and references. Values can have a base type such
+as int, String, bool.Enums and classes introduce custom objects and values.
+The built-in datatypes Set, List and Map help to create ob-
+ject hierarchies, such as trees and graphs. Edit operations
+can perform lookups using quali(cid:27)ed names or paths. The
+notation uses dots and brackets for lookups in the global
+store, maps and lists. For instance, [|uuid://1|] performs a
+lookup of an object with Unique Universal Identi(cid:27)er (UUID)
+1, and [|uuid://1|].cur retrieves its (cid:27)eld cur.
+
+A.2 Supported edit operations
+Delta supports the edit operations shown in Table 1. We
+brie(cid:30)y describe these operations, which work on objects,
+lists sets and maps. Figure 7a shows an example sequence of
+operations that partially recreate the example SML program
+shown in Figure 3.
+
+A.2.1 Objects. The o_new operation creates a new object
+with identi(cid:27)er id of a particular class. The new object will
+have all of its (cid:27)elds set to default values. Its inverse operation
+o_delete has the exact opposite e(cid:29)ect, and deletes an object
+with identi(cid:27)er id. Deletions include the class parameter and
+they require that each (cid:27)elds of the object has default values.
+Without this, the operation cannot be reversed. Finally, to set
+the values of (cid:27)elds, the o_set operation, replaces the value
+ov of (cid:27)eld f of the object denoted by path p by a new value
+nv. This operation is its own inverse, swapping the old and
+the new values. Figure 7a shows examples.
+
+A.2.2 List. Specialized operations that only work on list
+objects of type List<X> are the following. The operations
+
+pre 3 State.RemoveOut([|uuid://26|], [|uuid://33]) {
+
+[|uuid://28|].remove([|uu

@@ -1,0 +1,267 @@
+4. Section intro
+out", [|uuid://2|], null);
+o_new(|uuid://3|, "Trans");
+o_set([|uuid://3|], "src", "opened", null);
+o_set(|[uuid://3|], "evt", "close", null);
+l_insert([|uuid://2|], 0, [|uuid://3|]);
+
+s = new State();
+s.name = "opened";
+s.out = new List<Trans>();
+
+t = new Trans();
+t.src = s;
+t.evt = "close";
+s.out.push(t);
+
+(a) Example edit operations
+
+(b) Generic edit script
+
+Figure 7. Contrasting edit operations from edit scripts
+
+a) consistency and run-time state migrations of LiveSML;
+b) trickle-e(cid:29)ects and (cid:27)xpoint computations of LiveQL; and
+c) live desugaring and visual feedback of Machinations.
+
+3.2 Live Programming Environments
+Cascade provides reusable components for developing live
+programming environments, easing the authorial burden.
+
+3.2.1 User Interface. Programmers need appropriate in-
+put and feedback mechanisms for changing code, obtaining
+feedback, and observing changes. Cascade o(cid:29)ers a choice:
+1) develop a user-friendly custom UI, based on its event APIs;
+or 2) use a generic Read-Eval-Print-LoopPL), e., before
+creating a custom UI this paper, we explore both. We use
+the REPL to simulate live programming scenarios textually.
+By executing sequential commands, we can simulate coding
+actions, user interaction and feedback on a line by line basis.
+
+3.2ter. A powerful interpreter is the driving
+force behind live programming. We formulate technical chal-
+lenges for creating interpre can support the require-
+ments 2.2.
+T5 Integrate DSLs in a commontime environment.
+T6 Schedule and execute events that perform bi-directional
+
+model run-time state migrations.T7 Maintain a version history heap, for updating syn-
+ trees and run-time states changes.
+
+T8 Generate the e(cid:29s of transformations as historical transactions that: a) capture changes as; and
+b) relationships in cause-and-e(cid:29)ect chainsTo tackle these challenges, Cascade DSL inter-
+preter from its specid:27)cation. discusses the design of
+the compiler generated interpreters, Cascade’s
+runtime. by introducing edit operations.
+
+4 Edit Operations
+ introduces an explicit representation of change for
+expressing behavioral e(:29) of coding actions, user interac-
+tions and program executions expresses change as
+model transformations that work on models (or programs)
+andtime states, which each consist of We base
+its representation on a language variant of the edit opera-
+tions]. Originally introduced for di(cid:29) and merging,
+ have since also been a low-level
+storage format run-time e(cid:29)ects [20, 24
+def
+
+*
+
+def
+Inst
+
+siscur
+
+*
+
+State
+– count
+
+Mach
+
+– name
+
+instances
+
+elements
+
+*
+State
+
+: String
+
+i
+
+o
+
+*
+
+src tgt
+
+*
+Trans
+
+– evt: String
+
+(a) Static meta-model
+
+(b) Run-time meta-model
+
+Figure Static and run-timemodels of LiveS
+Cascade leverages edit operations transactional
+e(cid:ects, maintain a, and support exploratory
+live Figure 7a shows example operationscreate new objects and replace attribute values. Appendix A
+describes a complete set of edit operations that work on
+commonly used data structures: objects, lists, sets and maps.
+However, edit operations alone are not su(cid:28)cient. An ex-
+pressive meta-language for change requires variables, not
+just values. Cascade introduces a script notation, illustrated
+by Figures 7b, that resolves this issue. Next, we explain how
+Cascade’s transformations encapsulate these edit scripts.
+
+5 The Cascade Meta-Language
+Cascade is a meta-programming language for expressing
+change, cause and e(cid:29)ect. Using Cascade, language engineers
+can create interpreters (language back-ends) described as
+meta-models with bi-directional model transformations.
+
+At, the interpreter executes these transformations
+in sequence and produces transactions consisting of edit
+operations. Upon completion, it commits the transactions
+to the version history as cause-and-e(cid:29)ect chains. Next, we
+introduce the main language concepts and features.
+
+5.1 Models and meta-models
+Cascade expresses languages and changes using meta-models.
+Programs are models that conform to the meta-model of the
+language. In particular, these models are Abstract Syntax
+Graphs (ASGs) composed of objects. The language seman-
+tics steer the behavior of running programs. A program’s
+run-time state, also a model, stores the results of program
+execution and user interactions.
+
+For instance, Figure 8 shows the UML class diagram of
+LiveSML’s meta-model. The static metamodel (on the left),
+de(cid:27)nes the abstract syntax. A machine consists of a number
+of states with transitions between them. The run-time meta-
+model (on the right) expresses running state machines. A
+running machine has a current state, and registers how often
+it has resided in each state (the count).
+
+152
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+class Mach {
+
+class State {
+
+class Trans {
+
+String name;
+Set<State> states;
+Set<MachInst> instances;
+...
+
+String name;
+Set< i;
+Set<Trans> o;
+...
+
+ref State src;
+String evt;
+ref State tgt;
+...
+
+(a) Machine
+
+(b) State
+
+(c) Transition
+
+class MachInst {
+
+ref Mach def;
+ref StateInst cur;
+Map<State, StateInst> sis;
+...
+
+class StateInst {
+
+ref State def;
+int count;
+
+...
+
+String name;
+Set<State> states;
+Set<MachInst> instances;
+
+1 class Mach {
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+
+}
+
+effect Create(future Mach m,
+
+String name) {
+
+m = new Mach();
+m.name = name;
+m.states = new Set<State>();
+m.instances =
+
+new Set<MachInst>();
+
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+
+inverse effect Delete(past Mach m,
+
+String name = m.name) {
+
+delete m.instances;
+delete m.states;
+m.name = null;
+delete m;
+
+} pre {
+
+foreach(State s in m.states) {
+
+State.Delete(s, s.name, m); }
+
+foreach(MachInst mi in m.instances) {
+
+MachInst.Delete(mi, m); }
+
+}
+...
+
+(d) Machine

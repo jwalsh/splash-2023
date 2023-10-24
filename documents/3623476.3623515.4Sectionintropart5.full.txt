@@ -1,0 +1,203 @@
+4. Section intro
+ The programmer begins with an empty state ma-
+chine by creating one. At any moment, they can add states
+to a transitions between states by creating new
+states and transitions. They can also run a machine at any
+point in time running machine separately keeps track
+of its visit counts. Therefore, creating a new machine also
+instantiates each state. Running machines update their book-
+keeping when adding a new state to their machine de(cid:27)nition.
+Afterwards, machine reinitializes (↓), since it
+may not have a current state yet.
+
+Deletion. Of course, programmers can also delete a ma-
+chine. Each machine cleans up its states and running in-
+stances. Deleting a state has side-e(cid:29)ects that also remove
+and delete every transition from its inputs and outputs. In
+addition, removing a state also removes and deletes state
+instances from every running machine. Finally, removing
+the current state of a running machine migrates its to the
+(cid:27)rst state in its de(cid:27)nition.
+
+Run-time triggers. Triggering (↓) a running machine can
+cause a transition that sets a new current state. However, it
+can also result in the signals (↑) or quiescence.
+These signals do not cause any change, but do provide feed-
+back to the user. When setting a new current state, its count
+is also increased by one.
+
+Prototype. The Cascade implementation of LiveSML counts
+213 LOC. Compiling the sources results in 2204 LOC of gen-
+erated C#. Next, we will apply the fully generated prototype.
+
+7.2 Live programming scenario
+We reproduce the run-time state migration of Section 2.1.
+Instead of parsing an SML program, we simulate sequential
+coding actions, user interactions, and feedback directly from
+the REPL. Figure 16 shows the REPL commands and feedback simulate the scenario.
+
+We (cid:27)rst create a new machine doors that contains a closed
+state (Figure 16a). Using the print command, we call the
+pretty printer. We obtain feedback and verify the syntax of
+
+155
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+Mach.Create(m, "doors"); ←↪
+State.Create(s1, "closed", m); ←↪
+print m; ←↪
+machine doors
+state closed
+
+MachInst.Create(mi, m); ←↪
+print mi; ←↪
+machine doors
+closed : 1 *
+
+(a) Creating the program
+
+(b) Runing the program
+
+State.Create(s2, "opened", m); ←↪
+State.Create(s3, "locked", m); ←↪
+Trans.Create(t1, s1, "open", s2); ←↪
+Trans.Create(t2, s2, "close", s1); ←↪
+Trans.Create(t3, s1, "lock", s3); ←↪
+Trans.Create(t4, s3, "unlock", s1); ←↪
+
+print mi; ←↪
+machine doors
+
+[open] [lock]
+closed : 1 *
+opened : 0
+locked : 0
+
+(c) Completing the program
+
+(d) Updated run-time state
+
+MachInst.Trigger(mi, "lock"); ←↪
+print mi; ←↪
+machine doors
+
+State.Delete(s3, "locked", m); ←↪
+print mi; ←↪
+machine doors
+
+[unlock]
+closed : 1
+opened : 0
+locked : 1 *
+
+[open]
+closed : 2 *
+opened : 0
+
+(e) Locking the door
+
+(f) Deleting the locked state
+
+Figure 16. LiveSML scenario simulated from the REPL
+
+the DSL program is as expected. Although the program is not
+yet complete, we already run it. We create an instance, and
+use the print command to observe that, initially, its current
+state (*) is closed (Figure 16b).
+
+We now complete the program (Figure 16c) by adding
+opened and locked and the transitions between them.
+Behind the scenes, several side-e(cid:29)ect have occurred. We
+inspect the running program has also been updated (Fig-
+ure 16d). The text between brackets denote “buttons” for the
+available actions. Users can now open or lock the closed door.
+We simulate an action that locks the door (Figure 16e).
+Finally, we delete the locked state (Figure 16f). As expected,
+this causes a run-time state migration, setting the current
+state to closed, and increasing its count by one.
+
+The resulting transaction, described in more detail in Ap-
+pendix B, is super-imposed on the design on Figure 15. Its
+generated control (cid:30)ow traverses events that a(cid:29)ect both the
+syntax and the run-time state. Note that, the edit operations
+of the deletion itself, actually happen last.
+
+7.3 Analysis
+Compared to the original LiveSML, which counts 1217 LOC
+of hand-written Java, our prototype is signi(cid:27)cantly smaller
+(213 LOC)2. Cascade addresses the main shortcoming of the
+Run-time Model Patching (RMPatch) approach that expresses
+run-time state migrations as hard-coding visitors on edit op-
+erations, which is time consuming and error-prone [24]. In-
+ Cascade expresses them on the meta-level. As a result,
+LiveSML’s modular design is more concise and maintainable.
+
+8 Live Questionnaire Language
+The Questionnaire Language (QL) is a DSL for expressing
+interactivenaires. Originally designed for the
+
+2h(cid:29)ps://github.com/vrozen/Cascade/tree/main/LiveSML
+
+form C e l e b r a t i o n {
+
+" Your d i s c o t is " :
+
+int d i s c o u n t = age /2 - 10
+
+" What is your age? " :
+
+int age
+
+}
+
+Celebration
+
+Your discount is
+
+What age?
+
+24
+
+68
+
+(a) Celebration form
+
+(b) Example (cid:27)lled-out form
+
+Figure 17. Forms that calculates an age dependent discount
+
+Dutch tax o(cid:28)ce, this DSL has since served as a benchmark for
+generic language technology, e.g., the Language Workbench
+Challenge [7]. We study LiveQL, a language variant that
+enables simultaneously designing and answering forms [20].
+We focus on the liveness properties and trickle e(cid:29)ects at the
+heart of its semantics. In particular, we aim to reproduce
+the behavior that propagates the e(cid:29)ects of giving answers.
+Using Cascade, we express LiveQL and create a language
+prototype. We use its REPL to simulate a run-time scenario
+of an example that demonstrates a (cid:27)xpoint computation.
+
+8.1 Questionnaire Language
+Forms consists of sequences (or blocks) of two kinds of state-
+ments: questions and if statements. Figures 17 shows a from
+that expresses an age-based discount, and an answered form.
+
+8.1.1 Questions. Each question consists of a textual mes-
+sage the user sees, a question type (int, str or bool), and a
+variable name that can be used to reference the question’s
+answer. By default, questions are answerable. The question
+“what is your age?” is answerable. Users answer questions
+by supplying a value of the speci(cid:27)ed question type. In this
+case, age requires an int value, for instance 68.
+
+However, when assigned with an expression, questions be-
+come computed. Instead of prompting the user to answer the
+question, the form computes the answer by evaluating the
+expression. In the example, discount is a computed answer.
+Its computed value is 24.
+
+8.1.2 If statements. Conditional

@@ -1,0 +1,268 @@
+4. Section intro
+opened
+
+close
+
+
+locked
+
+openclosed: 2 *
+opened
+
+Figure 4. Live of a running doors that demonstrates run-time state migration
+
+We use this DSL as a illustrative example because it is to comprehend, and also appears in related work [19,
+24]. Figure 3 shows an SML program called doors. When
+executed, it can be either in the opened or closed state.
+
+As a concise example, Figure 4 describes a live program-
+ming scenario of a running doors program. After starting the
+program of Figure 3, each step shows the origin of a change
+and the e(cid:29)ects on the program and its run-time state.
+
+ the programmer adds a locked state, and two tran-
+sitions for locking and unlocking the door. These additions
+are marked in green. In response, the interpreter introduces
+a locked count of zero (shown in a box). Initially, the current
+state (marked *), is closed, and the lock and open transi-
+tions (underlined) can be activated. In step two, the pro-
+grammer triggers the lock transition in the user interface.
+The interpreter performs the transition (feedback shown in
+orange), updates the current state to locked, and raises its
+count (shown in a box). Updates are shown in blue.
+
+Finally, in step three, the programmer deletes the locked
+state. In response, the interpreter also deletes the lock and
+unlock transitions (shown in red). Because the current state
+is removed (indicated with strikethrough), this state has
+become invalid. In step four, which follows immediately, the
+interpreter migrates the program to the initial state closed.
+
+2.1: Modifying a running machine
+The Live State Machine Language (LiveSML) is a DSL for
+simultaneously creating and running state machines.
+
+1An earlier version of this paper has been presented as: R. van Rozen. 2022.
+Cascade: A Meta-Language for Change, Cause and E(cid:29)ect: Enabling Technol-
+ogy for Live Programming. In Workshop on Live Programming, LIVE 2022.
+
+2.2 The need for Live Programming
+Though limited in its complexity, the scenario illustrates key
+requirements that programming environments must ful(cid:27)l
+to cater to the programmers’ needs. Every coding cycle, the
+challenge is relating feedback about the e(cid:29)ects of changes
+to insights about improvements, as illustrated by Figure 2.
+
+150
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+UI
+
+Programming
+User Interface
+
+Program
+
+User Interface
+
+Omniscient
+Debugger
+
+display
+
+display
+
+
+System
+
+Abstract
+Syntax
+
+update
+
+Run-time
+
+State
+
+Version
+History
+
+update
+
+stored in
+
+Changes
+
+process
+
+DSL
+
+generate
+
+Interpreter
+
+E(cid:27)ects
+
+DSL
+
+Specification
+
+Cascade Compiler
+
+Compile
+
+Live Programming
+
+Environment
+
+REPL
+
+Give
+
+Command
+
+Display
+Feedback
+
+Custom UI
+
+Edit
+
+Program
+
+Run
+
+Program
+
+DSL Interpreter
+
+Figure 5. Change-based Live Programming Environment
+
+Event
+
+Pre-
+
+Migrate
+
+Generate
+
+Post-
+
+Migrate
+
+Notify
+
+R1. Gradual change. As software evolves, programmers
+constantly need to make changes to the code. Each iteration,
+they realize intentions, improve behaviors and (cid:27)x bugs.
+
+R2. Immediate feedback. Feedback is essential for testing
+hypotheses and verifying behaviors. For making timely im-
+provements, programmers need feedback with every change.
+R3. Evolving behavior. Programmers run programs to eval-
+uate behaviors. For assessing the impact of changes, they
+need to observe the di(cid:29)erence in behavior.
+
+R4. Learnable behavior. For making targeted improvements,
+programmers need to learn from successes and mistakes. Pro-
+grammers have to learn to predict the outcomes of changes.
+R5. Exploratory design. To support gradually improving
+insights, programmers need to freely explore design spaces
+through do, undo, redo, record, and playback functionality.
+
+2.3 Change-based DSL environments
+Using programming environments, programmers can per-
+form coding actions, events that result in the construction,
+modi(cid:27)cation and deletion of program elements. Invalid or
+syntactically incorrect edits are not coding actions. We study
+the e(cid:29)ects of coding actions, speci(cid:27)cally, changes to visual
+programs that work directly on the abstract syntax and a(cid:29)ect
+running programs. Two main hypotheses drive this study:
+1. Live programming can make code come alive in the imagi-
+nation of the programmer by keeping “test cases” running.
+2. DSLs are especially suitable to support live programming
+and to deliver feedback that appeals to the imagination.
+We aim to empower programmers with programming envi-
+ronments for exploring the run-time e(cid:29)ects of coding actions.
+
+2.4 Language-parametric enabling technology study how to create such DSLs in a principled manner,
+how to express their liveness, and how to add this liveness
+to existing ones. We envision change-based live program-
+ming environments, as illustrated by Figure 5, based on a
+set of reusable principles, formalisms and components. For
+providing live feedback, language designs must account for
+run-time eventualities, valid changes to programs and run-
+time states. These cannot easily all be linearly represented
+due to the multitude of valid executions and dependencies.
+
+Schedule
+
+Dispatch
+
+Edit
+
+Operation
+
+Commit
+
+Delta
+
+History
++ Heap
+
+Figure 6. Cascade Framework: Generating DSL Interpreters
+
+We address the need for enabling technology that powers
+these environments. We aim to simplify language design by
+abstracting from individual scenarios and the ordering of
+events. Next, we propose a generic approach that expresses
+change as modular and reusable model transformations. This
+solution can steer global run-time executions through local
+and conditional side-e(cid:29)ects de(cid:27)ned on the meta-level.
+
+3 Cascade Framework
+We present the Cascade framework, a language-parametric
+solution for developing change-based live programming en-
+vironments. Cascade, illustrated by Figure 6, o(cid:29)ers a meta-
+language and a set of generic reusable components (gray)
+that integrate domain-speci(cid:27)c additions (white) for address-
+ing the following technical challenges.
+
+3.1 Cascade Meta-Language
+Cascade is a meta-language for change, cause andcid:29)ect. We
+introduce its features in Section 5. To create DSLs realizing
+the requirements of Section 2.2 language engineers can:
+T1 Express the syntax and run-time states using meta-models
+
+(R1, R3). Section 5.1 introduces these concepts.
+
+T2 Design actions, events and e(cid:29)ects as bi-directional model-
+transformations that support exploratory coding (R5).
+Section 5.2 explains how to design interactions that grad-
+ually change the syntax and program behaviors (R1–3).
+T3 Design side-e(cid:29)ects as relationships between
+predicable outcomes to steer behaviors (R4). Section 5.3
+explains how to express mutations of program elements.
+T4 Design cascading changes that are central to live pro-
+gramming, e.g, for expressing run-time state migrations
+(R3, R4) that must account for many run-time eventuali-
+ties (R5). Section 5.4 discusses design considerations.
+In three case studies, we explore how Cascade helps to
+express the language designs and program execution of DSLs
+in a principled manner. In Sections 7, 8 and 9 we investigate:
+
+151
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+o_new(|uuid://1|, "State");
+o_set([|uuid://1|], "name", "opened", null);
+o_new(|uuid://2|, "List<Trans>");
+o_set([|uuid://1|

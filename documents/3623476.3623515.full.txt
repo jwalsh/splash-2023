@@ -1,0 +1,2512 @@
+Cascade
+
+A Meta-language for Change, Cause and E(cid:29)ect
+
+Riemer van Rozen
+
+rozen@cwi.nl
+
+Centrum Wiskunde & Informatica
+
+Amsterdam, The Netherlands
+
+Abstract
+Live programming brings code to life with immediate and
+continuous feedback. To enjoy its bene(cid:27)ts, programmers
+need powerful languages and live programming environ-
+ments for understanding the e(cid:29)ects of code modi(cid:27)cations on
+running programs. Unfortunately, the enabling technology
+that powers these languages, is missing. Change, a crucial
+enabler for explorative coding, omniscient debugging and
+version control, is a potential solution.
+
+We aim to deliver generic solutions for creating these lan-
+guages, in particular Domain-Speci(cid:27)c Languages (DSLs). We
+present Cascade, a meta-language for expressing DSLs with
+interface- and feedback-mechanisms that drive live program-
+ming. We demonstrate run-time migrations, ripple e(cid:29)ects
+and live desugaring of three existing DSLs. Our results show
+that an explicit representation of change is instrumental
+for how these languages are built, and that cause-and-e(cid:29)ect
+relationships are vital for delivering precise feedback.
+
+CCS Concepts: • Software and its engineering → Visual
+languages; Domain speci(cid:27)c languages; Integrated and visual
+development environments; Interpreters.
+
+Keywords: live programming, metamodels, domain-speci(cid:27)c
+languages, bidirectional transformations, model migration
+
+ACM Reference Format:
+Riemer van Rozen. 2023. Cascade: A Meta-language for Change,
+Cause and E(cid:29)ect. In Proceedings of the 16th ACM SIGPLAN Inter-
+national Conference on Software Language Engineering (SLE ’23),
+October 23–24, 2023, Cascais, Portugal. ACM, New York, NY, USA,
+14 pages. h(cid:29)ps://doi.org/10.1145/3623476.3623515
+
+1 Introduction
+Live programming caters to the needs of programmers by
+providing immediate feedback about the e(cid:29)ect of changes
+to the code. Figure 1 illustrates a typical coding cycle [13].
+
+Permission to make digital or hard copies of part or all of this work for
+personal or classroom use is granted without fee provided that copies are
+not made or distributed for pro(cid:27)t or commercial advantage and that copies
+bear this notice and the full citation on the (cid:27)rst page. Copyrights for third-
+This work is licensed under a Creative Commons Attribution 4.0 Interna-
+party components of this work must be honored. For all other uses, contact
+tional License.
+the owner/author(s).
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+© 2023 Copyright held by the owner/author(s).
+ACM ISBN 979-8-4007-0396-6/23/10.
+h(cid:29)ps://doi.org/10.1145/3623476.3623515
+
+Mind
+
+Senses
+
+UI
+
+System
+
+Figure 1. Live Programming speeds up coding cycles
+
+Each iteration, programmers make improvements by per-
+forming coding actions, events that result in the construc-
+tion, modi(cid:27)cation and deletion of objects over time. To help
+programmers realize their intentions, live programming en-
+vironments o(cid:29)er suitable user interface mechanisms that
+enable performing the e(cid:29)ects of coding actions. In addition,
+these environments o(cid:29)er feedback mechanisms that display
+changes for perceiving those e(cid:29)ects, and evaluating if the
+action has been successful. Good feedback supports forming
+mental models and learning cause-and-e(cid:29)ect relationships
+that help programmers predict e(cid:29)ects of coding actions and
+make targeted improvements.
+
+Despite the compelling advantages of live programming,
+its adoption remains sporadic due to a lack of enabling
+technology for creating the necessary programming lan-
+guages. Unfortunately, creating languages whose users enjoy
+the advantages of live programming is incredibly complex,
+time-consuming and error-prone. Language engineers lack
+reusable abstractions and techniques to account for run-time
+scenarios with eventualities such as run-time state migra-
+tions, e.g., removing the current state of a state machine.
+
+Several Domain-Speci(cid:27)c Languages (DSLs) support a form
+of live programming that modi(cid:27)es running programs, e.g.,
+the State Machine Language (SML) [24], Questionnaire Lan-
+guage (QL) [20] and Machinations [23]. However, these are
+one-o(cid:29) solutions with hand-crafted interpreters that are dif-
+(cid:27)cult to extend and maintain.
+
+We study how to create such DSLs in a principled manner,
+how to express their liveness, and how to add this liveness to
+existing ones. We hypothesize that an explicit representation
+of change, a crucial enabler for exploratory coding, omni-
+scient debugging and version control, is the missing factor
+in the currently available language technology. Our main
+objective is to deliver language-parametric solutions for cre-
+ating change-driven DSLs that foreground cause-and-e(cid:29)ect
+relationships, and let programmers perceive e(cid:29)ects.
+
+149
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+Mind
+
+Mental Model
+
+augments
+
+informs
+
+Senses
+
+Actions
+
+perform
+
+Programmer
+
+Insights
+
+helps form
+
+Feedback
+
+display
+
+UI/System
+
+Changes
+
+process
+
+Programming
+Environment
+
+generate
+
+E(cid:27)ects
+
+Figure 2. Relating actions to events, feedback and insights
+
+state c l o s e d
+
+1 m a c h i n e doors
+2
+3
+4
+5
+
+state o p e n e d
+
+open = > o p e n e d
+
+close = > c l o s e d
+
+sm: doors
+
+closed
+
+open
+
+opened
+
+close
+
+# Origin
+
+E(cid:29)ect
+
+Run-time state
+
+1. Coding actions.
+
+opened
+
+close
+
+Adding state locked.
+locked
+
+lock
+
+closed
+
+open
+
+unlock
+
+2. User interaction.
+
+Locking the door.
+
+opened
+
+close
+
+closed
+
+lock
+
+locked
+
+open
+
+unlock
+
+3. Coding action.
+close
+
+opened
+
+Deleting the locked state.
+
+closed
+
+lock
+
+locked
+
+open
+
+unlock
+
+closed: 1 *
+opened: 0
+
+locked: 0
+
+closed: 1
+opened: 0
+locked: 1 *
+
+closed: 1
+opened: 0
+locked: 1 *
+
+(a) Textual doors program
+
+(b) Visual program
+
+Figure 3. State Machine Language: doors example
+
+We propose a novel meta-modeling approach that lever-
+ages an explicit representation of change. We present Cas-
+cade, a meta-language for expressing DSLs with input and
+feedback mechanisms that drive live programming. Cascade
+expresses “cascading changes” that introduce liveness using
+bi-directional model transformations with side-e(cid:29)ects.
+
+Using its compiler, language engineers generate inter-
+preters that integrate with Delta, Cascade’s runtime. Delta
+o(cid:29)ers a built-in Read-Eval-Print-Loop (REPL) for simulating
+live programming scenarios that bring the code to life. By
+executing sequential commands on the REPL, engineers can
+simulate coding actions, user interaction and feedback.
+
+When Delta executes events, it generates transactions as
+cause-and-e(cid:29)ect chains. These transactions update a live
+program’s syntax and run-time state. We investigate how
+Cascade can help express the interpreters of SML, QL and
+Machinations. Our results show Cascade is instrumental for
+rapidly creating executable DSL prototypes with concise
+and maintainable designs. Our contributions are: 1) Cascade:
+a meta-language for change, cause and e(cid:29)ect; 2) Delta: a
+runtime for creating live programming environments; and
+3) three case studies that reproduce liveness1.
+
+2 Problem Overview
+We study a form of live programming that works on running
+programs. We relate the needs of programmers, illustrated
+by Figure 2, to changes and feedback in Section 2.2. We
+formulate hypotheses and objectives in Sections 2.3 and 2.4.
+First, we introduce a scenario that motivates this work.
+
+4. State migration. Updating the current state.
+
+opened
+
+close
+
+closed
+
+locked
+
+open
+
+closed: 2 *
+opened: 0
+
+Figure 4. Live programming scenario of a running doors
+program that demonstrates run-time state migration
+
+We use this DSL as a illustrative example because it is
+easy to comprehend, and also appears in related work [19,
+24]. Figure 3 shows an SML program called doors. When
+executed, it can be either in the opened or closed state.
+
+As a concise example, Figure 4 describes a live program-
+ming scenario of a running doors program. After starting the
+program of Figure 3, each step shows the origin of a change
+and the e(cid:29)ects on the program and its run-time state.
+
+First, the programmer adds a locked state, and two tran-
+sitions for locking and unlocking the door. These additions
+are marked in green. In response, the interpreter introduces
+a locked count of zero (shown in a box). Initially, the current
+state (marked *), is closed, and the lock and open transi-
+tions (underlined) can be activated. In step two, the pro-
+grammer triggers the lock transition in the user interface.
+The interpreter performs the transition (feedback shown in
+orange), updates the current state to locked, and raises its
+count (shown in a box). Updates are shown in blue.
+
+Finally, in step three, the programmer deletes the locked
+state. In response, the interpreter also deletes the lock and
+unlock transitions (shown in red). Because the current state
+is removed (indicated with strikethrough), this state has
+become invalid. In step four, which follows immediately, the
+interpreter migrates the program to the initial state closed.
+
+2.1 Scenario: Modifying a running machine
+The Live State Machine Language (LiveSML) is a DSL for
+simultaneously creating and running state machines.
+
+1An earlier version of this paper has been presented as: R. van Rozen. 2022.
+Cascade: A Meta-Language for Change, Cause and E(cid:29)ect: Enabling Technol-
+ogy for Live Programming. In Workshop on Live Programming, LIVE 2022.
+
+2.2 The need for Live Programming
+Though limited in its complexity, the scenario illustrates key
+requirements that programming environments must ful(cid:27)l
+to cater to the programmers’ needs. Every coding cycle, the
+challenge is relating feedback about the e(cid:29)ects of changes
+to insights about improvements, as illustrated by Figure 2.
+
+150
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+UI
+
+Programming
+User Interface
+
+Program
+
+User Interface
+
+Omniscient
+Debugger
+
+display
+
+display
+
+display
+
+System
+
+Abstract
+Syntax
+
+update
+
+Run-time
+
+State
+
+Version
+History
+
+update
+
+stored in
+
+Changes
+
+process
+
+DSL
+
+generate
+
+Interpreter
+
+E(cid:27)ects
+
+DSL
+
+Specification
+
+Cascade Compiler
+
+Compile
+
+Live Programming
+
+Environment
+
+REPL
+
+Give
+
+Command
+
+Display
+Feedback
+
+Custom UI
+
+Edit
+
+Program
+
+Run
+
+Program
+
+DSL Interpreter
+
+Figure 5. Change-based Live Programming Environment
+
+Event
+
+Pre-
+
+Migrate
+
+Generate
+
+Post-
+
+Migrate
+
+Notify
+
+R1. Gradual change. As software evolves, programmers
+constantly need to make changes to the code. Each iteration,
+they realize intentions, improve behaviors and (cid:27)x bugs.
+
+R2. Immediate feedback. Feedback is essential for testing
+hypotheses and verifying behaviors. For making timely im-
+provements, programmers need feedback with every change.
+R3. Evolving behavior. Programmers run programs to eval-
+uate behaviors. For assessing the impact of changes, they
+need to observe the di(cid:29)erence in behavior.
+
+R4. Learnable behavior. For making targeted improvements,
+programmers need to learn from successes and mistakes. Pro-
+grammers have to learn to predict the outcomes of changes.
+R5. Exploratory design. To support gradually improving
+insights, programmers need to freely explore design spaces
+through do, undo, redo, record, and playback functionality.
+
+2.3 Change-based DSL environments
+Using programming environments, programmers can per-
+form coding actions, events that result in the construction,
+modi(cid:27)cation and deletion of program elements. Invalid or
+syntactically incorrect edits are not coding actions. We study
+the e(cid:29)ects of coding actions, speci(cid:27)cally, changes to visual
+programs that work directly on the abstract syntax and a(cid:29)ect
+running programs. Two main hypotheses drive this study:
+1. Live programming can make code come alive in the imagi-
+nation of the programmer by keeping “test cases” running.
+2. DSLs are especially suitable to support live programming
+and to deliver feedback that appeals to the imagination.
+We aim to empower programmers with programming envi-
+ronments for exploring the run-time e(cid:29)ects of coding actions.
+
+2.4 Language-parametric enabling technology
+We study how to create such DSLs in a principled manner,
+how to express their liveness, and how to add this liveness
+to existing ones. We envision change-based live program-
+ming environments, as illustrated by Figure 5, based on a
+set of reusable principles, formalisms and components. For
+providing live feedback, language designs must account for
+run-time eventualities, valid changes to programs and run-
+time states. These cannot easily all be linearly represented
+due to the multitude of valid executions and dependencies.
+
+Schedule
+
+Dispatch
+
+Edit
+
+Operation
+
+Commit
+
+Delta
+
+History
++ Heap
+
+Figure 6. Cascade Framework: Generating DSL Interpreters
+
+We address the need for enabling technology that powers
+these environments. We aim to simplify language design by
+abstracting from individual scenarios and the ordering of
+events. Next, we propose a generic approach that expresses
+change as modular and reusable model transformations. This
+solution can steer global run-time executions through local
+and conditional side-e(cid:29)ects de(cid:27)ned on the meta-level.
+
+3 Cascade Framework
+We present the Cascade framework, a language-parametric
+solution for developing change-based live programming en-
+vironments. Cascade, illustrated by Figure 6, o(cid:29)ers a meta-
+language and a set of generic reusable components (gray)
+that integrate domain-speci(cid:27)c additions (white) for address-
+ing the following technical challenges.
+
+3.1 Cascade Meta-Language
+Cascade is a meta-language for change, cause and e(cid:29)ect. We
+introduce its features in Section 5. To create DSLs realizing
+the requirements of Section 2.2 language engineers can:
+T1 Express the syntax and run-time states using meta-models
+
+(R1, R3). Section 5.1 introduces these concepts.
+
+T2 Design actions, events and e(cid:29)ects as bi-directional model-
+transformations that support exploratory coding (R5).
+Section 5.2 explains how to design interactions that grad-
+ually change the syntax and program behaviors (R1–3).
+T3 Design side-e(cid:29)ects as relationships between events with
+predicable outcomes to steer behaviors (R4). Section 5.3
+explains how to express mutations of program elements.
+T4 Design cascading changes that are central to live pro-
+gramming, e.g, for expressing run-time state migrations
+(R3, R4) that must account for many run-time eventuali-
+ties (R5). Section 5.4 discusses design considerations.
+In three case studies, we explore how Cascade helps to
+express the language designs and program execution of DSLs
+in a principled manner. In Sections 7, 8 and 9 we investigate:
+
+151
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+o_new(|uuid://1|, "State");
+o_set([|uuid://1|], "name", "opened", null);
+o_new(|uuid://2|, "List<Trans>");
+o_set([|uuid://1|], "out", [|uuid://2|], null);
+o_new(|uuid://3|, "Trans");
+o_set([|uuid://3|], "src", "opened", null);
+o_set(|[uuid://3|], "evt", "close", null);
+l_insert([|uuid://2|], 0, [|uuid://3|]);
+
+s = new State();
+s.name = "opened";
+s.out = new List<Trans>();
+
+t = new Trans();
+t.src = s;
+t.evt = "close";
+s.out.push(t);
+
+(a) Example edit operations
+
+(b) Generic edit script
+
+Figure 7. Contrasting edit operations from edit scripts
+
+a) consistency and run-time state migrations of LiveSML;
+b) trickle-e(cid:29)ects and (cid:27)xpoint computations of LiveQL; and
+c) live desugaring and visual feedback of Machinations.
+
+3.2 Live Programming Environments
+Cascade provides reusable components for developing live
+programming environments, easing the authorial burden.
+
+3.2.1 User Interface. Programmers need appropriate in-
+put and feedback mechanisms for changing code, obtaining
+feedback, and observing changes. Cascade o(cid:29)ers a choice:
+1) develop a user-friendly custom UI, based on its event APIs;
+or 2) use a generic Read-Eval-Print-Loop (REPL), e.g., before
+creating a custom UI. In this paper, we explore both. We use
+the REPL to simulate live programming scenarios textually.
+By executing sequential commands, we can simulate coding
+actions, user interaction and feedback on a line by line basis.
+
+3.2.2 Interpreter. A powerful interpreter is the driving
+force behind live programming. We formulate technical chal-
+lenges for creating interpreters that can support the require-
+ments of Section 2.2.
+T5 Integrate DSLs in a common run-time environment.
+T6 Schedule and execute events that perform bi-directional
+
+model transformations and run-time state migrations.
+
+T7 Maintain a version history and a heap, for updating syn-
+
+tax trees and run-time states with gradual changes.
+
+T8 Generate the e(cid:29)ects of transformations as historical trans-
+actions that: a) capture changes as edit operations; and
+b) preserve causal relationships in cause-and-e(cid:29)ect chains.
+To tackle these challenges, Cascade generates a DSL inter-
+preter from its speci(cid:27)cation. Section 6 discusses the design of
+the compiler, the generated interpreters and Delta, Cascade’s
+runtime. We begin by introducing edit operations.
+
+4 Edit Operations
+Cascade introduces an explicit representation of change for
+expressing behavioral e(cid:29)ects of coding actions, user interac-
+tions and program executions. Cascade expresses change as
+model transformations that work on models (or programs)
+and run-time states, which each consist of objects. We base
+its representation on a language variant of the edit opera-
+tions [2]. Originally introduced for di(cid:29)erencing and merging,
+these operations have since also been used as a low-level
+storage format for expressing run-time e(cid:29)ects [20, 24].
+
+def
+
+*
+
+def
+
+MachInst
+
+sis
+
+cur
+
+*
+
+StateInst
+
+– count: int
+
+Mach
+
+– name: String
+
+instances
+
+elements
+
+*
+State
+
+– name: String
+
+i
+
+o
+
+*
+
+src tgt
+
+*
+Trans
+
+– evt: String
+
+(a) Static meta-model
+
+(b) Run-time meta-model
+
+Figure 8. Static and run-time meta-models of LiveSML
+
+Cascade leverages edit operations to express transactional
+e(cid:29)ects, maintain a version history, and support exploratory
+live programming. Figure 7a shows example operations that
+create new objects and replace attribute values. Appendix A
+describes a complete set of edit operations that work on
+commonly used data structures: objects, lists, sets and maps.
+However, edit operations alone are not su(cid:28)cient. An ex-
+pressive meta-language for change requires variables, not
+just values. Cascade introduces a script notation, illustrated
+by Figures 7b, that resolves this issue. Next, we explain how
+Cascade’s transformations encapsulate these edit scripts.
+
+5 The Cascade Meta-Language
+Cascade is a meta-programming language for expressing
+change, cause and e(cid:29)ect. Using Cascade, language engineers
+can create interpreters (language back-ends) described as
+meta-models with bi-directional model transformations.
+
+At run time, the interpreter executes these transformations
+in sequence and produces transactions consisting of edit
+operations. Upon completion, it commits the transactions
+to the version history as cause-and-e(cid:29)ect chains. Next, we
+introduce the main language concepts and features.
+
+5.1 Models and meta-models
+Cascade expresses languages and changes using meta-models.
+Programs are models that conform to the meta-model of the
+language. In particular, these models are Abstract Syntax
+Graphs (ASGs) composed of objects. The language seman-
+tics steer the behavior of running programs. A program’s
+run-time state, also a model, stores the results of program
+execution and user interactions.
+
+For instance, Figure 8 shows the UML class diagram of
+LiveSML’s meta-model. The static metamodel (on the left),
+de(cid:27)nes the abstract syntax. A machine consists of a number
+of states with transitions between them. The run-time meta-
+model (on the right) expresses running state machines. A
+running machine has a current state, and registers how often
+it has resided in each state (the count).
+
+152
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+class Mach {
+
+class State {
+
+class Trans {
+
+String name;
+Set<State> states;
+Set<MachInst> instances;
+...
+
+String name;
+Set<Trans> i;
+Set<Trans> o;
+...
+
+ref State src;
+String evt;
+ref State tgt;
+...
+
+(a) Machine
+
+(b) State
+
+(c) Transition
+
+class MachInst {
+
+ref Mach def;
+ref StateInst cur;
+Map<State, StateInst> sis;
+...
+
+class StateInst {
+
+ref State def;
+int count;
+
+...
+
+String name;
+Set<State> states;
+Set<MachInst> instances;
+
+1 class Mach {
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+
+}
+
+effect Create(future Mach m,
+
+String name) {
+
+m = new Mach();
+m.name = name;
+m.states = new Set<State>();
+m.instances =
+
+new Set<MachInst>();
+
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+
+inverse effect Delete(past Mach m,
+
+String name = m.name) {
+
+delete m.instances;
+delete m.states;
+m.name = null;
+delete m;
+
+} pre {
+
+foreach(State s in m.states) {
+
+State.Delete(s, s.name, m); }
+
+foreach(MachInst mi in m.instances) {
+
+MachInst.Delete(mi, m); }
+
+}
+...
+
+(d) Machine Instance
+
+(e) Machine Instance
+
+Figure 11. Partial Cascade speci(cid:27)cation of the Mach class
+
+Figure 9. Cascade de(cid:27)nitions of LiveSML’s meta-model
+
+begin
+
+creation modi(cid:27)cations
+
+deletion
+
+end
+
+Figure 10. Object lifeline, events and modi(cid:27)cations
+
+The notation for meta-models resembles object-oriented
+programming, as shown in Figure 9. Aside from classes, it
+supports the base types String, int, bool, and enum, and the
+composite types List, Set and Map. Attribute ownership is
+explicit, and by default, a class owns its attributes. The ref
+keyword denotes an alias. We omit visibility because the aim
+is encapsulating change.
+
+5.2 Actions, events and transformations
+Cascade is designed to express run-time transformations
+with explicit e(cid:29)ects. As a back-end language, it does not
+distinguish between coding actions and user interactions.
+Mechanisms for both can be expressed using three kinds
+of parameterized event declarations, called effect, trigger
+and signal. An e(cid:29)ect describes how a speci(cid:27)c object can
+be created, modi(cid:27)ed or deleted. A trigger is an input event
+that has no direct e(cid:29)ect, but can schedule other events, side-
+e(cid:29)ects that happen afterwards. A signal is an output event
+that (cid:30)ags an occurrence such as an exception or an error.
+
+5.2.1 Objects. Objects have a limited life span. Instead of
+operating on objects directly, events work on object life-
+lines, as shown in Figure 10. The life span of an object begins
+before its creation and ends after its deletion. Any number of
+changes may happen in between. These life stages are called
+issued, bound and retired.
+
+5.2.2 E(cid:29)ects. The basic unit of change, called effect, of-
+fers a parameterized abstraction for scripting and reuse. Ef-
+fects are bi-directional model transformations whose body
+is an edit script. Each e(cid:29)ect has parameters, type-value pairs
+separated by commas that determine its scope. Figure 11
+shows an example.
+
+5.2.3 Creation. Creation e(cid:29)ects are used to create new
+objects of a certain class. For instance, Figure 11 shows a
+partial speci(cid:27)cation of the Machine class. We use the REPL
+to create a new state machine called “doors” as shown in
+
+var m; ←↪
+Mach.Create(m, "doors"); ←↪
+
+(a) Creating a machine
+
+print m; ←↪
+machine doors
+
+Mach.Create([|uuid://5|], "doors") {
+
+[|uuid://5|] = new Mach();
+[|uuid://5|].name = null → "doors";
+[|uuid://6|] = new Set<State>();
+[|uuid://5|].states = null → [|uuid://6|];
+[|uuid://7|] = new Set<MachInst>();
+[|uuid://5|].instances = null → [|uuid://7|];
+
+}
+
+(b) Obtaining feedback
+
+(c) Generated transaction
+
+Figure 12. Creating state machine from the REPL
+
+Figure 12a. For conciseness, we will omit declaring variables
+from now on. This command calls the Create e(cid:29)ect (lines 6–
+13). Note the ←↪ symbol indicates REPL input (pressing the
+return key), and its absence indicates output the interpreter
+gives in response. We verify the results by reading the output
+from the REPL in Figure 12b. The interpeter also generates
+the changes that have occurred. The transaction shown in
+Figure 12c is a short-hand for encapsulated edit operations.
+
+5.2.4 Subject. The (cid:27)rst parameter of an e(cid:29)ect, called sub-
+ject, is always a reference to the object that is subject to
+change. The subject can optionally be preceded by an addi-
+tional keyword that provides guarantees about its life before
+and after execution. The future keyword, used only in cre-
+ations, denotes the subject must be issued and will be bound
+afterwards. The past keyword, used only in deletions de-
+notes a bound subject will be retired afterwards. The lack of
+a keyword signi(cid:27)es it will continue to exist.
+
+5.2.5 Parameters. There are two kinds of additional pa-
+rameters that may follow the subject in the signature. Con-
+stant parameters are inputs that enable passing values such
+as an int, bool, String, enum or object reference. Change pa-
+rameters enable updating the value of an object (cid:27)eld from
+an old to a new value. In Figure 11, both parameters of the
+Create e(cid:29)ect (lines 6–7) are constant parameters. The Delete
+e(cid:29)ect (line 15) also has a change parameter. It indicates trans-
+actions will store the old and the new value of name (cid:27)eld.
+
+5.3 Side-e(cid:29)ects and causal tranformations
+5.3.1 Side-e(cid:29)ects. The pre and post clauses enable sched-
+uling e(cid:29)ects before and after an event. Side e(cid:29)ects can be
+used to create modular constructors and destructors that
+keep the syntax and the run-time states consistent. The post
+clause enables creating additional objects, booting up sys-
+tems and de(cid:27)ning e(cid:29)ects of user interaction. These clauses
+
+153
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+can contain if-statements and while loops that read values
+and schedule events, but cannot modify values directly. Trig-
+gers only have a post-clause. Signals have no side-e(cid:29)ects.
+
+History
+
+start
+
+head
+
+Juncture
+
+– previous: Juncture
+– next: List<Juncture>
+
+event
+
+Riemer van Rozen
+
+Event
+
+– language: ILanguage
+– loc: Location
+– cause: Event
+– preE(cid:27)ect: List<Event>
+– postE(cid:27)ect: List<Event>
+
+5.3.2 Begin statement. For weaving side-e(cid:29)ects together,
+the begin and end statements issue objects references and re-
+voke their validity. For instance, “begin State s;” is a state-
+ment that issues a new reference to a State object. Afterwards,
+we can schedule its creation.
+
+5.3.3 Deletion. By design, every object that can be cre-
+ated can also be deleted. Unlike creations, which work on
+“blanks slates”, deletions must account for ownership and con-
+sistency. The pre clause enables performing clean up tasks
+such as deleting owned data, removing aliases, and shutting
+down entire systems. For instance, calling Mach.Delete(m)
+from the REPL does not only delete a machine, but also
+cleans up the every state and any running instance it owns,
+as de(cid:27)ned by the pre-clause on lines 20–25 of Figure 11. We
+demonstrate how LiveSML handles deletion in Section 7.
+
+5.3.4 Inverse. Inverse e(cid:29)ects, indicated by the inverse
+keyword, perform conceptually opposite operations to their
+preceding e(cid:29)ects. E(cid:29)ects and their inverses must have com-
+patible signatures. Create and Delete in Figure 11 are in-
+verse e(cid:29)ects. Create’s future subject and constant param-
+eters match Delete’s past subject and change parameters.
+At run time, an inversion entails creating an opposite ef-
+fect that can roll back a transaction, undoing its e(cid:29)ects. An
+invertible e(cid:29)ect, typically a setter, is its own inverse. For
+such an e(cid:29)ect, an inversion matches the constant subject,
+and swaps the old and new values of the change parameter.
+
+5.4 Design considerations
+5.4.1 Root cause analysis. The design decision, that all
+change must be explicit, adds some verbosity but ensures
+events can always be related to their Cascade speci(cid:27)cation.
+We observe that default code for e(cid:29)ects and inverses may be
+generated, and explicit ownership enables static analysis.
+
+5.4.2 Consistency. To ensure bi-directionality, deletions
+and removals must also be explicit. Therefore objects cannot
+be garbage-collected. Creating a new object is, as one would
+expect, a sequence of operations that create new objects and
+afterwards assign initial values. However, deleting an object
+is more involved. Deletion requires a clean-up of every child
+object owned, and typically also erasure of references to
+the object (or aliases) before the object can be deleted itself.
+Fields must all have default values before deletion.
+
+5.4.3 Liveness. Cascading changes can introduce liveness
+into DSLs. By adding relationships between coding actions
+and run-time e(cid:29)ects, language engineers can improve in-
+put and feedback mechanisms that help programmers make
+gradual changes and observe di(cid:29)erences in behavior. This
+
+E(cid:27)ect
+
+– operations:
+
+List<Operation>
+
+Trigger
+
+Signal
+
+Figure 13. Delta’s history consists of cause-and-e(cid:29)ect chains
+
+1
+2
+3
+4
+5
+6
+7
+
+void s c h e d u l e ( P a t c h e r p , D i s p a t c h e r d , Event e ) {
+
+d . r e s o l v e ( e );
+f o r e a c h ( Event pre in d . p r e M i g r a t e ( e )){ s c h e d u l e (p ,d , pre ); }
+d . g e n e r a t e ( e );
+p . c o m m i t ( e );
+f o r e a c h ( Event post in d . p o s t M i g r a t e ( e )){ s c h e d u l e (p ,d , post ); }
+
+}
+
+Figure 14. C# pseudo-code of Delta’s event scheduler
+
+has far reaching implications for the language designs of
+DSLs, as we will demonstrate in Sections 7, 8 and 9.
+
+6 Cascade Compiler and Runtime
+The Cascade framework consists of a compiler written in
+Rascal [8], and Delta, a runtime written in C#. The compiler
+translates Cascade speci(cid:27)cations into language modules that
+integrate with Delta’s extensible engine. Figure 6 gives an
+overview that illustrates how the main components process
+and transform events.
+
+Each generated DSL interpreter (or language) consists
+of three sub-packages: 1) Model contains the classes of the
+meta-model; 2) Operation contains the classes representing
+events; and 3) Runtime contains components that process
+events and transform models. Key runtime components are
+the generator, and pre- and post-migrators, which generate
+edit operations and handle side-e(cid:29)ects. Delta’s engine has
+three main components. The dispatcher manages a set of
+languages, and determines which one handles an event. The
+patcher executes edit operations, maintains the heap and
+updates the version history. The scheduler determines the
+order in which events are scheduled, generated and migrated.
+Next, we explain how non-linear event scheduling works.
+
+6.1 Scheduling events
+The engine generates transactions in the form of cause-and-
+e(cid:29)ect chains, as illustrated by Figure 13. Histories consists
+of junctures, branching points in time signifying events.
+
+When called, the scheduler binds an event to a speci(cid:27)c
+subject. We sketch the recursive algorithm that schedules
+each event in Figure 14. First, the dispatcher resolves the lan-
+guage that processes the event (line 2). Before processing the
+event itself, the pre-migrator of the language determines if
+any events need to happen before, and if so, those are sched-
+uled (cid:27)rst (line 3). Only when the recursive pre-side-e(cid:29)ects
+have completed, the generator of the language generates the
+edit operations that perform the event’s own e(cid:29)ect (line 4).
+
+154
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Mach:
+Create
+
+State:
+Create
+
+Trans:
+Create
+
+post
+
+post
+
+MachInst:
+
+Create
+
+Mach:
+
+AddState
+
+State:
+AddI
+
+State:
+AddO
+
+post
+
+post
+
+StateInst:
+
+Create
+
+MachInst:
+
+Add
+
+StateInst
+
+↓
+MachInst:
+Initialize
+
+Mach:
+Delete
+
+1
+
+State:
+Delete
+
+pre
+
+pre
+
+MachInst:
+
+Delete
+
+Mach:
+Remove
+
+State
+
+8
+
+pre
+
+pre
+
+2
+
+3
+
+5
+
+Trans:
+Delete
+
+pre
+
+6
+
+4
+
+State:
+
+State:
+
+RemoveO
+
+RemoveI
+
+7
+
+9
+
+MachInst:
+Remove
+StateInst
+
+10
+
+StateInst:
+
+Delete
+
+11
+
+12
+
+↓
+MachInst:
+Initialize
+
+12
+
+↓
+MachInst:
+Initialize
+
+↓
+MachInst:
+
+Trigger
+
+post
+
+post
+
+↑
+MachInst:
+Missing
+CurState
+
+↑
+MachInst:
+(cid:30)iescence
+
+10
+
+MachInst:
+SetCurState
+13
+
+post
+
+14
+
+StateInst
+SetCount
+
+(a) Dependencies between creation events
+
+(b) Dependencies between deletion events
+
+(c) Dependency of run-time triggers
+
+Figure 15. LiveSML: Static dependency graphs of events, and an example run-time state migration
+
+The patcher immediately commits the transaction to the
+history, before the operations go stale (line 5). Afterwards,
+post-migration schedules any events that need to happen
+afterwards (line 6). When each of those events completes,
+the event itself completes.
+
+6.2 Implementation
+The compiler consists of 3285 LOC of Rascal. Delta consists
+of 11.5 KLOC of C#. Delta’s main parts are the edit opera-
+tions interpreter (1745 LOC), the runtime (7288 LOC), and the
+REPL language (2603 LOC). Cascade is available under the
+2-clause BSD license: h(cid:29)ps://github.com/vrozen/Cascade.
+
+7 Live State Machine Language
+We investigate how to express the design of LiveSML [24].
+LiveSML exempli(cid:27)es run-time state migrations with one-to-
+many relationships. Its semantics introduce dependencies be-
+tween de(cid:27)nitions of machines and states and their instances.
+Changes to de(cid:27)nitions potentially have many side-e(cid:29)ects on
+the run-time state. Because this state is not known a priori,
+run-time state migrations have to account for many even-
+tualities. Using Cascade, we create an interactive prototype
+that reproduces the behavior of the original Java implemen-
+tation. We demonstrate its interpreter accounts for run-time
+eventualities by reproducing the scenario of Section 2.1.
+
+7.1 Event-based language design
+We create an event-based language design. In addition to
+its meta-model, shown in Figure 8, we design its run-time
+transformations. Figure 15 schematically depicts the static de-
+pendencies between creation events, deletion events and run-
+time triggers. Events, shown as rounded rectangles, work on
+the syntax (white) and the run-time state (gray). Interactive
+events (double line) are coding actions (white) and user inter-
+actions (gray) with side-e(cid:29)ects (single line). Arrows indicate
+if side-e(cid:29)ects happen before (pre) or after (post) an event.
+Converging arrows indicate reuse in distinct scenarios.
+
+Creation. The programmer begins with an empty state ma-
+chine by creating one. At any moment, they can add states
+to a program and transitions between states by creating new
+states and transitions. They can also run a machine at any
+point in time. Each running machine separately keeps track
+of its visit counts. Therefore, creating a new machine also
+instantiates each state. Running machines update their book-
+keeping when adding a new state to their machine de(cid:27)nition.
+Afterwards, each running machine reinitializes (↓), since it
+may not have a current state yet.
+
+Deletion. Of course, programmers can also delete a ma-
+chine. Each machine cleans up its states and running in-
+stances. Deleting a state has side-e(cid:29)ects that also remove
+and delete every transition from its inputs and outputs. In
+addition, removing a state also removes and deletes state
+instances from every running machine. Finally, removing
+the current state of a running machine migrates its to the
+(cid:27)rst state in its de(cid:27)nition.
+
+Run-time triggers. Triggering (↓) a running machine can
+cause a transition that sets a new current state. However, it
+can also result in the signals (↑) missing state or quiescence.
+These signals do not cause any change, but do provide feed-
+back to the user. When setting a new current state, its count
+is also increased by one.
+
+Prototype. The Cascade implementation of LiveSML counts
+213 LOC. Compiling the sources results in 2204 LOC of gen-
+erated C#. Next, we will apply the fully generated prototype.
+
+7.2 Live programming scenario
+We reproduce the run-time state migration of Section 2.1.
+Instead of parsing an SML program, we simulate sequential
+coding actions, user interactions, and feedback directly from
+the REPL. Figure 16 shows the REPL commands and feedback
+that simulate the scenario.
+
+We (cid:27)rst create a new machine doors that contains a closed
+state (Figure 16a). Using the print command, we call the
+pretty printer. We obtain feedback and verify the syntax of
+
+155
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+Mach.Create(m, "doors"); ←↪
+State.Create(s1, "closed", m); ←↪
+print m; ←↪
+machine doors
+state closed
+
+MachInst.Create(mi, m); ←↪
+print mi; ←↪
+machine doors
+closed : 1 *
+
+(a) Creating the program
+
+(b) Runing the program
+
+State.Create(s2, "opened", m); ←↪
+State.Create(s3, "locked", m); ←↪
+Trans.Create(t1, s1, "open", s2); ←↪
+Trans.Create(t2, s2, "close", s1); ←↪
+Trans.Create(t3, s1, "lock", s3); ←↪
+Trans.Create(t4, s3, "unlock", s1); ←↪
+
+print mi; ←↪
+machine doors
+
+[open] [lock]
+closed : 1 *
+opened : 0
+locked : 0
+
+(c) Completing the program
+
+(d) Updated run-time state
+
+MachInst.Trigger(mi, "lock"); ←↪
+print mi; ←↪
+machine doors
+
+State.Delete(s3, "locked", m); ←↪
+print mi; ←↪
+machine doors
+
+[unlock]
+closed : 1
+opened : 0
+locked : 1 *
+
+[open]
+closed : 2 *
+opened : 0
+
+(e) Locking the door
+
+(f) Deleting the locked state
+
+Figure 16. LiveSML scenario simulated from the REPL
+
+the DSL program is as expected. Although the program is not
+yet complete, we already run it. We create an instance, and
+use the print command to observe that, initially, its current
+state (*) is closed (Figure 16b).
+
+We now complete the program (Figure 16c) by adding
+opened and locked states, and the transitions between them.
+Behind the scenes, several side-e(cid:29)ect have occurred. We
+inspect the running program has also been updated (Fig-
+ure 16d). The text between brackets denote “buttons” for the
+available actions. Users can now open or lock the closed door.
+We simulate an action that locks the door (Figure 16e).
+Finally, we delete the locked state (Figure 16f). As expected,
+this causes a run-time state migration, setting the current
+state to closed, and increasing its count by one.
+
+The resulting transaction, described in more detail in Ap-
+pendix B, is super-imposed on the design on Figure 15. Its
+generated control (cid:30)ow traverses events that a(cid:29)ect both the
+syntax and the run-time state. Note that, the edit operations
+of the deletion itself, actually happen last.
+
+7.3 Analysis
+Compared to the original LiveSML, which counts 1217 LOC
+of hand-written Java, our prototype is signi(cid:27)cantly smaller
+(213 LOC)2. Cascade addresses the main shortcoming of the
+Run-time Model Patching (RMPatch) approach that expresses
+run-time state migrations as hard-coding visitors on edit op-
+erations, which is time consuming and error-prone [24]. In-
+stead, Cascade expresses them on the meta-level. As a result,
+LiveSML’s modular design is more concise and maintainable.
+
+8 Live Questionnaire Language
+The Questionnaire Language (QL) is a DSL for expressing
+interactive digital questionnaires. Originally designed for the
+
+2h(cid:29)ps://github.com/vrozen/Cascade/tree/main/LiveSML
+
+form C e l e b r a t i o n {
+
+" Your d i s c o u n t is " :
+
+int d i s c o u n t = age /2 - 10
+
+" What is your age ? " :
+
+int age
+
+}
+
+Celebration
+
+Your discount is
+
+What is your age?
+
+24
+
+68
+
+(a) Celebration form
+
+(b) Example (cid:27)lled-out form
+
+Figure 17. Forms that calculates an age dependent discount
+
+Dutch tax o(cid:28)ce, this DSL has since served as a benchmark for
+generic language technology, e.g., the Language Workbench
+Challenge [7]. We study LiveQL, a language variant that
+enables simultaneously designing and answering forms [20].
+We focus on the liveness properties and trickle e(cid:29)ects at the
+heart of its semantics. In particular, we aim to reproduce
+the behavior that propagates the e(cid:29)ects of giving answers.
+Using Cascade, we express LiveQL and create a language
+prototype. We use its REPL to simulate a run-time scenario
+of an example that demonstrates a (cid:27)xpoint computation.
+
+8.1 Questionnaire Language
+Forms consists of sequences (or blocks) of two kinds of state-
+ments: questions and if statements. Figures 17 shows a from
+that expresses an age-based discount, and an answered form.
+
+8.1.1 Questions. Each question consists of a textual mes-
+sage the user sees, a question type (int, str or bool), and a
+variable name that can be used to reference the question’s
+answer. By default, questions are answerable. The question
+“what is your age?” is answerable. Users answer questions
+by supplying a value of the speci(cid:27)ed question type. In this
+case, age requires an int value, for instance 68.
+
+However, when assigned with an expression, questions be-
+come computed. Instead of prompting the user to answer the
+question, the form computes the answer by evaluating the
+expression. In the example, discount is a computed answer.
+Its computed value is 24.
+
+8.1.2 If statements. Conditional questionnaire sections
+can be designed using if statements. Each if consists of a
+condition (a boolean expression), an if-block and an optional
+else-block. The user sees the statements nested in the if-block
+if the condition is true, and those in the else-block otherwise.
+Statements that have an expression referencing a variable
+have data dependency on that variable. Statements nested
+inside an if-block have a control dependency on each variable
+referenced in the condition. Here, we omit an example.
+
+8.1.3 LiveQL. Originally, QL required that users answer
+questions in a top-down manner [7]. Each statement could
+only refer back to variables whose value have been previ-
+ously given or computed.
+
+LiveQL relaxes this requirement by enabling forward ref-
+erences, and allowing changes to running forms [20]. These
+changes introduce two forms of liveness. First, when the pro-
+grammer adds, removes or changes statements, this a(cid:29)ects
+the running form. Second, when a user answers a question,
+
+156
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+state
+
+Form
+
+– name:
+
+Identifier
+
+block
+
+Block
+
+stats
+
+*
+Stat
+
+State
+
+form
+
+– change: bool
+– work:
+
+List<Identifier>
+
+answer
+
+1 Form.Create(f, "Celebration"); ←↪
+2 Question.Create(q1, f, "Your discount is", QType.Int, "discount");←↪
+3 Question.SetExpression(q1, f, "age/2-10"); ←↪
+4 Question.Create(q2, f, "What is your age?", QType.Int, "age"); ←↪
+
+(a) Creating the Celebration form
+
+Q u e s t i o n . G i v e A n s w e r ( q2 , f , " 68 " ) ; ←↪
+
+(b) Answering the age question
+
+if else
+
+IfStat
+– cond: Exp
+
+answer
+
+*
+
+Answer
+– visible: bool
+– v: Val
+
+question
+
+(cid:30)estion
+– msg: String
+– type: QType
+– id: Identifier
+– exp: Exp
+
+(a) Static metamodel
+
+(b) Run-time metamodel
+
+Figure 18. Static and run-time meta-models of LiveQL
+
+package LiveQL {
+
+class State {
+ref Form f;
+List<Answer> ans;
+bool change;
+List<Identifier> work;
+
+trigger TriggerID(State s, Identifier i) {
+
+SetChanged(s, false); //First, reset the changed flag.
+PushWork(s, i);
+DoWork(s);
+WhileChange(s, i); }
+
+//Next, add the identifier to the work queue.
+//Schedule the work, which may cause re-evaluations.
+
+//Finally, check if there is more change.
+
+trigger WhileChange(State s, Identifier i) {
+
+if(s.change) {
+
+//If a change has happened as a result of re-evaluation
+
+TriggerID(s, i); //continue the computation
+
+} else {
+
+Done(s, i);
+
+//otherwise
+//signal done.
+
+} }
+
+signal Done(State s, Identifier i);
+
+Figure 19. LiveQL contains a (cid:27)xpoint computation
+
+the form re-evaluates dependent computed questions and if
+statements. As a result, answers may update and sections of
+the form can become visible or invisible.
+
+8.2 Language design
+We investigate how Cascade helps to express the behavior
+of LiveQL, in particular the trickle e(cid:29)ects that result from
+answering questions. The meta-model of LiveQL, shown in
+Figure 18, is based on the original Java implementation [20].
+The run-time meta-model extends the static meta-model
+with information about the current state of the form, such
+as answers to questions and visibility.
+
+The key to expressing trickle e(cid:29)ects is de(cid:27)ning a (cid:27)xpoint
+computation that schedules future events in sequence from
+the body of a trigger. When answering a question, depen-
+dent computed answers and if-statements recompute until no
+more changes can be observed. Figure 19 illustrates the main
+events. When the value of an identi(cid:27)er updates, TriggerID
+is called. After performing work, which potentially causes
+changes, the check of WhileChange determines if the compu-
+tation completes or continues to propagate changes.
+
+157
+
+print f ; ←↪
+form C e l e b r a t i o n {
+
+print f ; ←↪
+form C e l e b r a t i o n {
+
+" Your d i s c o u n t is " :
+
+" Your d i s c o u n t is " :
+
+int d i s c o u n t = age /2 - 10
+
+int d i s c o u n t = age /2 - 10
+
+== > u n d e f i n e d
+
+" What is your age ? " :
+
+int age == > u n d e f i n e d
+
+== > 24
+
+" What is your age ? " :
+
+int age == > 68
+
+}
+
+}
+
+(c) Unanswered form
+
+(d) Answered form
+
+Figure 20. LiveQL scenario simulated from the REPL
+
+8.3 Prototype live programming environment
+We create a textual DSL prototype, an interpreter with a
+built-in REPL. Its Cascade speci(cid:27)cation counts 1044 LOC3.
+Compiling the sources results in 8189 LOC of generated C#.
+Most components of the prototype are fully generated. We
+add the following components, which amounts to a total of
+916 LOC hand-written C#.
+
+The pretty-printer enables inspecting the syntax and run-
+time state from the REPL. We add an expression evaluator
+and two small helper classes for: 1) performing lookups for
+use-def relationships of variables; 2) collecting conditions
+of questions; and 3) evaluating the expressions of questions
+and if-statements. We use ANTLR 4 to create a QL parser
+that generates ASTs of programs and expressions. To bring
+these ASTs under management of Delta, we create a Builder
+that generates Cascade events for recreating the ASTs.
+
+8.4 Live programming scenario
+We demonstrate a trickle e(cid:29)ect in a live programming sce-
+nario that reproduces the Celebration example of Figure 17.
+After creating the form, answering the question age with 68
+should result in the discount becoming 24.
+
+Using our prototype, we simulate coding actions and user
+interaction from the REPL, as shown in Figure 20. We begin
+with the coding actions shown in Figure 20a. First, we create a
+new form f called Celebration (line 1). We add a new question
+q1 to form f with message “Your discount is”, introducing the
+variable discount of type int (line 2). To make q1 a computed
+question, we set its expression to age/2-10 (line 3). Finally
+we add the second question q2 introducing int age (line 4).
+
+LiveQL programs automatically run one instance. We ver-
+ify the program runs, and observe discount and age are ini-
+tially unde(cid:27)ned, as shown in Figure 20c. Next, we answer
+question q2 and give answer 68, as shown in Figure 20b. Fi-
+nally, we verify the value of discount has indeed become 24.
+Figure 20d indicates the change has been correctly propa-
+gated. For conciseness, we omit the generated transaction.
+
+3h(cid:29)ps://github.com/vrozen/Cascade/tree/main/LiveQL
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+10
+
+gold
+
+10
+
+20
+
+buyMedkit
+
+100
+
+hp
+
+(a) Mechanism for exchanging gold for health (what designers see)
+
+10
+
+gold
+
+10
+
+*
+
+20
+
+buyMedkit
+
+100
+
+hp
+
+(b) Desugared version of the diagram (what the engine runs)
+
+Figure 21. Diagram showing an excerpt of the internal econ-
+omy of Johnny Jetstream (adapted from van Rozen [21])
+
+8.5 Analysis
+Our results demonstrate Cascade helps express the trickle
+e(cid:29)ects of LiveQL as a concise (cid:27)xpoint computation. Cre-
+ating the prototype, including its helper classes, cost ap-
+proximately one working day, with only the experience of
+LiveSML. The original Java implementation, which measures
+6179 LOC, also includes a visual front-end. The new proto-
+type is signi(cid:27)cantly smaller, measuring 816 LOC.
+
+9 Live Machinations
+Machinations is a visual notation for game design that fore-
+grounds elemental feedback loops associated with emergent
+gameplay [1, 1]. Micro-Machinations (MM) is a textual and vi-
+sual programming language that addresses several technical
+shortcomings of its evolutionary predecessor. In particular,
+MM introduces a live programming approach for rapidly
+prototyping and (cid:27)ne-tuning a game’s mechanics [23], and
+accelerating the game development process.
+
+We study the design of the MM library (MM-Lib), includ-
+ing its run-time bahavior and state migrations. In particular,
+we explore how Cascade helps to express live desugaring.
+We create a visual prototype using Cascade and the Godot
+game engine. Vie is a tiny live game engine for simultane-
+ously prototyping and playtesting a game’s mechanisms. In
+live programming scenario of a simple game economy, we
+demonstrate Vie correctly desugars converters.
+
+9.1 Micro-Machinations
+Micro-Machinations programs, or diagrams, are directed
+graphs that can control the internal economy of running dig-
+ital games. When set in motion through runtime and player
+interactions, the nodes act by pushing or pulling economic
+resources along its edges.
+
+Figure 21a shows a mechanism in the internal economy
+of Johnny Jetstream, a 2D (cid:30)y-by shooter [21]. Two pool
+nodes, shown as circles, abstract from the in-game resources,
+gold and health (hp). The integers inside represent current
+amounts. The edges are resource connections that de(cid:27)ne the
+rate at which resources can (cid:30)ow between source and target
+nodes. BuyMedkit is an interactive converter node, appearing
+
+Element
+
+– name: String
+– visible: bool
+
+Program
+
+Engine
+
+*
+
+elements
+
+engines
+
+*
+
+– change: bool
+
+Edge
+
+src
+tgt
+
+FlowEdge
+
+– amount: int
+
+Trigger
+
+Node
+
+– type: NodeType
+
+behavior
+
+Behavior
+– when: When
+– act: Act
+– how: How
+
+state
+
+work
+
+*
+
+*
+
+node
+
+NodeInst
+
+– triggered: bool
+– amount: int
+
+(b) Run-time
+meta-model
+
+Converter
+– s: Node
+– d: Node
+– t: Trigger
+
+Pool
+
+– at: int
+– max: int
+
+(a) Static meta-model
+
+Source
+
+Drain
+
+Figure 22. Partial meta-model of Micro-Machinations
+
+as a triangle pointing right with a vertical line through the
+middle. This converter consumes 10gold and produces 20hp.
+Converters are so-called syntactic sugar, a convenience no-
+tation, which translates into a simpler elements for e(cid:28)cient
+processing. Figure 21b shows that converters can be rewrit-
+ten as a combination of a drain, a trigger and a source. When
+the drain node consumes the costs of the conversion, the
+trigger activates the source node, which then produces the
+bene(cid:27)ts. During the translation, the inputs of the converter
+connect to the drain, and the outputs to the source.
+
+Designers can simultaneously prototype and playtest run-
+ning economies, e.g., by activating mechanisms or modifying
+node types. Therefore, desugarings must also happen live.
+
+9.2 Language design
+We investigate how Cascade helps to express the liveness of
+MM’s core language features, focusing on live desugaring
+of converters in particular. As a starting point, we analyze
+the C++ implementation of MM-Lib, an embeddable script
+engine for MM [23]. Figure 22 shows a partial meta-model
+based on MM-Lib. As before, we express the dependencies be-
+tween the abstract syntax and the run-time state. An engine,
+which instantiates a program, tracks the current amounts
+of pool nodes and which nodes are triggered for activation.
+Through a combination of e(cid:29)ects and helper methods, it
+evaluates how the resources (cid:30)ow when nodes activate.
+
+The solution for desugaring converter nodes introduces
+invisible elements that implement its behavior. When a node
+becomes a converter, a series of transformations immedi-
+ately generate 1) a source, a trigger and a drain; 2) incoming
+edges to the drain; and 3) outgoing edges to the source. In
+addition, running engines obtain new node instances used
+for evaluating (cid:30)ow rates. Changes to a converter node are
+delegated its source and drain nodes. Changing the node’s
+
+158
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+more concise. Due to its representation of e(cid:29)ects, Vie solves
+two limitations of MM-Lib. First, it adds traceability of cause-
+and-e(cid:29)ect for all actions. Second, it expresses the e(cid:29)ects of
+resource propagation and triggers as a (cid:27)xpoint computation.
+Vie is more extensible and maintainable. Combining Godot
+with Cascade is straightforward. Since both have event APIs,
+and Godot support C#, they integrate well. Our e(cid:29)ort went
+mainly into creating the UI. A bene(cid:27)t of Godot is that Vie is
+a portable app (Windows, Linux, MacOS, iOS, Android).
+
+10 Discussion
+Cascade has compelling bene(cid:27)ts for creating live program-
+ming environments. Using its notations and abstractions,
+language engineers can concisely express DSL run-time be-
+haviors, and account for many migration scenarios, on the
+meta-level. They can ensure transformations and side-e(cid:29)ects
+are correct by design. However, no automated contextual
+analysis is provided yet. At no additional cost, Delta gen-
+erates a history that traces how and why every event hap-
+pens, while ensuring the run-time state is correctly updated.
+Cause-and-e(cid:29)ect chains are instrumental for exploratory live
+programming, omniscient debugging and version control.
+Because the generated interpreters are event-driven, they
+combine well with visual UIs, e.g., bowsers or game engines.
+Of course there are also costs. For language engineers, bidi-
+rectional thinking is not straightforward. Language designs
+do not normally include run-time state migrations. Learning
+how bi-directional designs work takes time and practice.
+
+We have validated Cascade against a limited number of
+existing DSLs. Further validation will require introducing
+new liveness to DSLs. Additionally, the compiler is a com-
+plex meta-program that bridges a wide conceptual gap. As
+a result, it undoubtedly still contains bugs we have not yet
+identi(cid:27)ed. To address this, we plan to create a test harness
+that automates testing features and prototypes.
+
+Of course, the proposed combination of transformations,
+migrators and feedback mechanisms generalizes beyond Cas-
+cade. These abstractions can also be programmed using Gen-
+eral Purpose Languages (GPLs). Our compiler targets C#.
+Unlike Cascade, GPLs do not support bi-directional transfor-
+mations or generate cause-and-e(cid:29)ect chains out of the box.
+Adding support requires a considerable engineering e(cid:29)ort.
+We have not studied using Cascade to add liveness to GPLs.
+The underlying execution models, e.g., program counters and
+stack frames, do not directly support liveness. GPLs require
+additional mechanisms such as probes to introduce liveness.
+Cascade’s generic REPL has limitations. Its mechanisms
+are low-level, and not suitable for DSL users. Furthermore,
+Cascade still lacks a debugger for exploring histories, in-
+specting cause-and-e(cid:29)ect chains and tracing source locations.
+Debugging a DSL involves stepping through the generated
+C# code. Debugging transactions involves inspecting the
+notation on the REPL (e.g., Figure 24 in Appendix B).
+
+Figure 23. Prototyping and playtesting a mechanism in Vie
+
+behavior to another type, cleans up these invisible elements,
+and also removes node instances from running engines.
+
+9.3 Vie: a tiny live game engine
+We use Cascade and the Godot game engine to create a pro-
+totype that implements the design of MM. Vie is a tiny live
+game engine for simultaneously prototyping, playtesting
+and (cid:27)ne-tuning a game’s design. MM’s implementation in
+Cascade counts 1542 LOC4. Compiling its sources generates
+an interpreter, 11.7 KLOC of generated C#. We augment En-
+gine with two helper classes, EvalContext (153 LOC) and
+Flow (29 LOC), for storing temporary run-time data.
+
+Instead of using its built-in REPL, we create a visual front-
+end using Godot (v3.5.1). We leverage the GraphNode and
+GraphEdit framework, and program C# classes for connect-
+ing Cascade events to UI events. In another paper we further
+detail how we manually create this front-end [22].
+
+9.4 Live programming scenario
+We reproduce the behavior of the mechanism shown in Fig-
+ure 11. Using Vie, we perform a sequence of prototyping and
+playtesting actions that demonstrate the behavior of MM,
+including live desugaring and run-time state migrations.
+
+We (cid:27)rst recreate the diagram using Vie’s visual editor,
+shown in Figure 23. Next, we trigger the converter buyMedit
+by clicking on its center. The UI shows visual feedback.
+We observe the engine succeeds (yellow) in activating its
+drain, trigger and source. The nodes consume and produce
+resources at the expected rates (green). The textual view
+on the program, shows the invisible elements. Finally, we
+change the node type of the converter to pool. The resulting
+transaction is a long cause-e(cid:29)ect-chain that cleans up the
+desugared converter and migrates the run-time state.
+
+9.5 Analysis
+MM-Lib measures 21.2 KLOC of C++. In comparison, Vie
+does not yet support every feature, e.g. modules. However,
+at a mere 1542 LOC, its Cascade speci(cid:27)cation is considerably
+
+4h(cid:29)ps://github.com/vrozen/Cascade/tree/main/LiveMM
+
+159
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+Cascade’s integration in C# is helpful for extending it func-
+tionality with helper methods. The lack of a formal seman-
+tics complicates analyses. We see opportunities for checking
+cyclic dependencies and the correctness of inverse e(cid:29)ects.
+
+Live programming with run-time state migrations is inher-
+ently inconsistent. An open challenge is identifying formal
+properties of liveness. Cascade introduces a local dependen-
+cies between events that have a global consistency of e(cid:29)ects.
+
+11 Related Work
+Live Programming is a research area that intersects Pro-
+gramming Languages (PL) and Human-Computer Interac-
+tion (HCI). The term refers to a wide array of user interface
+mechanisms, language features and debugging techniques
+that revolve around iterative changes and immediate and
+continuous feedback [16]. Tanimoto describes levels of live-
+ness that help distinguish between forms of feedback in live
+programming environments [18]. Each level adds a property:
+1) informative or descriptive; 2) executable; 3) responsive or
+edit triggered; and 4) live or stream driven. Many forms of
+live programming exist, each designed with di(cid:29)erent goals
+in mind. For instance, McDirmid describes how probes, a
+mechanism interwoven in the editor, helps diagnosing prob-
+lems [11]. Ko describes whyline, a debugging mechanism for
+asking why-questions about Java program behavior [9].
+
+Another approach is creating interpreters with a so-called
+Read-Eval-Print-Loop (REPL), a textual interface for execut-
+ing commands sequentially [3] A REPL, by de(cid:27)nition, lends
+itself naturally to exploration, incremental change and im-
+mediate feedback, each key ingredients to live programming.
+Interpreters created with Cascade have a built-in REPL and
+REPL-like APIs for designing DSLs with event-based input
+and feedback mechanisms, including visual ones.
+
+Omniscient debugging, also called back-in-time debug-
+ging, is a form of debugging that allows exploring what-if
+scenarios by stepping forward and backward through the
+code [14, 15]. Such debuggers have been created for general
+purpose languages Java [15]. Retro(cid:27)tting an omniscient de-
+bugger to an existing language can come at a considerable
+cost, redesign and implementation e(cid:29)ort. Bousse et al. pro-
+pose a meta-modeling approach for a generic debugger of
+executable DSLs that supports common debugging services
+for tracing the execution [4]. Cascade is also designed with
+omniscient debugging in mind. Cause-and-e(cid:29)ect chains are
+a key data structure for creating omniscient debuggers.
+
+The area of modelware is a technological space that re-
+volves around the design, maintenance and reuse of models
+(or programs). Model transformations are a key technology
+for expressing change. In their seminal paper on “The Dif-
+ference and Union of Models”, Alanen and Porres describe a
+notation, originally intended for model versioning, known
+as edit operations, which expresses model deltas [2]. Van der
+Storm proposes creating live programming environments
+driven by “semantic deltas”, based on this notation [20]. Van
+
+Rozen and van der Storm combine origin tracking and text
+di(cid:29)erencing for textual model di(cid:29)erencing [21].
+
+Bi-directional Model Transformation (BX) is a well re-
+searched topic that intersects with several areas [6]. BX has
+impacted relational databases, model-driven software devel-
+opment [17], UIs, visualizations with direct manipulation,
+structure editors, and data serialization, to name a few. Ci-
+cchetti et al describe the Janus Transformation Language
+(JTL), a language for bi-directional change propagation [5].
+The study of live modeling with run-time state migra-
+tions has initially focused on (cid:27)ne-grained patching with edit
+operations [24]. Constraint-based solutions instead focus
+on correct states with respect to a set of constraints [19], a
+course-grained approach that omits (cid:27)ne-tuning. Sanitization
+solutions regard run-time state migrations as a way to (cid:27)x
+what is broken [25]. We instead take the position that they
+are an integral part of the language semantics.
+
+Until now, no solution could explain why a particular
+migration happened. Cascade is a BX solution that addresses
+both how and why, for precise feedback about root causes
+and (cid:27)nger sensitive (cid:27)ne-tuning.
+
+Cascade is the (cid:27)rst language-parametric and generic ap-
+proach for creating DSLs that leverages a bi-directional trans-
+formations for live programming. Compared to existing ap-
+proaches, it adds a scheduling mechanism for de(cid:27)ning com-
+plex deterministic side-e(cid:29)ects. To the best of our knowledge,
+no other system exists that can generate run-time state mi-
+grations from meta-descriptions as cause-and-e(cid:29)ect chains.
+
+12 Conclusions and future work
+We have addressed the lack of enabling technology for cre-
+ating live programming environments. We have proposed
+Cascade, a meta-language for expressing DSLs with interface-
+and feedback-mechanisms that drive live programming. In
+three case studies, we have explored expressing the liveness
+features of LiveSML, LiveQL and Machinations. We have
+demonstrated how to express gradual change, run-time state
+migrations, ripple e(cid:29)ects and live desugarings. Our results
+show that an explicit representation of change is instrumen-
+tal for how these languages are built, and that cause-and-
+e(cid:29)ect relationships are vital for delivering feedback.
+
+In future work, we will investigate how to create a reusable
+omniscient debugger for change-based DSL environments.
+Schema or program modi(cid:27)cations require both instance
+migrations and view adaptations. We will further investigate
+how to express coupled transformations [10], e.g., for Vie.
+
+Live programming requires interactive visual interfaces,
+and generic language technology to create them [12]. We
+will investigate how to automate the development of UIs
+that leverage game engine technology [22].
+
+Acknowledgments
+I thank the anonymous reviewers and the Agile Language
+Engineering (ALE) team (Inria & CWI) for their feedback.
+
+160
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Table 1. Edit operations supported by Delta
+
+root 1 State.Delete([|uuid://26|], "locked", [|uuid://13|]) {
+
+pre 2 Trans.Delete([|uuid://33|], [|uuid://26|], "unlock", [|uuid://16|]) {
+
+Operation
+
+Inverse operation
+
+o_new (ID id, StringVal class)
+o_set (Path p, Field f, Val nv,Val ov) o_set (Path p, Field f, Val ov,Val nv)
+
+o_delete (ID id, StringVal class)
+
+l_insert (Path p, IntVal i, Val v)
+l_push (Path p, Val v)
+l_set (Path p, IntVal i, Val nv,Val ov) l_set( Path p, IntVal i, Val ov,Val nv)
+
+l_remove (Path p, IntVal i, Val v)
+l_pop (Path p, Val v)
+
+s_add (Path p, Val v)
+
+s_remove (Path p, Val v)
+
+m_add (Path p, Val k)
+m_set (Path p, Val k, Val nv, Val ov) m_set (Path p, Val k, Val ov, Val nv)
+
+m_remove (Path p, Val k)
+
+A Edit Operations
+This appendix describes on a complete set of edit operations
+for manipulating commonly used data structures: objects,
+lists, sets and maps. Cascade’s runtime Delta uses these op-
+erations to execute bi-directional model transformations.
+
+A.1 Objects, heap and quali(cid:27)ed names
+Edit operations work on objects. A global store, or heap,
+stores the current program state as a collection of objects
+with (cid:27)elds and references. Values can have a base type such
+as int, String, bool.
+
+Enums and classes introduce custom objects and values.
+The built-in datatypes Set, List and Map help to create ob-
+ject hierarchies, such as trees and graphs. Edit operations
+can perform lookups using quali(cid:27)ed names or paths. The
+notation uses dots and brackets for lookups in the global
+store, maps and lists. For instance, [|uuid://1|] performs a
+lookup of an object with Unique Universal Identi(cid:27)er (UUID)
+1, and [|uuid://1|].cur retrieves its (cid:27)eld cur.
+
+A.2 Supported edit operations
+Delta supports the edit operations shown in Table 1. We
+brie(cid:30)y describe these operations, which work on objects,
+lists sets and maps. Figure 7a shows an example sequence of
+operations that partially recreate the example SML program
+shown in Figure 3.
+
+A.2.1 Objects. The o_new operation creates a new object
+with identi(cid:27)er id of a particular class. The new object will
+have all of its (cid:27)elds set to default values. Its inverse operation
+o_delete has the exact opposite e(cid:29)ect, and deletes an object
+with identi(cid:27)er id. Deletions include the class parameter and
+they require that each (cid:27)elds of the object has default values.
+Without this, the operation cannot be reversed. Finally, to set
+the values of (cid:27)elds, the o_set operation, replaces the value
+ov of (cid:27)eld f of the object denoted by path p by a new value
+nv. This operation is its own inverse, swapping the old and
+the new values. Figure 7a shows examples.
+
+A.2.2 List. Specialized operations that only work on list
+objects of type List<X> are the following. The operations
+
+pre 3 State.RemoveOut([|uuid://26|], [|uuid://33]) {
+
+[|uuid://28|].remove([|uuid://33|]);
+
+}
+pre 4 State.RemoveIn([|uuid://16|], [|uuid://33|]) {
+
+[|uuid://17|].remove([|uuid://33|])
+
+}
+[|uuid://33|].src = [|uuid://uuid26|] → null;
+[|uuid://33|].evt = "unlock" → null;
+[|uuid://33|].tgt = [|uuid://uuid16|] → null;
+delete Trans [|uuid://33|];
+
+}
+pre 5 Trans.Delete([|uuid://32|], [|uuid://16|], "lock", [|uuid://26|]) {
+
+pre 6 State.RemoveOut([|uuid://16], [uuid://32]) {
+
+[|uuid://18|].remove([|uuid://32|]);
+
+}
+pre 7 State.RemoveIn([|uuid://26|], [uuid://32]) {
+
+[|uuid://27|].remove([|uuid://32|])
+
+}
+[|uuid://32|].src = [|uuid://uuid16|] → null;
+[|uuid://32|].evt = "lock" → null;
+[|uuid://32|].tgt = [|uuid://uuid26|] → null;
+delete Trans [|uuid://32|];
+
+}
+pre 8 Mach.RemoveState([|uuid://13|], [|uuid://26|]) {
+
+pre 9 MachInst.RemoveStateInst([|uuid://19|], [|uuid://29|], [|uuid://26|]){
+
+pre 10 MachInst.SetCurState([|uuid://19|], null, [|uuid://29|]) {
+
+[|uuid://19|].cur = [|uuid://uuid29|] → null;
+
+}
+[|uuid://20|][[|uuid://26|]] = [|uuid://29|] → null;
+[|uuid://20|].remove([|uuid://26|]);
+
+}
+pre 11 StateInst.Delete([|uuid://29|], [|uuid://26|]) {
+
+[|uuid://29|].def = [|uuid://26|] → null;
+[|uuid://29|].count = 1 → 0;
+delete StateInst [|uuid://29|];
+
+}
+pre 12 MachInst.Initialize([|uuid://19|]) {
+
+post 13 MachInst.SetCurState([|uuid://19|], [|uuid://21|]) {
+
+[|uuid://19|].cur = [|uuid://21|];
+post 14 StateInst.SetCount([|uuid://21|], 2, 1) {
+
+[|uuid://21|].count = 1 → 2;
+
+}
+
+}
+
+}
+[|uuid://14|].remove([|uuid://26|]);
+
+}
+[|uuid://26|].name = "locked" → null;
+delete Set<Trans> [|uuid://27|];
+delete Set<Trans> [|uuid://28|];
+delete State [|uuid://26|];
+
+}
+
+Figure 24. Cause-e(cid:29)ect chain that deletes the locked state
+
+l_insert and l_remove are each other’s inverse. These op-
+erations respectively insert or remove a value v at an index i
+in the list denoted by path p.
+
+To modify a value in a list, the invertible operation l_set,
+replaces an old value ov by a new value nv at index i in the
+list denoted by path p. For convenience, l_push inserts a
+value v at the tail of an existing list, and l_pop removes it,
+without specifying the index.
+
+A.2.3 Set. Two operations work on set objects of type
+Set<X>. The inverse operations s_add and s_remove re-
+spectively add or remove a value v of type X in an existing
+set denoted by path p.
+
+A.2.4 Map. Operations that work on map objects of type
+Map<K,V> are the following. The operations m_add and
+m_remove respectively add or remove a map record de-
+noted by key k of type K in an existing map denoted by
+path p. To ensure correctness, the initial and (cid:27)nal value in a
+
+161
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+[18] Steven L. Tanimoto. 2013. A Perspective on the Evolution of Live
+
+Programming. In Workshop on Live Programming, LIVE 2013. IEEE.
+
+[19] Ulyana Tikhonova, Jouke Stoel, Tijs van der Storm, and Thomas
+Degueule. 2018. Constraint-based Run-time State Migration for Live
+Modeling. In Software Language Engineering, SLE 2018. ACM.
+
+[20] Tijs van der Storm. 2013. Semantic Deltas for Live DSL Environments.
+
+In Workshop on Live Programming, LIVE 2013. IEEE.
+
+[21] Riemer van Rozen. 2015. A Pattern-Based Game Mechanics Design
+Assistant. In Proceedings of the 10th International Conference on the
+Foundations of Digital Games, FDG 2015, 2015. SASDG.
+
+[22] Riemer van Rozen. 2023. Game Engine Wizardry for Programming
+Mischief. In Workshop on Programming Abstractions and Interactive
+Notations, Tools, and Environments, PAINT 2023. ACM.
+
+[23] Riemer van Rozen and Joris Dormans. 2014. Adapting Game Mechan-
+ics with Micro-Machinations. In Proceedings of the 9th International
+Conference on the Foundations of Digital Games, FDG 2014. SASDG.
+
+[24] Riemer van Rozen and Tijs van der Storm. 2019. Toward Live Domain-
+Speci(cid:27)c Languages - From Text Di(cid:29)erencing to Adapting Models at
+Run Time. Softw. Syst. Model. 18, 1 (2019).
+
+[25] Yentl Van Tendeloo, Simon Van Mierlo, and Hans Vangheluwe. 2019.
+A Multi-Paradigm Modelling Approach to Live Modelling. Softw. Syst.
+Model. 18, 5 (2019).
+
+Received 2023-07-07; accepted 2023-09-01
+
+record must be defaults. To update a map record, the opera-
+tion m_set replaces an old value ov by new value nv in the
+record denoted by key k in the map denoted by path p.
+
+B LiveSML: Cause-and-e(cid:29)ect chain
+We detail the results of Section 7, which reproduces the
+example LiveSML live programming scenario of Section 2.1.
+Figure 24 shows the cause-and-e(cid:29)ect chain that results from
+deleting the locked state. The numbers appearing in the
+circles coincide with those in the generated control (cid:30)ow that
+is superimposed on the static dependency graph of Figure 15.
+
+References
+[1] Ernest Adams and Joris Dormans. 2012. Game Mechanics: Advanced
+
+Game Design. New Riders.
+
+[2] Marcus Alanen and Ivan Porres. 2003. Di(cid:29)erence and Union of Models.
+
+In «UML» 2003 (LNCS, Vol. 2863). Springer.
+
+[3] L. Thomas van Binsbergen, Mauricio Verano Merino, Pierre Jeanjean,
+Tijs van der Storm, Benoît Combemale, and Olivier Barais. 2020. A
+Principled Approach to REPL Interpreters. In Onward! 2020. ACM.
+
+[4] Erwan Bousse, Dorian Leroy, Benoît Combemale, Manuel Wimmer,
+and Benoit Baudry. 2018. Omniscient Debugging for Executable DSLs.
+J. Syst. Softw. 137 (2018).
+
+[5] Antonio Cicchetti, Davide Di Ruscio, Romina Eramo, and Alfonso
+Pierantonio. 2010.
+JTL: A Bidirectional and Change Propagating
+Transformation Language. In Software Language Engineering, SLE2010
+(LNCS, Vol. 6563). Springer.
+
+[6] Krzysztof Czarnecki, J. Nathan Foster, Zhenjiang Hu, Ralf Lämmel,
+Andy Schürr, and James F. Terwilliger. 2009. Bidirectional Transforma-
+tions: A Cross-Discipline Perspective. In Theory and Practice of Model
+Transformations (LNCS, Vol. 5563). Springer.
+
+[7] Sebastian Erdweg, Tijs van der Storm, et al. 2013. The State of the
+Art in Language Workbenches. In Software Language Engineering, SLE
+2013 (LNCS, Vol. 8225). Springer.
+
+[8] Paul Klint, Tijs van der Storm, and Jurgen J. Vinju. 2009. RASCAL: A
+Domain Speci(cid:27)c Language for Source Code Analysis and Manipulation.
+In Code Analysis and Manipulation, SCAM 2009. IEEE.
+
+[9] Amy J. Ko and Brad A. Myers. 2004. Designing the Whyline: A De-
+bugging Interface for Asking Questions about Program Behavior. In
+Human Factors in Computing Systems, CHI 2004. ACM.
+
+[10] Ralf Lämmel. 2016. Coupled Software Transformations Revisited. In
+
+Software Language Engineering, SLE 2016. ACM.
+
+[11] Sean McDirmid. 2013. Usable Live Programming. In New Ideas in
+
+Programming and Re(cid:30)ections on Software, Onward! 2013. ACM.
+
+[12] Mauricio Verano Merino, Jurgen J. Vinju, and Tijs van der Storm. 2020.
+Bacatá: Notebooks for DSLs, Almost for Free. Art Sci. Eng. Program. 4,
+3 (2020), 11.
+
+[13] Donald A. Norman. 1986. Cognitive Engineering. User centered system
+
+design 31 (1986), 61.
+
+[14] Guillaume Pothier and Éric Tanter. 2009. Back to the Future: Omni-
+
+scient Debugging. IEEE Softw. 26, 6 (2009).
+
+[15] Guillaume Pothier, Éric Tanter, and José M. Piquer. 2007. Scalable
+Omniscient Debugging. In Object-Oriented Programming, Systems, Lan-
+guages, and Applications, OOPSLA 2007. ACM.
+
+[16] Patrick Rein, Stefan Ramson, Jens Lincke, Robert Hirschfeld, and Tobias
+Pape. 2019. Exploratory and Live, Programming and Coding - A
+Literature Study Comparing Perspectives on Liveness. Art Sci. Eng.
+Program. 3, 1 (2019), 1.
+
+[17] Perdita Stevens. 2010. Bidirectional Model Transformations in QVT:
+
+Semantic Issues and Open Questions. Softw. Syst. Model. 9, 1 (2010).
+
+162
+
+

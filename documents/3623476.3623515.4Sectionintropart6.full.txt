@@ -1,0 +1,227 @@
+4. Section intro
+
+can be designed using if statements. Each if consists of a
+condition (a boolean expression), an if-block and an optional
+else-block. The user sees the statements nested in the if-block
+if the condition is true, and those in the else-block otherwise.
+Statements that have an expression referencing a variable
+have data dependency on that variable. Statements nested
+inside an if-block have a control dependency on each variable
+referenced in the condition. Here, we omit an example.
+
+8.1.3 LiveQL. Originally, QL required that users answer
+questions in a top-down manner [7]. Each statement could
+only refer back to variables whose value have been previ-
+ously given or computed.
+
+LiveQL relaxes this requirement by enabling forward ref-
+erences, and allowing changes to running forms [20]. These
+changes introduce two forms of liveness. First, when the pro-
+grammer adds, removes or changes statements, this a(cid:29)ects
+the running form. Second, when a user answers a question,
+
+156
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+state
+
+Form
+
+– name:
+
+Identifier
+
+block
+
+Block
+
+stats
+
+*
+Stat
+
+State
+
+form
+
+– change: bool
+– work:
+
+List<Identifier>
+
+answer
+
+1 Form.Create(f, "Celebration"); ←↪
+2 Question.Create(q1, f, "Your discount is", QType.Int, "discount");←↪
+3 Question.SetExpression(q1, f, "age/2-10"); ←↪
+4 Question.Create(q2, f, "What is your age?", QType.Int, "age"); ←↪
+
+(a) Creating the Celebration form
+
+Q u e s t i o n. G i v e A n s w e r ( q2, f, " 68 " ) ; ←↪
+
+(b) Answering the age question
+
+if else
+
+IfStat
+– cond: Exp
+
+answer
+
+*
+
+Answer
+– visible: bool
+– v: Val
+
+question
+
+(cid:30)estion
+– msg: String
+– type: QType
+– id: Identifier
+– exp: Exp
+
+(a) Static metamodel
+
+(b) Run-time metamodel
+
+Figure 18. Static and run meta-modelsQLpackage LiveQL
+class State {
+ref Form fList<Answer;
+bool
+Identifier> work;
+
+trigger TriggerState s, Identifier i) {
+
+SetChanged, false); // reset the changed flag.
+PushWork(s, i);
+(s);
+WhileChange(s, }
+
+//Next, add the the work queue.
+//Sche work, which may cause re-evaluations.
+
+//Finally if more
+ WhileChange(State s, Ident) {
+
+if(s) {
+
+//If a change has happened as a result-evaluation
+
+TriggerID(s, i); //continue the computation
+
+} else {Done(s, i);
+
+//otherwise
+//signal done.
+
+} }
+
+ Done(State s, Identifier i);
+
+Figure 19. LiveQL contains a (cid:27)xpoint computation
+
+the form re-evaluates dependent computed questions and if
+statements. As a result, answers may update and
+the form can become visible or invisible.
+
+8.2 Language design
+We investigate how Cascade helps to express the behavior
+of LiveQL, in particular the trickle e(cid:29)ects that result from
+answering questions. The meta-model of LiveQL, shown in
+Figure 18, is based on the original Java implementation [20].
+The run-time meta-model extends the static meta-model
+with information about the current state of the form, such
+as answers to questions and visibility.
+
+The key to expressing trickle e(cid:29)ects is de(cid:27)ning a (cid:27)xpoint
+computation that schedules future events in sequence from
+the body of a trigger. When answering a question, depen-
+dent computed answers and if-statements recompute until no
+more changes can be observed. Figure 19 illustrates the main
+events. When the value of an identi(cid:27)er updates, TriggerID
+is called. After performing work, which potentially causes
+changes, the check of WhileChange determines if the compu-
+tation completes or continues to propagate changes.
+
+157
+
+print f ; ←↪
+form C e l e b r a t i o n {
+
+print f ; ←↪
+form C e l e b r a t i o n {
+
+" Your d i s c o u n t is " :
+
+" Your d i s c o u n t is " :
+
+int d i s c o u n t = age /2 - 10
+
+int d i s c o u n t = age /2 - 10
+
+== > u n d e f i n e d
+
+" What is your age? " :
+
+int age == > u n d e f i n e d
+
+== > 24
+
+" What is your age? " :
+
+int age == > 68
+
+}
+
+}
+
+(c) Unanswered form
+
+(d) Answered form
+
+Figure 20. LiveQL scenario simulated from the REPL
+
+8.3 Prototype live programming environment
+We create a textual DSL prototype, an interpreter with a
+built-in REPL. Its Cascade speci(cid:27)cation counts 1044 LOC3.
+Compiling the sources results in 8189 LOC of generated C#.
+Most components of the prototype are fully generated. We
+add the following components, which amounts to a total of
+916 LOC hand-written C#.
+
+The pretty-printer enables inspecting the syntax and run-
+time state from the REPL. We add an expression evaluator
+and two small helper classes for: 1) performing lookups for
+use-def relationships of variables; 2) collecting conditions
+of questions; and 3) evaluating the expressions of questions
+and if-statements. We use ANTLR 4 to create a QL parser
+that generates ASTs of programs and expressions. To bring
+these ASTs under management of Delta, we create a Builder
+that generates Cascade eventsreating the ASTs.
+
+8.4 Live programming scenario
+We demonstrate a trickle e(cid:29)ect in a live programming sce-
+nario that reproduces the Celebration example of Figure 17.
+After creating the form, answering the question age with 68
+should result in the discount becoming 24.
+
+Using our prototype, we simulate coding actions and user
+interaction from the REPL, as shown in Figure 20. We begin
+with the coding actions shown in Figure 20a. First, we create a
+new form f called Celebration (line 1). We add a new question
+q1 to form f with message “Your discount is”, introducing the
+variable discount of type int (line 2). To make q1 a computed
+question, we set its expression to age/2-10 (line 3). Finally
+we add the second question q2 introducing int age (line 4).
+
+LiveQL programs automatically run one instance. We ver-
+ify the program runs, and observe discount and age are ini-
+tially unde(cid:27)ned, as shown in Figure 20c. Next, we answer
+question q2 and give answer 68, as shown in Figure 20b. Fi

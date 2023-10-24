@@ -1,0 +1,3 @@
+
+
+This section describes the edit operations supported by Delta, a runtime system used by Cascade, a meta-language for expressing DSLs with interface-and feedback-mechanisms that drive live programming. Delta supports operations on objects, lists, sets, and maps. These operations include creating new objects, setting and deleting fields, inserting and removing elements from lists, adding and removing elements from sets, and adding, setting, and removing elements from maps. The section also outlines future work, such as creating a reusable omniscient debugger for change-based DSL environments, expressing coupled transformations, and automating the development of UIs that leverage game engine technology.

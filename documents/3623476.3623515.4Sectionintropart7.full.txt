@@ -1,0 +1,253 @@
+4. Section intro
+nally, we verify the value of discount has indeed become 24.
+Figure 20d indicates the change has been correctly propa-
+gated. For conciseness, we omit the generated transaction.
+
+3h(cid:29)ps://github.com/vrozen/Cascade/tree/main/LiveQL
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+10
+
+gold
+
+10
+
+20
+
+buyMedkit
+
+100
+
+hp
+
+(a) Mechanism for exchanging gold for health (what designers see)
+
+10
+
+gold
+
+10
+
+*
+
+20
+
+buyMedkit
+
+100
+
+hp
+
+(b) Desugared version of the diagram (what the engine runs)
+
+Figure 21. Diagram showing an excerpt of the internal econ-
+omy of Johnny Jetstream (adapted from van Rozen [21])
+
+8.5 Analysis
+Our results demonstrate Cascade helps express the trickle
+e(cid:29)ects of LiveQL as a concise (cid:27)xpoint computation. Cre-
+ating the prototype, including its helper classes, cost ap-
+proximately one working day, with only the experience of
+LiveSML. The implementation, which measures
+6179 LOC, also includes a visual front-end. The new proto-
+type is signi(cid:27)cantly smaller, measuring 816 LOC.
+
+9 Live Machinations
+Machinations is a visual notation for game design that fore-
+grounds elemental feedback loops associated with emergent
+gameplay [1, 1]. Micro-Machinations (MM) is a textual and vi-
+sual programming language that addresses several technical
+shortcomings of its evolutionary predecessor. In particular,
+MM introduces a live programming approach for rapidly
+prototyping and (cid:27)ne-tuning a game’s mechanics [23], and
+accelerating the game development process.
+
+We study the design of the MM library (MM-Lib), includ-
+ing its run-time bahavior and state migrations. In particular,
+we explore how Cascade helps to express live desugaring.
+We create a visual prototype using Cascade and the Godot
+game engine. Vie is a tiny live game engine for simultane-
+ously prototyping and playtesting a game’s mechanisms. In
+live programming scenario of a simple game economy, we
+demonstrate Vie correctly desugars converters.
+
+9.1 Micro-Machinations
+Micro-Machinations programs, or diagrams, are directed
+graphs that can control the internal economy of running dig-
+ital games. When set in motion through runtime and player
+interactions, the nodes act by pushing or pulling economic
+resources along its edges.
+
+Figure 21a shows a mechanism in the internal economy
+of Johnny Jetstream, a 2D (cid:30)y-by shooter [21]. Two pool
+nodes, shown as circles, abstract from the in-game resources,
+gold and health (hp). The integers inside represent current
+amounts. The edges are resource connections that de(cid:ne the
+rate at which resources can (cid:30)ow between source and target
+nodes. BuyMedkit is an interactive converter node, appearing
+
+Element
+
+– name: String
+– visible: bool
+
+Program
+
+Engine
+
+*
+
+elements
+
+engines
+
+*
+
+– change: bool
+
+Edge
+
+src
+tgt
+
+FlowEdge
+
+– amount: int
+
+Trigger
+
+Node
+
+– type: NodeType
+
+behavior
+
+Behavior
+– when: When
+– act: Act
+– how: How
+
+state
+
+work
+
+*
+
+*
+
+node
+
+NodeInst
+
+– triggered: bool
+– amount: int
+
+(b) Run-time
+meta-model
+
+Converter
+– s: Node
+– d: Node
+– t: Trigger
+
+Pool
+
+– at: int
+– max: int
+
+(a) Static meta-model
+
+Source
+
+Drain
+
+Figure 22. Partial meta-model of Micro-Machinations
+
+as a triangle pointing right with a vertical line through the
+middle. This converter consumes 10gold and produces 20hp.
+Converters are so-called syntactic sugar, a convenience no-
+tation, which translates into a simpler elements for e(cid:28)cient
+processing. Figure 21b shows that converters can be rewrit-
+ten as a combination of a drain, a trigger and a source. When
+the drain node consumes the costs of the conversion, the
+trigger activates the source node, which then produces the
+bene(cid:27)ts. During the translation, the inputs of the converter
+connect to the drain, and the outputs to the source.
+
+Designers can simultaneously prototype and playtest run-
+ning economies,g., by or modifying
+node types. Therefore,ings must also happen live.
+
+9.2 Language design
+We investigate how Cascade helps to express the liveness of
+MM’s core language features, focusing on live desugaring
+of converters in particular. starting point, we analyze
+the C++ implementation of MM, an embeddable script
+engine for MM [23]. shows a partial meta-model
+based on MM-Lib., we express the dependencies be-
+tween the abstract syntax and the run-time state. An engine,
+which instantiates a program, tracks the current amounts
+of pool nodes and which nodes are triggered for activation.
+Through a combination of e(cid:29)ects methods, it
+evaluates how the resources (cid:30)ow when nodes activate.
+
+The solution for desugaring converter nodes introduces
+invisible elements that implement its behavior. When a node
+ a converter, a series of transformations immedi-
+ately generate 1) a source, a trigger and a drain; 2) incoming
+edges to the drain; and 3) outgoing edges to the source. In
+add running engines obtain new node instances used
+for evaluating (:30)ow rates. Changes to a are
+delegated its source and drain nodes. Changing the nodes
+
+158
+
+
+Cascade
+
+SLE ’23,–24, 2023, Cascais, Portugal
+
+more concise. Due to its representation of e(cid:29)ects, Vie solves
+two limitations of MM-Lib. First, it adds traceability of cause-
+and-e(cid:29)ect for all Second, it expresses the e(cid:29)ects of
+resource triggers as a (cid:27)xpoint computation.
+Vie is more extensible and maintainable. Combot
+with straightforward. Since both have event APIs,
+and Godot support C#, they integrate well. Our e(cid:29)ort went
+mainly into creating the UI. A bene(cid:27)t of Godot is that Vie is
+a (Windows, Linux, MacOS, iOS, Android).
+
+10 Discussion
+Cascade has compelling bene(cid:27)ts for creating live program-
+ming environments. Using its notationsionslanguage engineers can concisely express DSL run-time be-
+haviors, and account for many migration scenarios, on the
+meta. They can ensure transformations and side-e(cid:29s
+are correct by design. However, no automated contextual
+analysis is provided yet. At no additional cost, Delta gen-
+erates a history that traces how and why every event hap-
+pens, while ensuring the run-time state is correctly updated.
+Cause-and-e(cid:29)ect chains are instrumental for live
+programming, omniscient debugging and version control.
+Because the generated interpreters aredriven, they
+combine well with visual UIs, e.g., bowsers or game engines.
+Of course there are also costs. For language engineers, bidi-
+ thinking is not straightforward. Language designs
+do not normally include run-time state migrations. Learning
+how bi-directional designs work takes time and practice.
+ have validated Cascade against a limited number of
+existing DSLs. Further validation will require introducing
+new liveness to. Additionally, the compiler is a com-
+plex meta-program that bridges a wide conceptual gap. As
+a result, it undoubtedly still contains bugs we have not yet
+identi(cid:27)ed. To address this, we plan to create a test harness
+that automates and prototypes.
+
+Of course proposed combination of transformations,
+migrators and feedback mechanisms generalizes beyond Cas-
+cade. These abstractions can also be programmed using Gen- Purpose Languages (GPLs). Our compiler targets C#.
+Unlike Cascade, GPLs do not support bi-directional transfor-ations or generate cause-and-e(cid:29)ect chains out of the box.
+Adding support requires a considerable engineering e(cid:29)ort.

@@ -1,0 +1,307 @@
+4. Section intro
+s. An
+invertible e(cid:29)ect, typically a setter, is its own inverse. For
+such an e(cid:29)ect, an inversion matches the constant subject,
+and swaps the old and new values of the change parameter.
+
+5.4 Design considerations
+5.4.1 Root cause analysis. The design decision, that all
+change must be explicit, adds some verbosity but ensures
+events can always be related to their Cascade speci(cid:27)cation.
+We observe that default code for e(cid:29)ects and inverses may be
+generated, and explicit ownership enables static analysis.
+
+5.4.2 Consistency. To ensure bi-directionality, deletions
+and removals must also be explicit. Therefore objects cannot
+be garbage-collected. Creating a new object is, as one would
+expect, a sequence of operations that create new objects and
+afterwards assign initial values. However, deleting an object
+is more involved. Deletion requires a clean-up of every child
+object owned, and typically also erasure of references to
+the object (or aliases) before the object can be deleted itself.
+Fields must all have default values before deletion.
+
+5.4.3 Liveness. Cascading changes can introduce liveness
+into DSLs. By adding relationships between coding actions
+and run-time e(cid:29)ects, language engineers can improve in-
+put and feedback mechanisms that help programmers make
+gradual changes and observe di(cid:29)erences in behavior. This
+
+E(cid:27)ect
+
+– operations
+List<Operation>
+
+Trigger
+
+Signal
+
+Figure 13. Delta’s history consists of cause-and-e(cid:29)ect chains
+
+1
+2
+3
+4
+5
+6
+7
+
+void s c h e d u l e ( P a t c h e r p, D i s p a t c h e r d, Event e ) {
+
+d. r e s o l v e ( e );
+f o r e a c h ( Event pre in d. p r e M i g r a t e ( e )){ s c h e d u l e (p,d, pre ); }
+d. g e n e r a t e ( e );
+p. c o m m i t ( e );
+f o r e a c h ( Event post in d. p o s t M i g r a t e ( e )){ s c h e d u l e (p,d, post ); }
+
+}
+
+Figure 14. C# pseudo-code of Delta’s event scheduler
+
+has far reaching implications for the language designs of
+DSLs, as we will demonstrate in Sections 7, 8 and 9.
+
+ Compiler and Runtime
+The Cascade framework consists of a compiler written in
+Rascal [8], and Delta, a runtime written in C#. The compiler
+translates Cascade speci(cid:27)cations into that
+integrate with Delta’s extensible engine. Figure 6 gives an
+overview that illustrates how the main components process
+and transform events.
+
+Each generated DSL interpreter (or language) consists
+of three sub-packages: 1) Model contains the classes of the
+meta-model; 2) Operation contains the classes representing
+events; and 3) Runtime contains components that process
+events and transform models. Key runtime components are
+the generator, and pre- and post-migrators, which generate
+edit operations and handle side-e(cid:29)ects. Delta’s engine has
+three main components. The dispatcher manages a set of
+languages, and determines which one handles an event. The
+patcher executes edit operations, maintains the heap and
+updates the version history. The scheduler determines the
+order in which events are scheduled, generated and migrated.
+Next, we explain how non-linear event scheduling works.
+
+6.1 Scheduling events
+The engine generates transactions in the form of cause-and-
+e(cid:29)ect chains, as illustrated by Figure 13. Histories consists
+of junctures, branching points in time signifying events.
+
+When called, the scheduler binds an event to a speci(cid:27)c
+subject. We sketch the recursive algorithm that schedules
+each event in Figure 14. First, the dispatcher resolves the lan-
+guage that processes the event (line 2). Before processing the
+event itself, the pre-migrator of the language determines if
+any events need to happen before, and if so, those are sched-
+uled (cid:27)rst (line 3). Only when the recursive pre-side-e(cid:29)ects
+have completed, the generator of the language generates the
+edit operations that perform the event’s own e(cid:29)ect (line 4).
+
+154
+
+
+Cascade
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Mach:
+Create
+
+State:
+Create
+
+Trans:
+Create
+
+post
+
+post
+
+MachInst:
+
+Create
+
+Mach:
+
+AddState
+
+State:
+AddI
+
+State:
+AddO
+
+post
+
+post
+
+StateInst:
+
+Create
+
+MachInst:
+
+Add
+
+StateInst
+
+↓
+MachInst:
+Initialize
+
+Mach:
+Delete
+
+1
+
+State:
+Delete
+
+pre
+
+pre
+
+MachInst:
+
+Delete
+
+Mach:
+Remove
+
+State
+
+8
+
+pre
+
+pre
+
+2
+
+3
+
+5
+
+Trans:
+Delete
+
+pre
+
+6
+
+4
+
+State:
+
+State:
+
+RemoveO
+
+RemoveI
+
+7
+
+9
+
+MachInst:
+Remove
+StateInst
+
+10
+
+StateInst:
+
+Delete
+
+11
+
+12
+
+↓
+MachInst:
+Initialize
+
+12
+
+↓
+MachInst:
+Initialize
+
+↓
+MachInst:
+
+Trigger
+
+post
+
+post
+
+↑
+MachInst:
+Missing
+CurState
+
+↑
+MachInst:
+(cid:30)iescence
+
+10
+
+MachInst:
+SetCurState
+13
+
+post
+
+14
+
+StateInst
+SetCount
+
+(a) Dependencies between creation events
+
+(b) Dependencies between deletion events
+
+(c) Dependency of run-time triggers
+
+Figure 15. LiveSML: Static dependency graphs of events, and an example run-time state migration
+
+The patcher immediately commits the transaction to the, before the stale (line 5). Afterwards,
+post-migration schedules any events that need to happen
+afterwards (line 6). When each of those events completes,
+the event itself completes.
+
+6.2 Implementation
+The compiler 3285 LOC of Rascal. Delta consists
+of 11.5 KLOC#. Delta’s main parts are the edit opera-
+tions interpreter (1745 LOC), the runtime (7288 LOC), and the
+REPL language (2603 LOC). Cascade is available under the
+2-clause BSD license: h(cid:29)ps://github.com/vrozen/Cascade.
+
+7 Live State Machine Language
+We investigate how to express the design of LiveSML [24].
+LiveSML exempli(cid:27)es run-time state migrations with one-to-
+many relationships. Its semantics introduce dependencies be-
+tween de(cid:27)nitions of machines and states and their instances.
+Changes to de(cid:27)nitions potentially have many side-e(cid:29)ects on
+the run-time state. Because this state is not known a priori,
+run-time state migrations have to account for many even-
+tualities. Using Cascade, we create an interactive prototype
+that reproduces the behavior of the original Java implemen-
+tation. We demonstrate its interpreter accounts for run-time
+eventualities by reproducing the scenario of Section 2.1.
+
+7.1 Event-based language design
+We create an event-based language design. In addition to
+its meta-model, shown in Figure 8, we design its run-time
+transformations. Figure 15 schematically depicts de-
+pendencies between creation events, deletion events and run-
+time triggers. Events, shown as rounded rectangles, work on
+the syntax (white) and the run-time state (gray). Interactive
+events (double line) are coding actions (white) and user inter-
+actions) with side-e(cid:29)ects (single line). Arrows indicate
+if side-e(cid:29)ects happen before (pre) or after (post) an event.
+Converging arrows indicate reuse in distinct scenarios.
+
+Cre

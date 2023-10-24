@@ -1,0 +1,184 @@
+Title-Abstract
+Cascade
+
+A Meta-language for Change, Cause and E(cid:29)ect
+
+Riemer van Rozen
+
+rozen@cwi.nl
+
+Centrum Wiskunde & Informatica
+
+Amsterdam, The Netherlands
+
+Abstract
+Live programming brings code to life with immediate and
+continuous feedback. To enjoy its bene(cid:27)ts, programmers
+need powerful languages and live programming environ-
+ments for understanding the e(cid:29)ects of code modi(cid:27)cations on
+running programs. Unfortunately, the enabling technology
+that powers these languages, is missing. Change, a crucial
+enabler for explorative coding, omniscient debugging and
+version control, is a potential solution.
+
+We aim to deliver generic solutions for creating these lan-
+guages, in particular Domain-Speci(cid:27)c Languages (DSLs). We
+present Cascade, a meta-language for expressing DSLs with
+interface- and feedback-mechanisms that drive live program-
+ming. We demonstrate run-time migrations, ripple e(cid:29)ects
+and live desugaring of three existing DSLs. Our results show
+that an explicit representation of change is instrumental
+for how these languages are built, and that cause-and-e(cid:29)ect
+relationships are vital for delivering precise feedback.
+
+CCS Concepts: • Software and its engineering → Visual
+languages; Domain speci(cid:27)c languages; Integrated and visual
+development environments; Interpreters.
+
+Keywords: live programming, metamodels, domain-speci(cid:27)c
+languages, bidirectional transformations, model migration
+
+ACM Reference Format:
+Riemer van Rozen. 2023. Cascade: A Meta-language for Change,
+Cause and E(cid:29)ect. In Proceedings of the 16th ACM SIGPLAN Inter-
+national Conference on Software Language Engineering (SLE ’23),
+October 23–24, 2023, Cascais, Portugal. ACM, New York, NY, USA,
+14 pages. h(cid:29)ps://doi.org/10.1145/3623476.3623515
+
+1 Introduction
+Live programming caters to the needs of programmers by
+providing immediate feedback about the e(cid:29)ect of changes
+to the code. Figure 1 illustrates a typical coding cycle [13].
+
+Permission to make digital or hard copies of part or all of this work for
+personal or classroom use is granted without fee provided that copies are
+not made or distributed for pro(cid:27)t or commercial advantage and that copies
+bear this notice and the full citation on the (cid:27)rst page. Copyrights for third-
+This work is licensed under a Creative Commons Attribution 4.0 Interna-
+party components of this work must be honored. For all other uses, contact
+tional License.
+the owner/author(s).
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+© 2023 Copyright held by the owner/author(s).
+ACM ISBN 979-8-4007-0396-6/23/10.
+h(cid:29)ps://doi.org/10.1145/3623476.3623515
+
+Mind
+
+Senses
+
+UI
+
+System
+
+Figure 1. Live Programming speeds up coding cycles
+
+Each iteration, programmers make improvements by per-
+forming coding actions, events that result in the construc-
+tion, modi(cid:27)cation and deletion of objects over time. To help
+programmers realize their intentions, live programming en-
+vironments o(cid:29)er suitable user interface mechanisms that
+enable performing the e(cid:29)ects of coding actions. In addition,
+these environments o(cid:29)er feedback mechanisms that display
+changes for perceiving those e(cid:29)ects, and evaluating if the
+action has been successful. Good feedback supports forming
+mental models and learning cause-and-e(cid:29)ect relationships
+that help programmers predict e(cid:29)ects of coding actions and
+make targeted improvements.
+
+Despite the compelling advantages of live programming,
+its adoption remains sporadic due to a lack of enabling
+technology for creating the necessary programming lan-
+guages. Unfortunately, creating languages whose users enjoy
+the advantages of live programming is incredibly complex,
+time-consuming and error-prone. Language engineers lack
+reusable abstractions and techniques to account for run-time
+scenarios with eventualities such as run-time state migra-
+tions, e.g., removing the current state of a state machine.
+
+Several Domain-Speci(cid:27)c Languages (DSLs) support a form
+of live programming that modi(cid:27)es running programs, e.g.,
+the State Machine Language (SML) [24], Questionnaire Lan-
+guage (QL) [20] and Machinations [23]. However, these are
+one-o(cid:29) solutions with hand-crafted interpreters that are dif-
+(cid:27)cult to extend and maintain.
+
+We study how to create such DSLs in a principled manner,
+how to express their liveness, and how to add this liveness to
+existing ones. We hypothesize that an explicit representation
+of change, a crucial enabler for exploratory coding, omni-
+scient debugging and version control, is the missing factor
+in the currently available language technology. Our main
+objective is to deliver language-parametric solutions for cre-
+ating change-driven DSLs that foreground cause-and-e(cid:29)ect
+relationships, and let programmers perceive e(cid:29)ects.
+
+149
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+Mind
+
+Mental Model
+
+augments
+
+informs
+
+Senses
+
+Actions
+
+perform
+
+Programmer
+
+Insights
+
+helps form
+
+Feedback
+
+display
+
+UI/System
+
+Changes
+
+process
+
+Programming
+Environment
+
+generate
+
+E(cid:27)ects
+
+Figure 2. Relating actions to events, feedback and insights
+
+state c l o s e d
+
+1 m a c h i n e doors
+2
+3
+4
+5
+
+state o p e n e d
+
+open = > o p e n e d
+
+close = > c l o s e d
+
+sm: doors
+
+closed
+
+open
+
+opened
+
+close
