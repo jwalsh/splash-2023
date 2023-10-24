@@ -1,0 +1,3 @@
+{
+            "filename": "garfield-cyberpunk3",
+            "prompt": "Garfield as a cybernetic cat wearing a leather jacket and sunglasses in a dystopian cyberpunk world.",

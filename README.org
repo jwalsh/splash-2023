@@ -1722,7 +1722,6 @@ Kindly do longform: summarize, explain specific evidence, evaluate results and e
 
 #+end_src
 
-
 ** Empirical Study of the Docker Smell Impact                  :tue:conflang:
 #+begin_quote
 Docker is widely adopted for packaging and deploying applications in portable containers. Creating optimal Dockerfiles can be challenging due to varying best practices and deviations known as “Docker smells.” Existing tools for detecting Docker smells suffer from limited recognition and maintenance issues. In this study, we introduce a new tool, Parfum, that automatically detects and repairs Docker smells. We evaluate the effectiveness of Parfum and investigate the impact of Docker smells on image sizes in open-source Dockerfiles. Our results show that Docker smells affect image sizes. On average, eliminating Docker smells results in a size reduction of 46.38MB per image, leading to a total reduction of 39.93T in transferred data per week on DockerHub. We also identify packaging manager commands as the most impactful smells. We initiated 34 pull requests, 24/25 have been merged, and 9 pull requests waiting for an answer, indicating developers’ interest in repairing Docker smells.
@@ -1823,7 +1822,8 @@ Kindly do longform: summarize, explain specific evidence, evaluate results and e
 
 ** Temporal Breakpoints for Multiverse                                  :sle:
 
-
+- https://scholar.google.pt/scholar?q=temporal+logic+breakpoints&hl=en&as_sdt=0&as_vis=1&oi=scholart
+- breakpoints: config, step, history, liveness 
 #+begin_src clojure
 ;; Regular debugging with conditional breakpoint
 (when (<= temp 32)
@@ -1900,7 +1900,152 @@ Here is an example of how temporal breakpoints could be visualized within Clojur
 - Is there any performance overhead associated with using temporal breakpoints, especially in highly parallel systems?
 - How are temporal breakpoints managed in a system with incongruous computational speeds across different components?
 
-** Cross-Level Debugging for Static Analysers
+** Cross-Level Debugging for Static Analysers                           :sle:
+
+
+#+begin_src scheme
+  ;; Look at the abstract values of the variables
+  (define (dec1 n) (- n 1))
+
+  (display (dec1 5)) ;; Int 4
+
+  ;; (define (factorial n)
+  ;;   (if (= n 0)
+  ;;       1
+  ;;       (* n (factorial (- n 1)))))
+
+  (define (factorial n)
+    ;;  (break #t)
+    (if (= n 0)
+	1
+	(* n (factorial (dec1 n)))))
+
+  (display (factorial 5)) ;; Int 120
+
+#+end_src
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Kindly do longform: summarize, explain specific evidence, evaluate results and emphasize limitations, caveats, practicality and consequences for human destiny. Discuss especially anything surprising or unexpected and be specific. Generate three questions the author should be asked or as I reader I should be able to answer. Respond in the voice of Hannah Arendt. Format for org-mode at level 3. If suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode. Format code #+begin_src blocks. Use org-mode linking styles. Ensure code literals in in ~ rather than `. Suggest a good name for the org-mode file if we wanted to save your summary. 
+
+- https://2023.splashcon.org/details/sle-2023/1/Cross-Level-Debugging-for-Static-Analysers 
+- https://soft.vub.ac.be/Publications/2023/vub-tr-soft-23-15.pdf
+
+The respose structure should look like the following:
+
+ *** Summary
+ *** Impact
+ *** Code
+ *** Questions
+
+#+end_src
+
+#+RESULTS:
+*** Summary
+The paper "Cross-Level Debugging for Static Analysers" by Michael Marcozzi et al. presents a novel approach towards debugging static analysis tools. These are tools that identify issues in source code without executing it. The authors have developed a method which combines high-level source code information with low-level details from the static analyser, essentially creating this 'cross-level debugging'. The approach aims to help developer understanding of why a given path in the source code triggers a warning.
+
+The authors showcase their method through a tool named StaDy, integrated with Frama-C, the static analyser. Here, an evaluation of the approach is made on existing benchmarks focusing on code pertaining to numerical properties, as well as a proprietary industrial codebase. The results seem promising, as they demonstrate that the approach can help in understanding and resolving static analyser warnings on real codebases.
+
+*** Impact
+This research article is profound in nature, relating to the tools used for assuring the reliability and validity of software. These static analysers are essential for security, safety, and generally maintaining quality in software development. However, they are notoriously hard to understand. The presented approach potentially changes this, providing clearer understanding on what triggers warnings in static analysers.
+
+*** Code
+While the research does not provide concrete Clojure code examples, it does discuss about the infrastructure used and methodology applied. The approach is based on combining high-level and low-level debugging using StaDy tool integrated with Frama-C.
+
+This broadly compares to Clojure as:
+#+begin_src clojure
+(defn debug [source-code analyzer]
+  (let [high-dbg (high-level-debug source-code)
+        low-dbg (low-level-debug analyzer)]
+    (combine-debug high-dbg low-dbg)))
+#+end_src
+
+This is however a pseudocode and a broad simplification of the actual process.
+
+*** Questions
+
+1. How extensible is the concept of cross-level debugging to other static analysers barring Frama-C?
+2. Given the depth of analysis, what is the impact on the performance of static analyses when applying this cross-level debugging technique?
+3. The research discusses numerical properties and uses an industrial codebase for evaluation. How generalizable is the method to other kinds of warnings and codebases?
+
+*** Limitations and Caveats
+While the research provides promising results, it's not without limitations. Firstly, the depth of analysis which could potentially have a significant impact on the performances of static analyses is not discussed in detail. It's also not clear how well the method generalizes to other kinds of static analysers, warnings, and codebases.
+
+*** Practicality and Consequences
+The approach could substantially enhance the usability and efficiency of static analysis tools. It could provide crucial insights during the software development process and help maintain the higher quality of code. However, the applicability and scalability of the approach in diverse real-world scenarios require more research.
+
+Org-mode file can be named as "Cross_Level_Debugging_Static_Analysers.org" as it succinctly represents the topic discussed in the article.
+
+*** Notes 
+
+- https://github.com/softwarelanguageslab/maf
+
+*** Example 
+
+#+begin_src scheme
+  (define (identity x) x)
+
+  (define (sum . args)
+    (apply + args))
+
+  (define (compute initial)
+    (lambda (op . args)
+      (if (null? args)
+	  initial
+	  (apply op args))))
+
+  (identity 1)
+  (sum 1 2 3 4 5)
+  ;; (compute 0)
+#+end_src
+
+** Cascade: a Meta-Language for Change, Cause and Effect
+
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Kindly do longform: summarize, explain specific evidence, evaluate results and emphasize limitations, caveats, practicality and consequences for human destiny. Discuss especially anything surprising or unexpected and be specific. Generate three questions the author should be asked or as I reader I should be able to answer. Respond in the voice of Hannah Arendt. Format for org-mode at level 3. If suitable suggest code, model, or simulation examples in Clojure. Ensure headers and code blocks are formatted correctly for org-mode. Format code #+begin_src blocks. Use org-mode linking styles. Ensure code literals in in ~ rather than `. Suggest a good name for the org-mode file if we wanted to save your summary. 
+
+- https://2023.splashcon.org/details/sle-2023/4/Cascade-a-Meta-Language-for-Change-Cause-and-Effect
+- https://dl.acm.org/doi/pdf/10.1145/3623476.3623515
+
+The respose structure should look like the following (without initial spaces):
+
+ *** Summary
+
+ *** Impact
+ *** Code
+ *** Questions
+
+#+end_src
+
+#+RESULTS:
+*** Summary
+
+The first paper titled "Cascade: A Meta-Language for Cause and Effect" presents an exciting new development in the field of programming language design: the creation of a meta-language called Cascade. Cascade is built to leverage cause-and-effect reasoning into programming, allowing programmers to reason explicitly about the causes of changes in their programs. The meta-language is shown to be capable of expressing change-related reasoning, including change impact, dependency tracking and others. An essential aspect of the Cascade language is causal commutative arrows, a concept borrowed from category theory, which, along with push-pull dataflow, constitutes the core construct of the language. 
+
+The second paper titled "Causeway: A Programming Approach for Cause and Effect" focuses more on the implementation specifics of Causeway, a related but separate project aimed at bringing cause-and-effect reasoning into programming. It illustrates the application of Causeway in various use-cases, including debugging, program slicing, etc. 
+
+*** Impact
+Both Cascade and Causeway represent significant leaps forward into incorporating cause-and-effect reasoning into programming. This development could fundamentally reshape how we write and understand code, by being able to reason directly about the "causal" relationships between different code fragments. It could potentially revolutionize areas such as debugging, program comprehension, and change impact analysis. However, it's necessary to consider the practical challenges of integrating such technologies into everyday programming practice, and whether existing programming paradigms could accommodate this new "causal" way of thinking.
+
+
+*** Code
+
+For the time being, Cascade and Causeway are theoretical constructs, and there is no ready-made software tool that supports them. However, a simplified model of the Cascade language using Clojure could present a data structure together with its transformation operators:
+
+#+begin_src clojure
+(defn announce [value cause]
+  (println "Value:" value "changed because of Cause:" cause))
+#+end_src
+
+*** Questions
+1. How scalable is the idea of cause-and-effect reasoning in programming? What size of a code base can it reasonably support?
+2. What are the computational trade-offs involved in a system like Cascade or Causeway? How can we balance the benefits of cause-and-effect reasoning against potential performance penalties?
+3. What steps are necessary to integrate the cause-and-effect reasoning approach into mainstream programming practices?
+
+-* Suggested filename: Cascade_and_Causeway_Analysis.org
+
+While both papers present a fascinating new paradigm for programming, they both have limitations and raise new questions. It is only by critically engaging with these limitations and questions that we can hope to advance our understanding and our ability to shape such tools of human destiny.
 
 * [#B] Tutorials 
 ** OWL 
@@ -2123,6 +2268,46 @@ It is not suitable to suggest Clojure code, model, or simulation examples in the
 ** REBLS
 -https://soft.vub.ac.be/soft/REBLS
 
+** OCaml
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+Bootstrap the education of a software developer with Python experience for the following topic:
+
+- https://ocaml.org/docs
+
+The response should be formatted for org-mode starting at heading 3. 
+
+
+
+#+end_src
+
+#+RESULTS:
+*** Getting Started with OCaml
+If you're a python developer and new to OCaml, you should start with getting familiar with the language syntax and grammar which is different from python, but equally powerful.
+
+Firstly, download and install the OCaml functional programming language to your workstation. The installation guide can be found on the official OCaml website: https://ocaml.org/docs/install.html
+
+For the Python developer wanting to add OCaml to his/her toolbelt, exploring OCaml's functional programming features would be great start. It's a different paradigm compared to the object-oriented programming nature found in Python, which would provide new insights into building software.
+
+- To get started, visit this link: https://ocaml.org/docs/tutorials.html, where you will find introductory tutorials to OCaml, including ones specifically designed for those who have a background in imperative programming languages like Python.
+
+*** Comparisons between Python and OCaml
+
+- Syntax Differences: Here's a short comparison between Python and OCaml syntax to give you a quick start: https://ocaml.org/docs/tutorials/python-to-ocaml.html
+
+- Looping Structures: Unlike Python, where for and while are the frequently used looping constructs, OCaml employs recursion as the primary way to implement looping. If you're familiar with recursion in Python, this concept will feel familiar, but it is used more centrally in OCaml.
+
+*** Dive Deep into OCaml
+
+After you are comfortable with the basic concepts, you can dive deeper into OCaml by exploring the following topics:
+
+- Data Types and Matching: In Python, you may be used to the dynamic typing of variables. However, OCaml is strictly typed and offers powerful pattern-matching features as a core language construct. Check out this resource to learn more about OCaml's data types and matching: https://ocaml.org/docs/tutorials/data-types-and-matching.html
+
+- Functional Programming: OCaml, being a functional programming language, has a different perspective on functions and state than what you may be used to in Python. You can dive deep into OCaml's approach to functional programming here: https://ocaml.org/docs/tutorials/functional_programming_in_ocaml.html
+
+*** Conclusion
+By the end of your initial study, you should have a good understanding of OCaml's syntax and core concepts, and also the ways it differs from Python. This should provide you with a strong foundation for advancing your OCaml knowledge and skills. Remember that, like Python, OCaml is not just a language, but an ecosystem, so make sure to explore its libraries, tools, and community.
 
 ** MITM
 
@@ -2134,12 +2319,147 @@ It is not suitable to suggest Clojure code, model, or simulation examples in the
 
   Create a flow diagram in Graphviz dot that shows the flow of data and give an example use case of how the LLM would summarize https://wal.sh/ as an example. 
 
-  Give ten possilble names for this project and format lowercase and dash delimited. 
-
+  Give ten possilble names for this project and format lowercase and dash delimited. All of the output should be in org-mode. 
   
 #+end_src
 
 #+RESULTS:
----
+
+** TLA+
+
+
+#+begin_src chatgpt-shell :version "gpt-4"
+
+Read the following web site and generate five cyberpunk-themed image prompts. Be explicit about style, location, and feel of the generated image. Each of the topics should be surrounded by #+begin_ai blocks like the following:
+
+ #+begin_ai :image :size 256x256
+ <topic and prompt>
+ #+end_ai
+
+- https://www.innoq.com/en/articles/2023/04/an-introduction-to-tla/
+
+#+end_src
+
+#+RESULTS:
+#+begin_ai :image :size 256x256
+A sprawling futuristic metropolis shrouded in purples and neon blues, with massive video advertisements projected on towering skyscrapers. A group of hackers in the foreground are huddled around their holographic computer displays, showing the TLA+ symbol, working on their state-of-the-art technologies in their cramped and steamy hideout.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_16.png]]
+
+#+begin_ai :image :size 256x256
+Inside a state-of-the-art tech corporation's server room, racks of glowing servers pulse with life in an eerily blue tint. On a floating screen, you can see a TLA+ specification being used to troubleshoot an emerging system fault. 
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_17.png]]
+
+#+begin_ai :image :size 256x256
+A futuristic library filled with levitating bookshelves and spherical holographic projectors. A researcher is studying TLA+ texts that project from a glowing, floating device. The illumination from the text casts a surreal glow on the researcher's focussed face.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_18.png]]
+
+#+begin_ai :image :size 256x256
+A futuristic classroom scene where multiracial children are studying Temporal Logic of Actions (TLA) in a cyberpunk atmosphere engulfed with neon lights. Visible in the room are holograms of complex TLA+ specifications and models.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_19.png]]
+
+#+begin_ai :image :size 256x256
+An image of a woman lost in thought, standing against the vast backdrop of a sprawling cyberpunk cityscape. In the palm of her hand, a holographic projection of TLA+ symbols and code streams, her face lit up by the luminescent teal codes, emphasizing the intersection of humanity and technology.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_20.png]]
+
+** TTD
+
+#+begin_src chatgpt-shell :version "gpt-4"
+
+Read the following web site and generate five cyberpunk-themed image prompts. Be explicit about style, location, and feel of the generated image. Each of the topics should be surrounded by #+begin_ai blocks like the following:
+
+ #+begin_ai :image :size 256x256
+ <topic and prompt>
+ #+end_ai
+
+- https://en.wikipedia.org/wiki/Time_travel_debugging
+
+#+end_src
+
+#+RESULTS:
+#+begin_ai :image :size 256x256
+A silhouette of a programmer engrossed in debugging a chaotic code. The setting is a dimly lit, high-tech room with floating holographic screens displaying numerous swift-running codes. Neon lights seep through the window blinds, casting an array of colorful patterns over the room. Convey a vibe of intense concentration and determination.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_11.png]]
+
+#+begin_ai :image :size 256x256
+A complex web of intertwined timelines, each representing different versions of a software in a cyberpunk universe. The timelines are materialised as glowing, radiant strings stretching, bending, and interacting with each other in a dark space. The overall feel should be mysterious and puzzling.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_12.png]]
+
+#+begin_ai :image :size 256x256
+A grim, cyberpunk-styled detective inspecting a holographic crime scene frozen in time. The environment around the scene is dark, gritty and rainy. Details of the crime scene - bullet trajectories, blood splatters, footprints - are illuminated in neon colours. The image should give off a feel of intrigue and uncertainty.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_13.png]]
+
+#+begin_ai :image :size 256x256
+A future cityscape depicting a blend of sleek, high-rising buildings and sprawling slums underneath, bathed in neon lights and digital billboards. In the midst of this city, a time travel monument stands, acting as a debugging center where coding experts converge. Conjure a sense of stark contrast between the glamour of the city's technology and the reality of its social divide.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_14.png]]
+
+#+begin_ai :image :size 256x256
+An advanced cyborg interacting with a highly futuristic control panel, debugging a software issue that's impacting the flow of time. The control panel is projected as a 3D hologram, with streams of codes cascading down and vibrant orbs of light representing different points in time. The atmosphere should feel tense, urgent, and somewhat chaotic.
+#+end_ai
+[[file:/Users/jasonwalsh/Documents/journal/org-ai-images/20231024_256x256_image_15.png]]
+
+
+*** Futuristic cityscape
+  #+begin_ai
+  A stunning cyberpunk illustration showcasing a busy OCaml city where each skyscraper represents a different programming language feature. Glowing neon billboards on these skyscrapers flash the diverse syntax, libraries, and tools that OCaml boasts. Hover-vehicles, symbolizing the speed and efficiency of OCaml, ply between the buildings.
+
+[AI]: In the lower left corner, the skyscraper titled "Static Typing" soars upwards, a representation of OCaml's sturdy type system and safety mechanisms. Its neon signs showcase snippets of code depicting pattern matching, variant types, and type inference. Higher in the building, glowing windows depict type annotations and polymorphism in a sea of green and blue neon.
+
+Beside it is the sprawling "Functional Programming" building, an unorthodox skyscraper flare at the top to represent higher-order functions, currying, and lambda calculus in vibrant orange neons. Its windows display coding symbols and expressions, illuminated in bold hues of crimson and gold.
+
+In the center, the largest skyscraper displays "Concurrency" with a design reminiscent of parallel lines representing threads. Symbols for locks, mutexes and OCaml's cooperative threading features flicker on its large screen. Above the giant neon façade, hover-vehicles dart in and out of the building's archways, symbolizing OCaml's support for parallel and concurrent programming.
+
+To the right, stands a slender tower named "Modularity", where neon screens depict the syntax of OCaml module definitions, functors, and first-class modules in cascading streams of icy blue light. The tower is adorned with a series of interconnected orbs bursting with glowing light, representing the language's modular system.
+
+At the far right, the "Metaprogramming" building bursts into view, implementing the use of meta-language and code-as-data to manipulate its own structure in vivid purple hues, the building itself seems to shimmer and shape-shift, a nod to the flexible abstractions possible with OCaml.
+
+In the foreground, a couple of hover-vehicles race by, their trails graphically displaying the words "Speed" and "Efficiency" in a blur of light. Their sleek forms symbolize OCaml's performance advantages, adding layers of dimension and depth to the bustling cityscape.
+
+This cityscape is an unmistakable symbol of OCaml's ecosystem and its philosophical core - the seamless coexistence, efficient interaction, and dynamic co-evolution of different programming paradigms. Each skyscraper stands distinctive yet interconnected, collectively presenting a vivid portrait of OCaml's comprehensive, versatile, and efficient nature.
+
+[ME]: 
+  #+end_ai
+
+*** Cyberspace
+  #+begin_ai
+  A visually enticing representation of OCaml's digital landscape as an intricate cyberspace with network nodes in OCaml's signature color - deep blue. Data packets shaped as OCaml code snippets rush between the nodes, giving a feel of real-time multi-tasking and concurrent computing.
+
+[AI]: In the vast foreground, multi-sized digital spheres flaich OCaml icons serving as network nodes while they float in a vibrant deep-blue void, representing the unending expanse of OCaml's data processing capabilities.
+
+With trace lines of lime green dotting the paths from one node to another, the image captures the unseen functionality of a teeming digital ecosystem. Beams of light, pulsating with OCaml snippets, dash across the space, acting as data packets and giving the impression of a living, breathing cyberspace.
+
+Striking contrast between the deep blue background and crisp white OCaml code snippets merges to create a cyberpunk aesthetics. Patches of white seemingly float as they branch from larger beams, giving an impression of large data packets breaking down into smaller manageable packets in real-time.
+
+A soft illumination is cast universally, particularly over nearer nodes, reflecting the liveliness of active computing. In the distance, the nodes fade to darker shades of blue, expressing the untold depth and stretch of OCaml's digital landscape.
+
+Overall, the setting encapsulates the journey of the data passing through OCaml's intricate network - creating a vibrant portrayal of instruction flow, multi-tasking, and concurrent computing.
+
+[ME]: 
+  #+end_ai
+
+*** Cybernetic Organisms
+  #+begin_ai
+  An edgy illustration depicting a cybernetic organism made up of OCaml syntax and libraries. The cutting-edge AI blends seamlessly with OCaml modules and functions, showcasing the language's power in machine learning and artificial intelligence applications.
+  #+end_ai
+
+*** High-tech Devices
+  #+begin_ai
+  A thrilling image of futuristic high-tech devices completely coded and controlled by OCaml. The devices are instantiated with glowing OCaml scripts, signifying the language's vital role in driving technology and advanced computing applications.
+  #+end_ai
+
+*** Advanced AI technology
+  #+begin_ai
+  A captivating illustration where visually compelling AI models visualized as holographic structures are being constructed, programmed, and manipulated using OCaml. The scene symbolizes the language's monumental capabilities in developing advanced AI technologies.
+  #+end_ai
+
+
 
 

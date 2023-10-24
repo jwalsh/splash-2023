@@ -1,0 +1,1 @@
+Inside a state-of-the-art tech corporation's server room, racks of glowing servers pulse with life in an eerily blue tint. On a floating screen, you can see a TLA+ specification being used to troubleshoot an emerging system fault.

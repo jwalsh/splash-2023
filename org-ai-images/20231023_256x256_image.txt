@@ -1,0 +1,3 @@
+{
+            "filename": "garfield-cyberpunk1",
+            "prompt": "Garfield in a futuristic cyberpunk city during nighttime.",

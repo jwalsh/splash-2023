@@ -1,0 +1,3 @@
+{
+            "filename": "garfield-cyberpunk2",
+            "prompt": "Garfield exploring a neon-lit cyberpunk metropolis with towering skyscrapers.",
