@@ -1,0 +1,24 @@
+
+* Summary
+The research endeavors to introduce temporal breakpoints, an enhancement to the traditional method of debugging, into the realm of "multiverse" debugging. Here, multiverse debugging is a term of art signifying the simultaneous execution of multiple alternate program versions, particularly useful in tasks such as Undo/Redo functionality. 
+
+Temporal breakpoints are unique as they are contingent on time, presenting debuggers with a method to not just halt program execution at specific code lines, but also at specific points in time. The primary advantage is enabling the viewing and comparing of multiple program states at the same point in time, akin to a time machine for debugging. Thus, the combination of these breakthroughs adds a new dimension to debugging practices.
+
+* Impact
+Our need for these new debugging techniques arises from the increased complexity and non-determinism in computing systems, where single execution paths are no longer sufficient to fully understand system behavior. By taking time as another factor into consideration for breakpoints, we are not only increasing the debugging versatility but also enabling better insights into concurrent and parallel computations. 
+
+On the element of human destiny, one can posit that this technique would not just aid developers in scarifying collaborations and innovations, but in a world increasingly reliant on complex, concurrent computation, it could be a step forward in ensuring more robust, dependable systems. 
+
+* Potential Clojure Code
+One could envision a scenario where upon reaching a preset temporal breakpoint, the code dumps the state of all variables in all threads, however it's a stretch without knowing more about the system constraints.
+
+   #+begin_src clojure
+      (defn temporal-breakpoint []
+          (Thread/sleep 5000) ;; adjust the time as needed 
+          (println "The program state at this point is: " (dump-vars))))
+   #+end_src
+
+* Questions
+    - How seamless is the integration of temporal breakpoints into existing debugger tools?
+    - Is there any performance overhead associated with using temporal breakpoints, especially in highly parallel systems?
+    - How are temporal breakpoints managed in a system with incongruous computational speeds across different components?
