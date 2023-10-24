@@ -1,0 +1,3 @@
+
+
+This section discusses the Cascade framework, which consists of a compiler written in Rascal and Delta, a runtime written in C#. It explains how the main components process and transform events, and how the scheduler determines the order in which events are scheduled, generated and migrated. It also introduces LiveSML, an event-based language design, and explains how its interpreter accounts for run-time eventualities. Finally, it provides an overview of the components of the Cascade framework, including the compiler, runtime, and Delta's engine.

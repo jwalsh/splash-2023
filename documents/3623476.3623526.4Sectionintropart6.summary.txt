@@ -1,0 +1,3 @@
+
+
+This section discusses the language design of LiveQL, a programming language that enables forward references and allows changes to running forms. It explains how Cascade helps to express the behavior of LiveQL, in particular the trickle effects that result from answering questions. It also introduces a textual DSL prototype, an interpreter with a built-in REPL, and a live programming scenario that demonstrates a trickle effect. The live programming scenario involves creating a form called Celebration, adding two questions to the form, and answering one of the questions. The answer to the question causes the form to re-evaluate dependent computed questions and if statements, resulting in the form updating and becoming visible or invisible.

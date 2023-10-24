@@ -1,0 +1,152 @@
+4. Section intro
+33|]);
+
+}
+pre 4 State.RemoveIn([|uuid://16|], [|uuid://33|]) {
+
+[|uuid://17|].remove([|uuid://33|])
+
+}
+[|uuid://33|].src = [|uuid://uuid26|] → null;
+[|uuid://33|].evt = "unlock" → null;
+[|uuid://33|].tgt = [|uuid://uuid16|] → null;
+delete Trans [|uuid://33|];
+
+}
+pre 5 Trans.Delete([|uuid://32|], [|uuid://16|], "lock", [|uuid://26|]) {
+
+pre 6 State.RemoveOut([|uuid://16], [uuid://32]) {
+
+[|uuid://18|].remove([|uuid://32|]);
+
+}
+pre 7 State.RemoveIn([|uuid://26|], [uuid://32]) {
+
+[|uuid://27|].remove([|uuid://32|])
+
+}
+[|uuid://32|].src = [|uuid://uuid16|] → null;
+[|uuid://32|].evt = "lock" → null;
+[|uuid://32|].tgt = [|uuid://uuid26|] → null;
+delete Trans [|uuid://32|];
+
+}
+pre 8 Mach.RemoveState([|uuid://13|], [|uuid://26|]) {
+
+pre 9 MachInst.RemoveStateInst([|uuid://19|], [|uuid://29|], [|uuid://26|]){
+
+pre 10 MachInst.SetCurState([|uuid://19|], null, [|uuid://29|]) {
+
+[|uuid://19|].cur = [|uuid://uuid29|] → null;
+
+}
+[|uuid://20|][[|uuid://26|]] = [|uuid://29|] → null;
+[|uuid://20|].remove([|uuid://26|]);
+
+}
+pre 11 StateInst.Delete([|uuid://29|], [|uuid://26|]) {
+
+[|uuid://29|].def = [|uuid://26|] → null;
+[|uuid://29|].count = 1 →
+delete StateInst [|uuid://29|];
+
+}
+pre 12 MachInst.Initialize([|uuid://19|]) {
+
+post 13 MachInst.SetCurState([|uuid://19|], [|uuid://21|]) {
+
+[|uuid://19|].cur = [|uuid://21|];
+post 14 StateInst.SetCount([|uuid://21|], 2, 1) {
+
+[|uuid://21|].count = 1 → 2;
+
+}
+
+}
+
+}
+[|uuid://14|].remove([|uuid://26|]);
+
+}
+[|uuid://26|].name = "locked" → null;
+delete Set<Trans> [|uuid://27|];
+delete Set<Trans> [|uuid://28|];
+delete State [|uuid://26|];
+
+}
+
+Figure 24. Cause-e(cid:29)ect chain that deletes the locked state
+
+l_insert and l_remove are each other’s inverse. These op-
+erations respectively insert or remove a value v at an index i
+in the list denoted by path p.
+
+To modify a value in a list, the invertible operation l_set,
+replaces an old value ov by a new value nv at index i in the
+list denoted by path p. For convenience, l_push inserts a
+value v at the tail of an existing list, and l_pop removes it,
+without specifying the index.
+
+A.2.3 Set. Two operations work on set objects of type
+Set<X>. The inverse operations s_add and s_remove re-
+spectively add or remove a value v of type X in an existing
+set denoted by path p.
+
+A.2.4 Map. Operations that work on map objects of type
+Map<K,V> are the following. The operations m_add and
+m_remove respectively add or remove a map record de-
+noted by key k of type K in an existing map denoted by
+path p. To ensure correctness, the initial and (cid:27)nal value in a
+
+161
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+[18] Steven L. Tanimoto. 2013. A Perspective on the Evolution of Live
+
+Programming. In Workshop on Live Programming, LIVE 2013. IEEE.
+
+[19] Ulyana Tikhonova, Jouke, Tijs van der Storm, and Thomas
+Degueule. 2018. Constraint-based Run-time State Migration for Live
+Modeling. In Software Language Engineering, SLE 2018. ACM.
+
+[20] Tijs van der Storm. 2013. Semantic Deltas for Live DSL Environments.
+
+In Workshop on Live Programming, LIVE 2013. IEEE.
+
+[21] Riemer van Rozen. 2015. A Pattern-Based Game Mechanics Design
+Assistant. In Proceedings of the 10th International Conference on the
+Foundations of Digital Games, FDG 2015, 2015. SASDG.
+
+[22] Riemer van Rozen. 2023. Game Engine Wizardry for Programming
+Mischief. In Workshop on Programming Abstractions and Interactive
+Notations, Tools, and Environments, PAINT 2023. ACM.
+
+[23] Riemer van Rozen and Joris Dormans. 2014. Adapting Game Mechan-
+ics with Micro-Machinations. In Proceedings of the 9th International
+Conference on the Foundations of Digital Games, FDG 2014. SASDG.
+
+[24] Riemer van Rozen and Tijs van der Storm. 2019. Toward Live Domain-
+Speci(cid:27)c Languages - From Text Di(cid:29)erencing to Adapting Models at
+Run Time. Softw. Syst. Model. 18, 1 (2019).
+
+[25] Yentl Van Tendeloo, Simon Van Mierlo, and Hans Vangheluwe. 2019.
+A Multi-Paradigm Modelling Approach to Live Modelling. Softw. Syst.
+Model. 18, 5 (2019).
+
+Received 2023-07-07; accepted 2023-09-01
+
+record must be defaults. To update a map record, the opera-
+tion m_set replaces an old value ov by new value nv in the
+record denoted by key k in the map denoted by path
+
+BML: Cause-and-e(cid:29)ect chain
+We detail the results of Section 7, which reproduces the
+example LiveSML live programming scenario of Section 2.1.
+Figure 24 shows the cause-e(cid:29)ect chain that results from
+deleting the locked state. The numbers appearing in the
+circles coincide with those in the generated control (cid:30)ow that
+is superimposed on the static dependency graph of Figure 15.

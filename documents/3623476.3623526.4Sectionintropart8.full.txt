@@ -1,0 +1,137 @@
+4. Section intro
+ have not studied using Cascade to add liveness to GPLs.
+The underlying execution models, e.g., program countersstack frames, do not liveness. GPLs require
+additional mechanisms such as probes to introduce liveness.
+C�s generic REPL has limitations. Its mechanisms
+are low-level, and not suitable for DSL Furthermore,
+Cascade still lacks a debugger for exploring histories, in-
+specting cause-and-e(cid:29)ect chains and tracing source locations.
+Debugging a DSL involves stepping through the generated
+C# code. Debugging transactions involves inspecting the
+notation on the REPL (e., Figure 24 in Appendix B).
+
+Figure 23. Prototyping and playtesting a mechanism in Vie
+
+behavior to another type, cleans up these invisible elements,
+and also removes node instances from running engines.
+
+9.3 Vie: a tiny live game engine
+We and the Godot game create a pro-
+totype that implements the design of MM. Vie is a tiny live
+game engine for simultaneously prototyping, playand (cid:27)neing a games design. MM’s implementation in
+Cascade counts 1542 LOC4. Compiling its sources generates
+an interpreter, 11.7 KLOC of generated C#. We augment En-
+gine with two helper classes, EvalContext (153 LOC) and
+Flow LOC), for storing temporary run-time data.
+
+Instead of using its built-in REPL, we create a visual front-
+end using Godot (v3.5.1). We leverage the GraphNode and
+GraphEdit framework, and program C# classes for connect-
+ing Cascade events to UI events. In another paper we further
+detail how we manually create this front-end [22].
+
+9.4 Live programming scenario
+We reproduce the behavior of the mechanism shown in Fig-
+ure 11. Using Vie, we perform a sequence of prototyping and
+playtesting actions that demonstrate the behavior of MM,
+including live desugaring and run-time state migrations.
+
+We (cid:27)rst recreate the diagram using Vie’s visual editor,
+shown in Figure 23. Next, we trigger the converter buyMedit
+by clicking on its center. The UI shows visual feedback.
+We observe the engine succeeds (yellow) in activating its
+drain, trigger and source. The nodes consume and produce
+resources at the expected rates (green). The textual view
+on the program, shows the invisible elements. Finally, we
+change the node type of the converter to pool. The resulting
+transaction is a long cause-e(cid:29)ect-chain that cleans up the
+desugared converter and migrates the run-time state.
+
+9.5 Analysis
+MM-Lib measures 21.2 KLOC of C++. In comparison, Vie
+does not yet support every feature, e.g. modules. However,
+at a mere 1542 LOC, its Cascade speci(cid:27)cation is considerably
+
+4h(cid:29)ps://github.com/vrozen/Cascade/tree/mainMM
+
+159
+
+
+SLE ’23, October 23–24, 2023, Cascais, Portugal
+
+Riemer van Rozen
+
+Cascade’s integration in C# is helpful for extending it func-
+tionality with helper methods. The lack of a formal seman-
+tics complicates analyses. We see opportunities for checking
+cyclic dependencies and the correctness of inverse e(cid:29)ects.
+
+Live programming with run-time state migrations is inher-
+ently inconsistent. An open challenge is identifying formal
+properties of liveness. Cascade introduces a local dependen-
+cies between events that have a global consistency of e(cid:29)ects.
+
+11 Related Work
+Live Programming is a research area that intersects Pro-
+gramming Languages (PL) and Human-Computer Interac-
+tion (HCI). The term refers to a wide array of user interface
+mechanisms, language features and debugging techniques
+that revolve around iterative changes and immediate and
+continuous feedback [16]. Tanimoto describes levels of live-
+ness that help distinguish between forms of feedback in live
+programming environments [18]. Each level adds a property:
+1) informative or descriptive; 2) executable; 3) responsive or
+edit triggered; and 4) live or stream driven. Many forms of
+live programming exist, each designed with di(cid:29)erent goals
+in mind. For instance, McDirmid describes how probes, a
+mechanism interwoven in the editor, helps diagnosing prob-
+lems [11]. Ko describes whyline, a debugging mechanism for
+asking why-questions about Java program behavior [9].
+
+Another approach is creating interpreters with a so-called
+Read-Eval-Print-Loop (REPL), a textual interface for execut-
+ing commands sequentially [3] A REPL, by de(cid:27)nition, lends
+itself naturally to exploration, incremental change and im-
+mediate feedback, each key ingredients to live programming.
+Interpreters created with Cascade have a built-in REPL and
+REPL-like APIs for designing DSLs with event-based input
+and feedback mechanisms, including visual ones.
+
+Omniscient debugging, also called back-in-time debug-
+ging, is a form of debugging that allows exploring what-if
+scenarios by stepping forward and backward through the
+code [14, 15]. Such debuggers have been created for general
+purpose languages Java [15]. Retro(cid:27)tting an omniscient de-
+bugger to an existing language can come at a considerable
+cost, redesign and implementation e(cid:29)ort. Bousse et al. pro-
+pose a meta-modeling approach for a generic debugger of
+executable DSLs that supports common debugging services
+for tracing the execution [4]. Cascade is also designed with
+omniscient debugging in mind. Cause-and-e(cid:29)ect chains are
+a key data structure for creating omniscient debuggers.
+
+The area of model a technological space that re-
+volves around the design, maintenance and reuse of models
+(or programs). Model transformations are a key technology
+for expressing change. In their seminal paper on “The Dif-
+ference and Union of Models”, Alanen and Porres describe a
+notation, originally intended for model versioning, known
+as edit operations, which expresses model deltas [2]. Van der
+Storm proposes creating live programming environments
+driven by “semantic deltas”, based on this notation [20]. Van
+
+Rozen and van der Storm combine origin tracking and text
+di(cid:29)erencing for textual model di(cid:29)erencing [21].
+
+Bi-directional Model Transformation (BX) is a well re-
+searched topic that intersects with several areas [6]. BX has
+impacted relational databases, model-driven software devel-
+opment [17], UIs, visualizations with direct manipulation,
+structure editors, and data serialization, to name a few. Ci-
+cchetti et al describe the Janus Transformation Language
+(JTL), a language for bi-directional change propagation [5].
+The study of live modeling with run-time state migra-
+tions has initially focused on (cid:27)ne-grained patching with edit
+operations [24]. Constraint-based solutions instead focus
+on correct states with respect to a set of constraints [19], a
+course-grained approach that o

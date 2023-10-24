@@ -1,0 +1,84 @@
+2. User interaction.
+Locking the door.
+
+opened
+
+close
+
+closed
+
+lock
+
+locked
+
+open
+
+unlock
+
+3. Coding action.
+close
+
+opened
+
+Deleting the locked state.
+
+closed
+
+lock
+
+locked
+
+open
+
+unlock
+
+closed: 1 *
+opened: 0
+
+locked: 0
+
+closed: 1
+opened: 0
+locked: 1 *
+
+closed: 1
+opened: 0
+locked: 1 *
+
+(a) Textual doors program
+
+(b) Visual program
+
+Figure 3. State Machine Language: doors example
+
+We propose a novel meta-modeling approach that lever-
+ages an explicit representation of change. We present Cas-
+cade, a meta-language for expressing DSLs with input and
+feedback mechanisms that drive live programming. Cascade
+expresses “cascading changes” that introduce liveness using
+bi-directional model transformations with side-e(cid:29)ects.
+
+Using its compiler, language engineers generate inter-
+preters that integrate with Delta, Cascade’s runtime. Delta
+o(cid:29)ers a built-in Read-Eval-Print-Loop (REPL) for simulating
+live programming scenarios that bring the code to life. By
+executing sequential commands on the REPL, engineers can
+simulate coding actions, user interaction and feedback.
+
+When Delta executes events, it generates transactions as
+cause-and-e(cid:29)ect chains. These transactions update a live
+program’s syntax and run-time state. We investigate how
+Cascade can help express the interpreters of SML, QL and
+Machinations. Our results show Cascade is instrumental for
+rapidly creating executable DSL prototypes with concise
+and maintainable designs. Our contributions are: 1) Cascade:
+a meta-language for change, cause and e(cid:29)ect; 2) Delta: a
+runtime for creating live programming environments; and
+3) three case studies that reproduce liveness1.
+
+2 Problem Overview
+We study a form of live programming that works on running
+programs. We relate the needs of programmers, illustrated
+by Figure 2, to changes and feedback in Section 2.2. We
+formulate hypotheses and objectives in Sections 2.3 and 2.4.
+First, we introduce a scenario that motivates this work.

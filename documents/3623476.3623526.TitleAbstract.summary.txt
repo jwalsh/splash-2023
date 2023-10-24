@@ -1,0 +1,3 @@
+
+
+This section introduces Cascade, a meta-language for expressing Domain-Specific Languages (DSLs) with interface- and feedback-mechanisms that drive live programming. It explains how an explicit representation of change is instrumental for how these languages are built, and that cause-and-effect relationships are vital for delivering precise feedback. It also provides an example of how Cascade can be used to create a state machine language, with code snippets illustrating how changes can be processed and effects generated.
