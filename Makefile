@@ -47,6 +47,7 @@ endif
 deps:
 	brew install $(BUILD_REQ_PKGS)
 	brew install borkdude/brew/clj-kondo
+	brew install git-lfs
 
 # Validate the project's structure and correctness
 check:

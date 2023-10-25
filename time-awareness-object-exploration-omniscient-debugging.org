@@ -1,0 +1,42 @@
+*** Summary: Time-awareness in Object exploration Tools: Toward In-Situ Omniscient Debugging
+
+#+PROPERTY: filename time-awareness-object-exploration-omniscient-debugging
+
+#+PROPERTY: url https://2023.splashcon.org/details/splash-2023-Onward-papers/6/Time-awareness-in-Object-exploration-Tools-Toward-In-Situ-Omniscient-Debugging
+
+#+begin_ai :sd-image
+A dark cityscape with towering cyberpunk buildings under a night sky. In the foreground, a humanoid figure holds up a glowing object, analyzing it. The object emanates digital information and code flowing through the air around it.  
+#+end_ai
+
+*** Key Points
+
+- Proposes adding time-awareness to object exploration tools to enable "omniscient debugging" in live systems
+- Allow traversing object state across time without stopping execution 
+- Prototype Temporal Object Explorer for JavaScript shows promise for debugging front-end web apps
+- Limitations around tracking identity and causal relationships between objects over time
+
+*** Impact
+
+The ability to "omnisciently debug" live systems could greatly improve developer productivity and reduce bugs. Tracing object state through time provides unique insights. Practical uses likely limited to certain domains like front-end web dev. Care needed to avoid observability changing system behavior.
+
+*** Code
+
+A Clojure speculative implementation:
+
+#+begin_src clojure
+(defn traverse-object-over-time [obj-id start-time end-time step]
+  (let [states (doall 
+                 (for [t (range start-time end-time step)]
+                   (load-object-state obj-id t)))]
+    (map println states)))
+#+end_src
+
+*** Questions
+
+- How feasible is this for backend systems vs. client-side JavaScript?
+- Could toggling time-awareness at runtime cause Heisenbugs?
+- What techniques help infer identity and causal relationships?
+
+*** References
+
+[[https://2023.splashcon.org/details/splash-2023-Onward-papers/6/Time-awareness-in-Object-exploration-Tools-Toward-In-Situ-Omniscient-Debugging][Time-awareness in Object exploration Tools: Toward In-Situ Omniscient Debugging]]
