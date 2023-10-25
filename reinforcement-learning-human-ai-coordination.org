@@ -1,0 +1,57 @@
+*** Summary: Reinforcement learning for human-AI coordination
+#+PROPERTY: filename reinforcement-learning-human-ai-coordination
+#+PROPERTY: url https://dl.acm.org/doi/pdf/10.1145/3586030
+
+*** Impact
+
+The development of AI systems that can cooperate effectively with humans has become an urgent concern in light of recent advances in AI capabilities. This paper tackles a core challenge in this endeavor – enabling coordination between humans and AI agents towards shared goals. 
+
+The authors present a reinforcement learning technique tailored for human-AI coordination. Their key insight is to train the human and AI agents concurrently in a shared environment, allowing both to learn cooperative policies. The approach models human behavior via a variational inference network, handles partial observability of human intent through a decentralized multi-agent framework, and adapts dynamically to individual human preferences.
+
+Experiments demonstrate increased coordination efficiency over baseline methods, with emerging human-aware AI behaviors like waiting for humans before acting. The learned policies exhibit sensitivity to human cues and adjustable autonomy. This represents an important step towards AI systems that can partner with humans in a natural, flexible manner.  
+
+However, there are notable limitations. The simplified environments evaluated fall short of capturing the complexity of real-world human-AI dynamics. It remains unclear how the approach would scale to more intricate tasks. There is also further work needed to guarantee robustness, safely manage AI behavior, and address potential risks of human over-reliance on automation. Still, the methodology provides a promising foundation for human-centered coordination.
+
+*** Code
+
+A sample implementation in Clojure:
+
+#+BEGIN_SRC clojure
+(defrecord Agent [name policy]) 
+
+(defn- observe [env agent]
+  (get-in env [:obs (keyword agent)]))
+
+(defn- act [env agent action]
+  (update env :state (partial transition (:state env) action agent)))
+  
+(defn train []
+  (let [env {:human (agent :human)
+            :ai (agent :ai)           
+            :state (init-state)
+            :reward-fn reward
+            :obs {:human partial-obs-h 
+                  :ai partial-obs-a}}] 
+    (loop [env env]
+      (let [human-action (human-policy (observe env :human))
+            ai-action (get-ai-action (:ai env) (observe env :ai))
+            env (-> env
+                    (act :human human-action)
+                    (act :ai ai-action)
+                    (update :reward conj (reward env human-action :human)))]
+        (when (not-done? (:state env))
+          (recur env))))))  
+#+END_SRC
+
+*** Questions
+
+- How well does the model generalize to novel humans and tasks outside those encountered during training?
+
+- Can the framework be extended to settings with multiple AI and human agents? How does complexity scale?
+
+- What mechanisms are needed to provide safety guarantees and prevent unwanted AI behaviors?
+
+*** References
+
+- [[https://dl.acm.org/doi/pdf/10.1145/3586030][Reinforcement learning for human-AI coordination]]
+- [[https://doi.org/10.1162/isal_a_00312][Coordinating human-AI teams]]
