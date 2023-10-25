@@ -2543,6 +2543,10 @@ The response structure should be (without the initial spaces):
  *** Summary: <article title>
  #+PROPERTY: filename <filename>
  #+PROPERTY: url <article url>
+ #+begin_ai :image :size 256x256
+ <image generation prompt for the article with a cyberpunk theme>
+ #+end_ai
+
  *** Impact 
  *** Code
  *** Questions
@@ -2551,6 +2555,7 @@ The response structure should be (without the initial spaces):
 Do this without apologizing for being an AI or mentioning the complexity of the request. 
 
 #+end_src
+
 
 #+RESULTS:
 *** Summary: AI in Education: The Importance of Teacher Reflection and Responsive Design in AI Systems
