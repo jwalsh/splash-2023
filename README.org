@@ -3180,6 +3180,8 @@ Please extract the bibliography from the paper into a markdown bulleted list. Pl
 
 #+end_example
 
+** Continuing WebAssembly with Effect Handlers
+
 * [#B] Tutorials 
 ** OWL 
 

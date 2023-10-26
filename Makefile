@@ -48,6 +48,12 @@ deps:
 	brew install $(BUILD_REQ_PKGS)
 	brew install borkdude/brew/clj-kondo
 	brew install git-lfs
+	brew install ffmpeg
+	brew install sox # brew install sox --with-lame --with-flac --with-libvorbis
+	# brew install python3
+	# pip3 install poetry
+	# poetry install
+	brew install portaudio
 
 # Validate the project's structure and correctness
 check:
@@ -83,6 +89,7 @@ psql:
 # Remove any build artifacts
 clean:
 	lein clean
+	rm -rf audio.wav output.mp4 output.wav room.mp4 splash-2023.mp4 transcripts-test/ transcripts/
 
 # Deploy the project to Clojars repository
 deploy:
@@ -154,3 +161,6 @@ test-transcribe-output:
 
 test-transcribe-api-key:
 	poetry run python transcribe.py --api-key $(ASSEMBLYAI_API_KEY)
+
+record-with-ffmpeg:
+	poetry run python record_with_ffmpeg.py
