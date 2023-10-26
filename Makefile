@@ -53,10 +53,6 @@ deps:
 check:
 	lein check
 
-# Execute the project's tests
-test:
-	lein test
-
 # Perform static code analysis
 static_analysis:
 	clj-kondo --lint $(SRC_DIR)
@@ -123,3 +119,35 @@ run-scripts:
 	clojure -M -m scripts.read-ics
 	clojure -M -m scripts.gh-repo-create
 	clojure -M -m scripts.clone-repos
+
+# Output file
+OUTFILE := splash-2023.mp4
+STREAM_KEY := 2q9r-2q9r-2q9r-2q9r
+
+record: # requires ffmpeg
+	ffmpeg -f avfoundation -ac 2 -i :0 -c:a aac -ab 96k $(OUTFILE)
+
+transcribe: # requires ffmpeg
+	poetry run python transcribe.py $(OUTFILE)
+
+whisper: # requires ffmpeg
+	poetry run python transcribe.py $(OUTFILE) -w -m medium
+
+
+test-transcribe:
+	poetry run python transcribe.py
+
+test-transcribe-model:
+	poetry run python transcribe.py --model small
+
+test-transcribe-duration:
+	poetry run python transcribe.py --duration 60
+
+test-transcribe-file:
+	poetry run python transcribe.py --input file transcript.json
+
+test-transcribe-phrase:
+	poetry run python transcribe.py --phrase "action phrase eureka" 
+
+test-transcribe-output:
+	poetry run python transcribe.py --output my-transcripts

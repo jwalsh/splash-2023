@@ -9,8 +9,10 @@ def transcribe():
     
     aai.settings.api_key = api_key # type: str
 
-    file_url = "https://github.com/AssemblyAI-Examples/audio-examples/raw/main/20230607_me_canadian_wildfires.mp3" # type: str
+    # file_url = "https://github.com/AssemblyAI-Examples/audio-examples/raw/main/20230607_me_canadian_wildfires.mp3" # type: str
 
+    file_url = "output.aac" # type: str
+    
     transcriber = aai.Transcriber() # type: aai.Transcriber
     
     transcript = transcriber.transcribe(file_url) # type: aai.Transcript
