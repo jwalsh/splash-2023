@@ -138,16 +138,19 @@ test-transcribe:
 	poetry run python transcribe.py
 
 test-transcribe-model:
-	poetry run python transcribe.py --model small
+	poetry run python transcribe.py --whisper --model small
 
 test-transcribe-duration:
-	poetry run python transcribe.py --duration 60
+	poetry run python transcribe.py --chunk-duration 60
 
 test-transcribe-file:
-	poetry run python transcribe.py --input file transcript.json
+	poetry run python transcribe.py --input file input/test.mp4
 
 test-transcribe-phrase:
-	poetry run python transcribe.py --phrase "action phrase eureka" 
+	poetry run python transcribe.py --phrase "test" 
 
 test-transcribe-output:
-	poetry run python transcribe.py --output my-transcripts
+	poetry run python transcribe.py --output-dir transcripts-test
+
+test-transcribe-api-key:
+	poetry run python transcribe.py --api-key $(ASSEMBLYAI_API_KEY)

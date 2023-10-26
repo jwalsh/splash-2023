@@ -7,6 +7,27 @@ import whisper
 from dataclasses import dataclass
 from typing import List, Dict
 import subprocess
+from pync import Notifier
+
+## Usage
+# test-transcribe:
+# 	poetry run python transcribe.py
+# test-transcribe-model:
+# 	poetry run python transcribe.py -w -m small
+# test-transcribe-duration:
+# 	poetry run python transcribe.py --d 60
+# test-transcribe-file:
+# 	poetry run python transcribe.py --input file transcript.json
+# test-transcribe-phrase:
+# 	poetry run python transcribe.py --phrase "bingo" 
+# test-transcribe-output:
+# 	poetry run python transcribe.py --output my-transcripts
+
+
+# TODO: Action to take when phrase is detected 
+# $ python app.py transcribe -m small  # core scenario 1
+# $ python app.py summarize transcript.json # core scenario 2 
+# $ python app.py listen # core scenario 3
 
 @dataclass
 class Segment:
@@ -38,30 +59,53 @@ def take_action(transcript):
     click.echo(f"Taking action for: {transcript}")
     click.echo('\a') # Terminal bell
     # e.g. send to a chatbot, or a home automation system
-
+    Notifier.notify(f'Action taken for "{transcript}"', title='Transcribe', sound='default')
 
 def check_transcript(transcript, phrase):
-  if phrase in transcript: 
-    click.echo('\a') # Terminal bell
-    take_action(transcript)
+    click.echo(f"Checking transcript for {phrase}")
+    if phrase in transcript: 
+        click.echo('\a') # Terminal bell
+        take_action(transcript)
 
-PHRASES = [
-    'eureka',
-    'bingo',
-    'jackpot',
-    'breakthrough',
-    'hallelujah',
-    'shazam',
-    'bippity-boppity-boo',
-    'hocus-pocus',
-    'sim-sala-bim',
-    'bamboozled',
+@dataclass
+class Phrase:
+  text: str
+  compliance: int
+
+# Distinctive - Easily distinguished from normal speech to avoid false positives.
+# Concise - Shorter phrases are easier for speech recognition.
+# Literal - Avoid figurative language that could be misinterpreted.
+# Upbeat - Positive phrases sound more natural as exclamations.
+# Clear intent - Obvious meaning and purpose.
+# Unambiguous - No room for misinterpretation.
+PHRASES_SCORED = [
+    Phrase("Begin action", 9),
+    Phrase("Let's get started", 8), 
+    Phrase("Commence plan", 7),
+    Phrase("Initiate sequence", 6),
+    Phrase("Launch operations", 5),
+    
+    Phrase("bingo", 7),
+    Phrase("eureka", 8),
+    Phrase("shiny", 6),
+    Phrase("hallelujah", 6),
+    Phrase("kablam", 5),
+    Phrase("kaboom", 4),
+    Phrase("squee", 4),
+    Phrase("totes", 2),
+    
+    Phrase("test", 1),
 ]
+
+
+PHRASES = [p.text for p in PHRASES_SCORED]
+
+ACTIONS_MIDDLEWARE = []
 
 @click.command()
 @click.argument('filename', default='output.mp4')
 @click.option('-d', '--chunk-duration', default=10, type=int, help='Recording duration in seconds')
-@click.option('-k', '--api-key', envvar='ASSEMBLYAI_API_KEY', required=True, help='AssemblyAI API key')
+@click.option('-k', '--api-key', envvar='ASSEMBLYAI_API_KEY', help='AssemblyAI API key')
 @click.option('-o', '--output-dir', default='transcripts', help='Output directory for generated files')
 @click.option('-w', '--whisper', is_flag=True, help='Use Whisper to transcribe rather than AssemblyAI')
 @click.option('-m', '--model', default='base', 
@@ -85,6 +129,9 @@ def transcribe(filename: str, chunk_duration: int, api_key: str, output_dir: str
         # transcript = p.stdout.decode('utf-8')
         # click.echo(transcript)
     else:
+        # Error if we're using AssemblyAI but don't have an API key
+        if not api_key:
+            raise click.UsageError("API key required for AssemblyAI")
         assemblyai.api_key = api_key
         transcriber = assemblyai.Transcriber()
         click.echo("Using AssemblyAI")
@@ -128,6 +175,7 @@ def transcribe(filename: str, chunk_duration: int, api_key: str, output_dir: str
         with open(transcript_file, 'w') as f:
             f.write(transcript.text)
 
+        check_transcript(transcript_text, phrase)
 
 if __name__ == '__main__':
     transcribe()
